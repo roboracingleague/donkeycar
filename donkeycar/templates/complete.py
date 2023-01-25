@@ -958,6 +958,34 @@ def add_odometry(V, cfg):
             enc = RobocarsHatInOdom(cfg)
             V.add(enc, outputs=['enc/speed'], threaded=True)
             print("ODOM from Robocars Hat")
+        elif cfg.ENCODER_TYPE == "LS7366R" and cfg.DONKEY_GYM == False:
+            from donkeycar.parts.encoder import LS7366ROdometry
+            enc = LS7366ROdometry(
+                mm_per_tick=cfg.MM_PER_TICK,
+                frequency=cfg.ODOM_FREQUENCY,
+                spi_cs_line=cfg.ODOM_SPI_CS_LINE,
+                spi_max_speed_hz=cfg.ODOM_SPI_FREQUENCY,
+                reverse=cfg.ODOM_REVERSE,
+                debug=cfg.ODOM_DEBUG)
+            V.add(enc, outputs=['enc/speed'], threaded=True)
+        elif cfg.ENCODER_TYPE == "FF_LS7366R" and cfg.DONKEY_GYM == False:
+            from donkeycar.parts.encoder import LS7366ROdometry
+            from donkeycar.parts.localization import FeedForwardLocalization
+            odo = LS7366ROdometry(
+                mm_per_tick=cfg.MM_PER_TICK,
+                frequency=cfg.ODOM_FREQUENCY,
+                spi_cs_line=cfg.ODOM_SPI_CS_LINE,
+                spi_max_speed_hz=cfg.ODOM_SPI_FREQUENCY,
+                reverse=cfg.ODOM_REVERSE,
+                debug=cfg.ODOM_DEBUG)
+            enc = FeedForwardLocalization(
+                frequency=cfg.ODOM_FREQUENCY,
+                vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
+                center_length=cfg.ODOM_CENTER_LENGTH,
+                max_velocity=cfg.ODOM_MAX_VELOCITY,
+                max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE,
+                odometry=odo)
+            V.add(enc, outputs=['pose/x', 'pose/y', 'pose/orientation', 'enc/speed'], threaded=True)
         else:
             print("No supported encoder found")
 
@@ -1198,6 +1226,11 @@ def add_drivetrain(V, cfg):
                 from donkeycar.parts.robocars_hat_ctrl import RobocarsHatLedCtrl
                 ctr = RobocarsHatLedCtrl(cfg)
                 V.add(ctr, inputs=['angle', 'throttle', 'user/mode'],threaded=False)
+
+    if cfg.HAVE_ODOM and cfg.ENCODER_TYPE == 'FF_LS7366R':
+        # FF_LS7366R needs to be aware of throttle and angle sent to actuators as soon as possible
+        from donkeycar.parts.localization import FeedForwardLocalizationCommands
+        V.add(FeedForwardLocalizationCommands(), inputs=['throttle','angle'], threaded=False)
 
 
 if __name__ == '__main__':
