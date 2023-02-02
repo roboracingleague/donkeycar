@@ -4,7 +4,7 @@ from numpy import cos, sin, tan, pi, floor
 from donkeycar.utils import Singleton, deg2rad, rad2deg, wrap_to_pi
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class FeedForwardLocalization:
@@ -53,10 +53,10 @@ class FeedForwardLocalization:
         if(logger.isEnabledFor(logging.DEBUG)):
             logger.debug('Steering: {:>6,.1f} deg, x: {:>9,.3f} m, y: {:>9,.3f} m, theta: {:>6,.1f} deg, velocity: {:>7,.3f} m/s'.format(rad2deg(steering), x, y, rad2deg(theta), velocity))
 
-        return x, y, theta, velocity
+        return current_time, x, y, theta, velocity
 
     def run_threaded(self):
-        return self.pose[1:] # remove time
+        return self.pose
 
     def update(self):
         # keep looping infinitely until the thread is stopped
