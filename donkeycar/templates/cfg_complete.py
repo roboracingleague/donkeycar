@@ -553,7 +553,7 @@ ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.2
 
 THROTTLE_BRAKE_REV_FILTER = False # ESC is configured in Fw/Rv mode (no braking)
 
-#ROBOCARSHAT_CH3_FEATURE and ROBOCARSHAT_CH4_FEATURE controls the feature attached to radio ch3 and ch4
+#ROBOCARSHAT_AUX1_FEATURE and ROBOCARSHAT_AUX2_FEATURE controls the feature attached to radio ch3 and ch4
 # 'none' means aux ch is not used 
 # 'record/pilot' means aux ch is used to control either data recording (lower position), either to enable pilot mode (upper position)
 # 'record' means aux ch is used to control data recording 
@@ -563,8 +563,10 @@ THROTTLE_BRAKE_REV_FILTER = False # ESC is configured in Fw/Rv mode (no braking)
 # 'output_steering_trim' means special mode where aux ch is used to increment/decrement a steering idle output for triming direction in user mode, resulting value must be reported in  ROBOCARSHAT_PWM_OUT_STEERING_IDLE
 # 'output_steering_exp' means special mode where aux ch is used to increment/decrement a fixed steering output to calibrate direction in user mode, resulting values must be reported in  ROBOCARSHAT_PWM_IN_STEERING_MIN and ROBOCARSHAT_PWM_IN_STEERING_MAX
 # 'lane_annotation' means special mode where aux ch is used to annotate on which lane the car is driving
-ROBOCARSHAT_CH3_FEATURE = 'record/pilot' 
-ROBOCARSHAT_CH4_FEATURE = 'none' 
+# 'autorecord' means special mode where aux ch controls autorecording feature 
+ROBOCARSHAT_AUX1_FEATURE = 'record/pilot' 
+ROBOCARSHAT_AUX2_FEATURE = 'none' 
+
 ROBOCARSHAT_THROTTLE_EXP_INC = 0.05 
 ROBOCARSHAT_STEERING_EXP_INC = 0.05 
 ROBOCARSHAT_OUTPUT_STEERING_TRIM_INC = 10 
