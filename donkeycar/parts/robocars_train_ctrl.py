@@ -39,7 +39,6 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.hatInCtrl = None
         if (self.cfg.USE_ROBOCARSHAT_AS_CONTROLLER):
             self.hatInCtrl = RobocarsHatInCtrl(self.cfg)
-        self.hatInCtrl = None
         self.fix_throttle = 0
         self.lane = 0
         self.on = True
