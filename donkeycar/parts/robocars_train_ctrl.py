@@ -6,6 +6,8 @@ import logging
 from donkeycar.utils import Singleton, bound
 import numpy as np
 from donkeycar.parts.actuator import RobocarsHat
+from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCtrl
+
 from donkeycar.utilities.logger import init_special_logger
 from transitions.extensions import HierarchicalMachine
 from collections import deque
@@ -32,7 +34,11 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.fix_throttle = self.cfg.ROBOCARS_TRAIN_CTRL_REGULAR_SPEED
 
     def __init__(self, cfg):
+
         self.cfg = cfg
+        self.hatInCtrl = None
+        if (self.cfg.USE_ROBOCARSHAT_AS_CONTROLLER):
+            self.hatInCtrl = RobocarsHatInCtrl(self.cfg)
         self.hatInCtrl = None
         self.fix_throttle = 0
         self.lane = 0
