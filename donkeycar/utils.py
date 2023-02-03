@@ -311,6 +311,9 @@ def map_range_float(x, X_min, X_max, Y_min, Y_max):
 
     return round(y,2)
 
+def bound(value, low, high):
+    return max(low, min(high, value))
+
 '''
 ANGLES
 '''
