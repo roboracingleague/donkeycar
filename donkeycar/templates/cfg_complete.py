@@ -572,6 +572,9 @@ ROBOCARSHAT_OUTPUT_STEERING_TRIM_INC = 10
 #ROBOCARSHAT_STEERING_FIX used for steering calibration, enforce a fixed steering value (betzeen -1.0 and 1.0). None means no enforcment
 ROBOCARSHAT_STEERING_FIX = None 
 
+#ROBOCARSHAT_AUTORECORD_ON_THROTTLE used to automatically records when trottle is positive
+ROBOCARSHAT_AUTORECORD_ON_THROTTLE = False 
+
 # ROBOCARSHAT_THROTTLE_DISCRET used to control throttle with discretes values (only in user mode, first value must be 0.0)
 # ROBOCARSHAT_THROTTLE_DISCRET has precedence over ROBOCARSHAT_THROTTLE_FLANGER
 #Example : ROBOCARSHAT_THROTTLE_DISCRET = [0.0, 0.1, 0.2], if not used, set to None 
