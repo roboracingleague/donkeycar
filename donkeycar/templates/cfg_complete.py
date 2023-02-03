@@ -432,10 +432,12 @@ PRUNE_EVAL_PERCENT_OF_DATASET = .05  # percent of dataset used to perform evalua
 # Augmentations and Transformations
 AUGMENTATIONS = []
 TRANSFORMATIONS = []
-# Settings for brightness and blur, use 'MULTIPLY' and/or 'BLUR' in
+# Settings for brightness and blur, use 'MULTIPLY' and/or 'BLUR' and/or 'TEMP' in
 # AUGMENTATIONS
 AUG_MULTIPLY_RANGE = (0.5, 3.0)
 AUG_BLUR_RANGE = (0.0, 3.0)
+AUG_TEMP_RANGE = (2700, 5000)
+
 # Region of interest cropping, requires 'CROP' in TRANSFORMATIONS to be set
 # If these crops values are too large, they will cause the stride values to
 # become negative and the model with not be valid.
@@ -563,6 +565,7 @@ THROTTLE_BRAKE_REV_FILTER = False # ESC is configured in Fw/Rv mode (no braking)
 # 'output_steering_trim' means special mode where aux ch is used to increment/decrement a steering idle output for triming direction in user mode, resulting value must be reported in  ROBOCARSHAT_PWM_OUT_STEERING_IDLE
 # 'output_steering_exp' means special mode where aux ch is used to increment/decrement a fixed steering output to calibrate direction in user mode, resulting values must be reported in  ROBOCARSHAT_PWM_IN_STEERING_MIN and ROBOCARSHAT_PWM_IN_STEERING_MAX
 # 'lane_annotation' means special mode where aux ch is used to annotate on which lane the car is driving
+# 'drive_on_lane' means special mode where channel value (as a 3 positions switch) is used to control on which lane the car must drive 
 # 'autorecord' means special mode where aux ch controls autorecording feature 
 ROBOCARSHAT_AUX1_FEATURE = 'record/pilot' 
 ROBOCARSHAT_AUX2_FEATURE = 'none' 
@@ -593,6 +596,7 @@ ROBOCARSHAT_USE_AUTOCALIBRATION = True
 # Model handling Lane position
 ROBOCARS_LANE_MODEL=False
 ROBOCARS_NUM_LANE_CAT=3
+ROBOCARS_DRIVE_ON_LANE=False
 DEFAULT_LANE_CENTER=1 # 0=LEFT, 1=CENTER, 2=RIGHT
 
 # Drive Train keeping car on center lane, need model supporting Lane prediction

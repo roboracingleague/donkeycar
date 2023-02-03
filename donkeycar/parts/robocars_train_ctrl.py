@@ -56,11 +56,6 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         angle=bound(angle+needed_steering_adjustment,-1,1)
         return angle
 
-    def keep_on_reauested_lane (self, angle, lane):
-        if lane != None:
-            angle = self.adjust_steering_to_lane (angle, lane, self.requested_lane)
-        return angle
-
     def processState(self, throttle, angle, mode, lane):
             
         if self.is_stopped(allow_substates=True):
@@ -69,7 +64,9 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
         if self.is_driving(allow_substates=True):
             throttle=self.fix_throttle
-            angle = self.keep_on_reauested_lane (angle, lane)
+            if self.cfg.ROBOCARS_DRIVE_ON_LANE:
+                self.requested_lane = self.hatInCtrl.getRequestedLane()
+                angle = self.adjust_steering_to_lane (angle, lane, self.requested_lane)
             if (mode == 'user') :
                 self.stop()
 

@@ -116,11 +116,14 @@ try:
                 interval = getattr(config, 'AUG_MULTIPLY_RANGE', (0.5, 1.5))
                 logger.info(f'Creating augmentation {aug_type} {interval}')
                 return iaa.Multiply(interval)
-
             elif aug_type == 'BLUR':
                 interval = getattr(config, 'AUG_BLUR_RANGE', (0.0, 3.0))
                 logger.info(f'Creating augmentation {aug_type} {interval}')
                 return iaa.GaussianBlur(sigma=interval)
+            elif aug_type == 'TEMP':
+                interval = getattr(config, 'AUG_TEMP_RANGE', (2700, 5000))
+                logger.info(f'Creating augmentation {aug_type} {interval}')
+                return iaa.ChangeColorTemperature (kelvin=interval)
 
         # Parts interface
         def run(self, img_arr):

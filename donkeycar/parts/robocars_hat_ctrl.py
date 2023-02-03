@@ -84,7 +84,9 @@ class RobocarsHatInCtrl:
     AUX_FEATURE_OUTPUT_STEERING_TRIM=6
     AUX_FEATURE_OUTPUT_STEERING_EXP=7
     AUX_FEATURE_LANE_ANNOTATION=8
-    AUX_FEATURE_AUTORECORD=9
+    AUX_FEATURE_DRIVE_ON_LANE=9
+    AUX_FEATURE_AUTORECORD=10
+
 
     AUX_VALUE_LANE_LEFT=0
     AUX_VALUE_LANE_CENTER=1
@@ -107,6 +109,8 @@ class RobocarsHatInCtrl:
             return self.AUX_FEATURE_OUTPUT_STEERING_EXP
         elif feature == 'lane_annotation':
             return self.AUX_FEATURE_LANE_ANNOTATION
+        elif feature == 'drive_on_lane':
+            return self.AUX_FEATURE_DRIVE_ON_LANE
         elif feature == 'autorecord':
             return self.AUX_FEATURE_AUTORECORD
         elif feature != 'none':
@@ -127,6 +131,7 @@ class RobocarsHatInCtrl:
         self.lastAux2 = -1.0
         self.autorecording=False
         self.lane = self.AUX_VALUE_LANE_CENTER
+        self.requested_lane = self.AUX_VALUE_LANE_CENTER
 
         self.mode = 'user'
         self.lastMode = self.mode
@@ -158,6 +163,9 @@ class RobocarsHatInCtrl:
         self.hatInMsg = RobocarsHatIn(self.cfg)
         self.hatActuator = RobocarsHat(self.cfg)
         self.on = True
+
+    def getRequestedLane(self):
+        return self.requested_lane
 
     def processRxCh(self):
         rxch_msg = self.hatInMsg.getRxCh()
@@ -307,6 +315,16 @@ class RobocarsHatInCtrl:
             else:
                 self.lane = self.AUX_VALUE_LANE_CENTER 
             mylogger.info(f"CtrlIn Lane set to {self.lane}")
+
+        command, has_changed = self.getAuxValuePerFeat(self.AUX_FEATURE_DRIVE_ON_LANE)
+        if command != None and has_changed:
+            if command < -0.5:
+                self.requested_lane = self.AUX_VALUE_LANE_LEFT
+            elif command > 0.5:
+                self.requested_lane = self.AUX_VALUE_LANE_RIGHT
+            else:
+                self.requested_lane = self.AUX_VALUE_LANE_CENTER
+            mylogger.info(f"CtrlIn Requested Lane set to {self.requested_lane}")
 
         # Process other features 
         if self.cfg.ROBOCARSHAT_STEERING_FIX != None:
