@@ -56,7 +56,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
     def update_lane_filter (self,lane):
         if (lane != None) :
-            self.last_lane.append(acc)
+            self.last_lane.append(lane)
 
     def checkMajorityElement(self, arr, N):
         mp = {}
