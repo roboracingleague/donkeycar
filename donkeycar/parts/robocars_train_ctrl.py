@@ -60,6 +60,8 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
     def checkMajorityElement(self, arr, N):
         mp = {}
+        if len(arr) < N:
+            return -1
         for i in range(0, N):
             if arr[i] in mp.keys():
                 mp[arr[i]] += 1
@@ -73,7 +75,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
     def adjust_steering_to_lane(self, angle, lane, requested_lane):
 
         lane_arr = list(self.last_lane)
-        majority = self.checkMajorityElement (lane_arr,3)
+        majority = self.checkMajorityElement (lane_arr,self.cfg.ROBOCARS_LANE_FILTER_SIZE)
         if (majority != -1):
             lane=majority
 
