@@ -314,6 +314,9 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         if cfg.TRAIN_LOCALIZER:
             outputs.append("pilot/loc")
 
+        if cfg.ROBOCARS_LANE_MODEL:
+            outputs.append("pilot/lane")
+
         V.add(kl, inputs=inputs,
               outputs=outputs,
               run_condition='run_pilot')

@@ -107,6 +107,9 @@ class RcFileHandler:
         FieldProperty('user/throttle', '', centered=False),
         FieldProperty('pilot/angle', '', centered=True),
         FieldProperty('pilot/throttle', '', centered=False),
+        FieldProperty('user/lane', '', centered=False),
+        FieldProperty('pilot/lane', '', centered=False),
+
     ]
 
     def __init__(self, file_path='~/.donkeyrc'):
@@ -136,7 +139,8 @@ class RcFileHandler:
     def create_data(self):
         data = dict()
         data['user_pilot_map'] = {'user/throttle': 'pilot/throttle',
-                                  'user/angle': 'pilot/angle'}
+                                  'user/angle': 'pilot/angle',
+                                  'user/lane':'pilot/lane'}
         return data
 
     def read_file(self):
@@ -729,6 +733,7 @@ class OverlayImage(FullImage):
     pilot = ObjectProperty()
     pilot_record = ObjectProperty()
     throttle_field = StringProperty('user/throttle')
+    lane_field = StringProperty('user/lane')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -774,6 +779,14 @@ class OverlayImage(FullImage):
             = get_norm_value(output[1], tub_screen().ids.config_manager.config,
                              rc_handler.field_properties[self.throttle_field],
                              normalised=False)
+        additional_outputs_index = 2
+        if (config.ROBOCARS_LANE_MODEL):
+            pilot_lane_field \
+                = rc_handler.data['user_pilot_map'][self.lane_field]
+            out_record.underlying[pilot_lane_field] \
+                = output[additional_outputs_index]
+            additional_outputs_index += 1
+            
         self.pilot_record = out_record
         return img_arr
 

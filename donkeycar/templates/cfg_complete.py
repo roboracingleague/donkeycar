@@ -562,6 +562,7 @@ THROTTLE_BRAKE_REV_FILTER = False # ESC is configured in Fw/Rv mode (no braking)
 # 'steering_exploration' means special mode where aux ch is used to increment/decrement a fixed steering value in user mode 
 # 'output_steering_trim' means special mode where aux ch is used to increment/decrement a steering idle output for triming direction in user mode, resulting value must be reported in  ROBOCARSHAT_PWM_OUT_STEERING_IDLE
 # 'output_steering_exp' means special mode where aux ch is used to increment/decrement a fixed steering output to calibrate direction in user mode, resulting values must be reported in  ROBOCARSHAT_PWM_IN_STEERING_MIN and ROBOCARSHAT_PWM_IN_STEERING_MAX
+# 'lane_annotation' means special mode where aux ch is used to annotate on which lane the car is driving
 ROBOCARSHAT_CH3_FEATURE = 'record/pilot' 
 ROBOCARSHAT_CH4_FEATURE = 'none' 
 ROBOCARSHAT_THROTTLE_EXP_INC = 0.05 
@@ -583,6 +584,16 @@ ROBOCARSHAT_THROTTLE_FLANGER = [-0.2,0.2]
 
 # ROBOCARSHAT_USE_AUTOCALIBRATION used to rely on idle coming from autocalibation done by hat
 ROBOCARSHAT_USE_AUTOCALIBRATION = True
+
+# Model handling Lane position
+ROBOCARS_LANE_MODEL=False
+ROBOCARS_NUM_LANE_CAT=3
+DEFAULT_LANE_CENTER=1 # 0=LEFT, 1=CENTER, 2=RIGHT
+
+# Drive Train keeping car on center lane, need model supporting Lane prediction
+USE_ROBOCARSHAT_POWERTRAIN_CONTROLLER = True
+ROBOCARS_TRAIN_CTRL_LANE_STEERING_ADJUST_STEPS=[0,0.2,0.4]
+ROBOCARS_TRAIN_CTRL_REGULAR_SPEED = 0.2 # For pilot_angle autonomous mode, throttle for straight line parts 
 
 
 #LOGGING

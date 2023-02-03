@@ -394,6 +394,10 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         if cfg.TRAIN_LOCALIZER:
             outputs.append("pilot/loc")
 
+        if cfg.ROBOCARS_LANE_MODEL:
+            outputs.append("pilot/lane")
+
+
         #
         # Add image transformations like crop or trapezoidal mask
         #
@@ -582,6 +586,13 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types += ['float', 'float', 'float']
         V.add(mon, inputs=[], outputs=perfmon_outputs, threaded=True)
 
+    if (cfg.ROBOCARS_LANE_MODEL):
+        inputs += ['user/lane']
+        types += ['int']
+        inputs += ['pilot/lane']
+        types += ['int']
+
+
     # do we want to store new records into own dir or append to existing
     tub_path = TubHandler(path=cfg.DATA_PATH).create_tub_path() if \
         cfg.AUTO_CREATE_NEW_TUB else cfg.DATA_PATH
@@ -694,6 +705,8 @@ def add_user_controller(V, cfg, use_joystick, input_image='cam/image_array'):
     if cfg.USE_ROBOCARSHAT_AS_CONTROLLER:
         from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCtrl
         ctr = RobocarsHatInCtrl(cfg)
+        if (cfg.ROBOCARS_LANE_MODEL):
+            outputs += ['user/lane']
         V.add(ctr, outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],threaded=False)
 
     return ctr
@@ -882,6 +895,11 @@ def add_imu(V, cfg):
 # Drive train setup
 #
 def add_drivetrain(V, cfg):
+
+    if cfg.USE_ROBOCARSHAT_POWERTRAIN_CONTROLLER :
+        from donkeycar.parts.robocars_train_ctrl import RobocarsHatDriveCtrl
+        drive_controller = RobocarsHatDriveCtrl(cfg)
+        V.add(drive_controller, inputs=['throttle','angle','user/mode','pilot/lane'], outputs=['throttle','angle'], threaded=False)
 
     if (not cfg.DONKEY_GYM) and cfg.DRIVE_TRAIN_TYPE != "MOCK":
         from donkeycar.parts import actuator, pins
