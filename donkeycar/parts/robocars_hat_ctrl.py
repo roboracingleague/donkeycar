@@ -74,7 +74,7 @@ class RobocarsHatIn(metaclass=Singleton):
         self.getCommand()
         return self.last_calibration_msg
 
-class RobocarsHatInCtrl:
+class RobocarsHatInCtrl(metaclass=Singleton):
     AUX_FEATURE_NONE=0
     AUX_FEATURE_RECORDandPILOT=1
     AUX_FEATURE_RECORD=2
@@ -385,7 +385,7 @@ class RobocarsHatInCtrl:
         print('stopping Robocars Hat Controller')
         time.sleep(.5)
 
-class RobocarsHatInOdom:
+class RobocarsHatInOdom(metaclass=Singleton):
 
     def __init__(self, cfg):
 
