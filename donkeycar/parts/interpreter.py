@@ -383,7 +383,7 @@ class RKNN(Interpreter):
         os_machine = system + '-' + machine
         if os_machine == 'Linux-aarch64':
             try:
-                with open(DEVICE_COMPATIBLE_NODE) as f:
+                with open(self.DEVICE_COMPATIBLE_NODE) as f:
                     device_compatible_str = f.read()
                     if 'rk3588' in device_compatible_str:
                         host = 'RK3588'
