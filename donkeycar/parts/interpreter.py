@@ -421,7 +421,7 @@ class RKNN(Interpreter):
     def predict(self, img_arr, other_arr) \
             -> Sequence[Union[float, np.ndarray]]:
         inputs=[]
-        inputs.append(img_arr)
+        inputs.append(img_arr.astype(np.uint8))
         return rknn_lite.inference(inputs=inputs)
 
     def predict_from_dict(self, input_dict):
