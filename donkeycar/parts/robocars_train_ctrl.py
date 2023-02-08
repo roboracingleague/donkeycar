@@ -84,7 +84,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
         if self.is_driving(allow_substates=True):
             throttle=self.fix_throttle
-            self.update_angle_history (angle)
+            self.update_angles_history (angle)
             if self.cfg.ROBOCARS_DRIVE_ON_LANE:
                 if (is_driving_straight()):
                     self.requested_lane = self.hatInCtrl.getRequestedLane()
