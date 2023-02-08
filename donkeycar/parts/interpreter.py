@@ -420,9 +420,8 @@ class RKNN(Interpreter):
 
     def predict(self, img_arr, other_arr) \
             -> Sequence[Union[float, np.ndarray]]:
-        inputs=[]
-        inputs.append(img_arr.astype(np.uint8))
-        return self.rknn_lite.inference(inputs=inputs)
+        inputs = np.asarray(img_arr,, dtype=np.uint8)
+        return self.rknn_lite.inference(inputs=[inputs])
 
     def predict_from_dict(self, input_dict):
         print("RKNN predict_from_dict not implemented")
