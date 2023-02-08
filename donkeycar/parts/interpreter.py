@@ -403,7 +403,7 @@ class RKNN(Interpreter):
         assert os.path.splitext(model_path)[1] == '.rknn', \
             'RKNNPilot should load only .rknn files'
         logger.info(f'Loading model {model_path}')
-        ret = self.rknn_lite.load_rknn(model=model_path)
+        ret = self.rknn_lite.load_rknn(model_path)
         if ret != 0:
             print('Load model failed!')
         else:
