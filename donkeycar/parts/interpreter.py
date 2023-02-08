@@ -10,6 +10,7 @@ from tensorflow import keras
 from tensorflow.python.framework.convert_to_constants import \
     convert_variables_to_constants_v2 as convert_var_to_const
 from tensorflow.python.saved_model import tag_constants, signature_constants
+from rknn.api import RKNN
 
 logger = logging.getLogger(__name__)
 
@@ -358,3 +359,49 @@ class TensorRT(Interpreter):
         value = tf.compat.v1.get_variable("features", dtype=tf.float32,
                                           initializer=tf.constant(arr))
         return tf.convert_to_tensor(value=value)
+
+class RKNN(Interpreter):
+    """
+    This class wraps around the TensorFlow Lite interpreter.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.interpreter = None
+        self.input_shapes = None
+        self.input_details = None
+        self.output_details = None
+
+        self.rknn = RKNN(verbose=True)
+        self.rknn.config(mean_values=[128, 128, 128], std_values=[128, 128, 128])
+    
+    def load(self, model_path):
+        assert os.path.splitext(model_path)[1] == '.rknn', \
+            'RKNNPilot should load only .rknn files'
+        logger.info(f'Loading model {model_path}')
+        ret = self.rknn.load_rknn(model=model_path)
+        if ret != 0:
+            print('Load model failed!')
+        else:
+            ret = self.rknn.init_runtime()
+            if ret != 0:
+                print('Init runtime environment failed!')
+
+
+    def compile(self, **kwargs):
+        pass
+
+    def predict(self, img_arr, other_arr) \
+            -> Sequence[Union[float, np.ndarray]]:
+        input_arrays = (img_arr, other_arr)
+        inputs=[]
+        for arr, shape, detail \
+                in zip(input_arrays, self.input_shapes, self.input_details):
+            in_data = arr.reshape(shape).astype(np.float32)
+            self.interpreter.set_tensor(detail['index'], in_data)
+            inputs.append(in_data)
+        return rknn.inference(inputs=inputs)
+
+    def predict_from_dict(self, input_dict):
+        print("RKNN predict_from_dict not implemented")
+        pass

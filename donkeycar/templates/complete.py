@@ -4,7 +4,7 @@ Scripts to drive a donkey 2 car
 
 Usage:
     manage.py (drive) [--model=<model>] [--js] [--type=(linear|categorical)] [--camera=(single|stereo)] [--meta=<key:value> ...] [--myconfig=<filename>]
-    manage.py (train) [--tubs=tubs] (--model=<model>) [--type=(linear|inferred|tensorrt_linear|tflite_linear)]
+    manage.py (train) [--tubs=tubs] (--model=<model>) [--type=(linear|inferred|tensorrt_linear|tflite_linear|rknn_linear)]
 
 Options:
     -h --help               Show this screen.
@@ -312,7 +312,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         model_reload_cb = None
 
         if '.h5' in model_path or '.trt' in model_path or '.tflite' in \
-                model_path or '.savedmodel' in model_path or '.pth':
+                model_path or '.savedmodel' in model_path or '.rknn' in model_path or '.pth':
             # load the whole model with weigths, etc
             load_model(kl, model_path)
 

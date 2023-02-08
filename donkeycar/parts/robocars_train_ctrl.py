@@ -13,7 +13,7 @@ from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCtrl
 from donkeycar.utilities.logger import init_special_logger
 from transitions.extensions import HierarchicalMachine
 from collections import deque
-
+import numpy as np
 
 drivetrainlogger = init_special_logger ("DrivetrainCtrl")
 drivetrainlogger.setLevel(logging.INFO)
@@ -46,7 +46,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.on = True
         self.requested_lane = self.cfg.DEFAULT_LANE_CENTER
 
-        self.last_lane=deque(maxlen=self.cfg.ROBOCARS_LANE_FILTER_SIZE)
+        self.last_angles=deque(maxlen=self.cfg.ROBOCARS_ANGLES_HISTORY_SIZE)
 
         self.machine = HierarchicalMachine(self, states=self.states, initial='stopped', ignore_invalid_triggers=True)
         self.machine.add_transition (trigger='drive', source='stopped', dest='driving', before='set_regularspeed')
@@ -54,36 +54,23 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
         drivetrainlogger.info('starting RobocarsHatLaneCtrl Hat Controller')
 
-    def update_lane_filter (self,lane):
-        if (lane != None) :
-            self.last_lane.append(lane)
+    def update_angles_history (self,angle):
+        if (angle != None) :
+            self.last_angles.append(angle)
 
-    def checkMajorityElement(self, arr, N):
-        mp = {}
-        if len(arr) < N:
-            return -1
-        for i in range(0, N):
-            if arr[i] in mp.keys():
-                mp[arr[i]] += 1
-            else:
-                mp[arr[i]] = 1
-        for key in mp:
-            if mp[key] > (N / 2):
-                return key
-        return -1
+    def is_driving_straight(self):
+        angles_arr = np.array(list(self.last_angles))
+        angles_avg = np.mean(angles_arr)
+        if angles_avg <= self.cfg.ROBOCARS_ANGLES_AVG_TRESH_STRAIGHT:
+            return True
+        return False
 
     def adjust_steering_to_lane(self, angle, lane, requested_lane):
-
-        lane_arr = list(self.last_lane)
-        majority = self.checkMajorityElement (lane_arr,self.cfg.ROBOCARS_LANE_FILTER_SIZE)
-        if (majority != -1):
-            lane=majority
-
         drivetrainlogger.debug(f"Change lane from {self.LANE_LABEL[lane]} to {self.LANE_LABEL[requested_lane]}")    
         needed_adjustment = int(lane-requested_lane)
         drivetrainlogger.debug(f"LaneCtrl     -> adjust needed {needed_adjustment}")      
         needed_steering_adjustment = self.cfg.ROBOCARS_TRAIN_CTRL_LANE_STEERING_ADJUST_STEPS[abs(needed_adjustment)]
-        if (needed_adjustment)<0:
+        if (needed_adjustment)>0:
             needed_steering_adjustment = - needed_steering_adjustment
         drivetrainlogger.debug(f"LaneCtrl     -> adjust steering by {needed_steering_adjustment}")      
         angle=bound(angle+needed_steering_adjustment,-1,1)
@@ -97,10 +84,14 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
 
         if self.is_driving(allow_substates=True):
             throttle=self.fix_throttle
-            self.update_lane_filter (lane)
+            self.update_angle_history (angle)
             if self.cfg.ROBOCARS_DRIVE_ON_LANE:
-                self.requested_lane = self.hatInCtrl.getRequestedLane()
-                angle = self.adjust_steering_to_lane (angle, lane, self.requested_lane)
+                if (is_driving_straight()):
+                    self.requested_lane = self.hatInCtrl.getRequestedLane()
+                else:
+                    self.requested_lane = self.cfg.DEFAULT_LANE_CENTER
+                new_angle = self.adjust_steering_to_lane (angle, lane, self.requested_lane)
+                angle=new_angle    
             if (mode == 'user') :
                 self.stop()
 
