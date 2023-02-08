@@ -372,7 +372,7 @@ class RKNN(Interpreter):
     def __init__(self):
         super().__init__()
         self.input_shapes = (120, 160, 3)
-        self.host_name = get_host()
+        self.host_name = self.get_host()
         self.rknn_lite = RKNNLite()
 
 
