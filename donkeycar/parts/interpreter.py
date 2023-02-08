@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 import logging
+import platform
 import numpy as np
 from typing import Union, Sequence, List
 
@@ -10,7 +11,7 @@ from tensorflow import keras
 from tensorflow.python.framework.convert_to_constants import \
     convert_variables_to_constants_v2 as convert_var_to_const
 from tensorflow.python.saved_model import tag_constants, signature_constants
-from rknn.api import RKNN
+from rknnlite.api import RKNNLite
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +366,11 @@ class RKNN(Interpreter):
     This class wraps around the TensorFlow Lite interpreter.
     """
 
+    INPUT_SIZE = 224
+
+    # decice tree for rk356x/rk3588
+    DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
+
     def __init__(self):
         super().__init__()
         self.interpreter = None
@@ -372,20 +378,45 @@ class RKNN(Interpreter):
         self.input_details = None
         self.output_details = None
 
-        self.rknn = RKNN(verbose=True)
-        self.rknn.config(mean_values=[128, 128, 128], std_values=[128, 128, 128])
-    
+        self.host_name = get_host()
+        self.rknn_lite = RKNNLite()
+
+
+    def get_host(self):
+        # get platform and device type
+        system = platform.system()
+        machine = platform.machine()
+        os_machine = system + '-' + machine
+        if os_machine == 'Linux-aarch64':
+            try:
+                with open(DEVICE_COMPATIBLE_NODE) as f:
+                    device_compatible_str = f.read()
+                    if 'rk3588' in device_compatible_str:
+                        host = 'RK3588'
+                    else:
+                        host = 'RK356x'
+            except IOError:
+                print('Read device node {} failed.'.format(DEVICE_COMPATIBLE_NODE))
+                exit(-1)
+        else:
+            host = os_machine
+        return host
+
+
     def load(self, model_path):
         assert os.path.splitext(model_path)[1] == '.rknn', \
             'RKNNPilot should load only .rknn files'
         logger.info(f'Loading model {model_path}')
-        ret = self.rknn.load_rknn(model=model_path)
+        ret = self.rknn_lite.load_rknn(model=model_path)
         if ret != 0:
             print('Load model failed!')
         else:
-            ret = self.rknn.init_runtime()
+            if self.host_name == 'RK3588':
+                ret = self.rknn_lite.init_runtime(core_mask=RKNNLite.NPU_CORE_0)
+            else:
+                ret = self.rknn_lite.init_runtime()
             if ret != 0:
-                print('Init runtime environment failed!')
+                print('Init runtime environment failed')
 
 
     def compile(self, **kwargs):
@@ -400,7 +431,7 @@ class RKNN(Interpreter):
             in_data = arr.reshape(shape).astype(np.float32)
             self.interpreter.set_tensor(detail['index'], in_data)
             inputs.append(in_data)
-        return rknn.inference(inputs=inputs)
+        return rknn_lite.inference(inputs=inputs)
 
     def predict_from_dict(self, input_dict):
         print("RKNN predict_from_dict not implemented")
