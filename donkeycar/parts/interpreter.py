@@ -366,18 +366,12 @@ class RKNN(Interpreter):
     This class wraps around the TensorFlow Lite interpreter.
     """
 
-    INPUT_SIZE = 224
-
     # decice tree for rk356x/rk3588
     DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
     def __init__(self):
         super().__init__()
-        self.interpreter = None
-        self.input_shapes = None
-        self.input_details = None
-        self.output_details = None
-
+        self.input_shapes = (120, 160, 3)
         self.host_name = get_host()
         self.rknn_lite = RKNNLite()
 
@@ -402,6 +396,8 @@ class RKNN(Interpreter):
             host = os_machine
         return host
 
+    def get_input_shapes(self):
+        return self.input_shapes
 
     def load(self, model_path):
         assert os.path.splitext(model_path)[1] == '.rknn', \
@@ -424,13 +420,8 @@ class RKNN(Interpreter):
 
     def predict(self, img_arr, other_arr) \
             -> Sequence[Union[float, np.ndarray]]:
-        input_arrays = (img_arr, other_arr)
         inputs=[]
-        for arr, shape, detail \
-                in zip(input_arrays, self.input_shapes, self.input_details):
-            in_data = arr.reshape(shape).astype(np.float32)
-            self.interpreter.set_tensor(detail['index'], in_data)
-            inputs.append(in_data)
+        inputs.append(img_arr)
         return rknn_lite.inference(inputs=inputs)
 
     def predict_from_dict(self, input_dict):
