@@ -61,7 +61,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
     def is_driving_straight(self):
         angles_arr = np.array(list(self.last_angles))
         angles_avg = np.mean(angles_arr)
-        if angles_avg <= self.cfg.ROBOCARS_ANGLES_AVG_TRESH_STRAIGHT:
+        if abs(angles_avg) <= self.cfg.ROBOCARS_ANGLES_AVG_TRESH_STRAIGHT:
             return True
         return False
 
