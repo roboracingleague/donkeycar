@@ -70,7 +70,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         needed_adjustment = int(lane-requested_lane)
         drivetrainlogger.debug(f"LaneCtrl     -> adjust needed {needed_adjustment}")      
         needed_steering_adjustment = self.cfg.ROBOCARS_TRAIN_CTRL_LANE_STEERING_ADJUST_STEPS[abs(needed_adjustment)]
-        if (needed_adjustment)>0:
+        if (needed_adjustment)<0:
             needed_steering_adjustment = - needed_steering_adjustment
         drivetrainlogger.debug(f"LaneCtrl     -> adjust steering by {needed_steering_adjustment}")      
         angle=bound(angle+needed_steering_adjustment,-1,1)
