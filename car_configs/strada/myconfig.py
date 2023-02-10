@@ -9,24 +9,31 @@
 # """
 
 
-# #VEHICLE
+# # VEHICLE
 DRIVE_LOOP_HZ = 35      # the vehicle loop will pause if faster than this speed.
 # MAX_LOOPS = None        # the vehicle loop can abort after this many iterations, when given a positive integer.
 
-# #CAMERA
-CAMERA_TYPE = "OAK"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST) OAK_SEG
+# # CAMERA
+CAMERA_TYPE = "OAK"   # (OAK|PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
 CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 CAMERA_ISP_SCALE = (1,8)
-IMAGE_W = 240 # 640 320 160
-IMAGE_H = 135 # 400 200 120
+IMAGE_W = 240 # 640
+IMAGE_H = 135 # 400
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
-# CAMERA_FRAMERATE = DRIVE_LOOP_HZ
+
+# Camera params for segmentation
+# CAMERA_FRAMERATE = 4
+# CAMERA_ISP_SCALE = (9, 19)
+# IMAGE_W = 896
+# IMAGE_H = 512
+# IMAGE_DEPTH = 3
+# OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
+
 # CAMERA_VFLIP = False
 # CAMERA_HFLIP = False
 # CAMERA_INDEX = 0  # used for 'WEBCAM' and 'CVCAM' when there is more than one camera connected 
 # # For CSIC camera - If the camera is mounted in a rotated position, changing the below parameter will correct the output frame orientation
 # CSIC_CAM_GSTREAMER_FLIP_PARM = 0 # (0 => none , 4 => Flip horizontally, 6 => Flip vertically)
-OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
 
 # OAK-D-LITE: "1080p" for rgb
 # OAK-D-WIDE: "800p" for rgb
@@ -47,12 +54,14 @@ RGB_RESOLUTION = "1080p"
 
 OAK_ENABLE_DEPTH_MAP = False # enables depth map output
 OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
 
 # OBSTACLE_AVOIDANCE SETTINGS
 OBSTACLE_AVOIDANCE_ENABLED = False
 OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 CLOSE_AVOIDANCE_DIST_MM = 1000
 
+PATH_FOLLOWER_ENABLED = True
 
 # # For IMAGE_LIST camera
 # # PATH_MASK = "~/mycar/data/tub_1_20-03-12/*.jpg"
@@ -104,12 +113,12 @@ ROBOCARSHAT_SERIAL_PORT = '/dev/serial0'
 # ROBOCARSHAT_PWM_IN_AUX_IDLE   =   1500
 # ROBOCARSHAT_PWM_IN_AUX_MAX    =   2000
 
-ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE = 0.09 # For pilot_angle autonomous mode (aka constant throttle)
+ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE = 0.08 # For pilot_angle autonomous mode (aka constant throttle)
 ROBOCARSHAT_LOCAL_ANGLE_BRAKE_THROTTLE = -0.2
 
 #ODOM Sensor max value (max matching lowest speed)
 ROBOCARSHAT_ODOM_IN_MAX = 20000
-ROBOCARSHAT_PILOT_MODE = 'local_angle' # Which autonomous mode is triggered by Hat : local_angle or local
+ROBOCARSHAT_PILOT_MODE = 'local' # Which autonomous mode is triggered by Hat : local_angle or local
 ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.2
 
 THROTTLE_BRAKE_REV_FILTER = True # False: ESC is configured in Fw/Rv mode (no braking)
@@ -148,14 +157,22 @@ ROBOCARSHAT_USE_AUTOCALIBRATION = True
 ROBOCARSHAT_EMERGENCY_STOP=False
 
 
-# #ODOMETRY
-# HAVE_ODOM = False                   # Do you have an odometer/encoder 
-# ENCODER_TYPE = 'GPIO'            # What kind of encoder? GPIO|Arduino|Astar 
-# MM_PER_TICK = 12.7625               # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
-# ODOM_PIN = 13                        # if using GPIO, which GPIO board mode pin to use as input
-# ODOM_DEBUG = False                  # Write out values on vel and distance as it runs
+# # ODOMETRY
+HAVE_ODOM = True                     # Do you have an odometer/encoder 
+ENCODER_TYPE = 'FF_LS7366R'          # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT|LS7366R|FF_LS7366R
+MM_PER_TICK = 0.0278                 # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
+# ODOM_PIN = 13                      # if using GPIO, which GPIO board mode pin to use as input
+ODOM_DEBUG = False                   # Write out values on vel and distance as it runs
+ODOM_FREQUENCY = DRIVE_LOOP_HZ * 3   # if odometer needs it, at what frequency should it poll measurements
+ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer 
+ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
+ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
+ODOM_VEHICLE_LENGTH = 0.273          # vehicle length from rear axle center to front axle center in meters
+ODOM_CENTER_LENGTH = 0.16            # vehicle length from rear axle center to gravity center (pose frame origin) in meters
+ODOM_MAX_VELOCITY = 1.5              # max vehicle linear velocity at full throttle in m/s, used by feed forward localization (FF_LS7366R)
+ODOM_MAX_STEERING_ANGLE = 22.89      # max steering angle in degree, used by feed forward localization (FF_LS7366R)
 
-# # #LIDAR
+# # LIDAR
 # USE_LIDAR = False
 # LIDAR_TYPE = 'RP' #(RP|YD)
 # LIDAR_LOWER_LIMIT = 90 # angles that will be recorded. Use this to block out obstructed areas on your car, or looking backwards. Note that for the RP A1M8 Lidar, "0" is in the direction of the motor
@@ -179,7 +196,7 @@ DEFAULT_MODEL_TYPE = 'tflite_linear'
 # VERBOSE_TRAIN = True            #would you like to see a progress bar with text during training?
 # USE_EARLY_STOP = True           #would you like to stop the training if we see it's not improving fit?
 # EARLY_STOP_PATIENCE = 5         #how many epochs to wait before no improvement
-# MIN_DELTA = .0005               #early stop will want this much loss change before calling it improved.
+MIN_DELTA = .0001               #early stop will want this much loss change before calling it improved.
 # PRINT_MODEL_SUMMARY = True      #print layers and weights to stdout
 # OPTIMIZER = None                #adam, sgd, rmsprop, etc.. None accepts default
 # LEARNING_RATE = 0.001           #only used when OPTIMIZER specified
@@ -276,7 +293,7 @@ HAVE_CONSOLE_LOGGING = False
 # HAVE_PERFMON = False
 
 # #RECORD OPTIONS
-RECORD_DURING_AI = False        #normally we do not record during ai mode. Set this to true to get image and steering records for your Ai. Be careful not to use them to train.
+RECORD_DURING_AI = True        #normally we do not record during ai mode. Set this to true to get image and steering records for your Ai. Be careful not to use them to train.
 AUTO_CREATE_NEW_TUB = True     #create a new tub (tub_YY_MM_DD) directory when recording or append records to data directory directly
 
 # #BEHAVIORS

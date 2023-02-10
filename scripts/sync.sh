@@ -3,7 +3,7 @@
 set -e
 
 USER=donkey
-SRV=pc91.local
+SRV=strada.local
 
 # include trailing /
 REMOTE_PATH="/home/$USER/donkeycar/"

@@ -222,6 +222,7 @@ class LS7366ROdometry():
         seconds = current_time - self.last_time
         distance = (ticks - self.last_ticks) * self.m_per_tick
         self.velocity = distance / seconds
+        total_distance = ticks * self.m_per_tick
 
         if(self.velocity > self.top_speed):
             self.top_speed = self.velocity
@@ -232,10 +233,9 @@ class LS7366ROdometry():
 
         # console output for debugging and calibration
         if(logger.isEnabledFor(logging.DEBUG)):
-            logger.debug('Total distance: {:>9,.3f} m'.format(ticks * self.m_per_tick))
-            logger.debug('Velocity: {:>7,.3f} m/s'.format(self.velocity))
+            logger.debug('Total distance: {:>9,.3f} m, velocity: {:>7,.3f} m/s'.format(total_distance, self.velocity))
 
-        return self.velocity
+        return total_distance, self.velocity
 
     def update(self):
         # keep looping infinitely until the thread is stopped
@@ -246,13 +246,12 @@ class LS7366ROdometry():
                 time.sleep(delay)
 
     def run_threaded(self):
-        return self.velocity
+        return self.last_ticks * self.m_per_tick, self.velocity
 
     def shutdown(self):
         self.on = False
         logger.info('Stopping LS7366R Odometry')
-        logger.info('Total distance: {:>8,.3f} m'.format(self.last_ticks * self.m_per_tick))
-        logger.info('Max velocity: {:>6,.3f} m/s'.format(self.top_speed))
+        logger.info('Total distance: {:>8,.3f} m, max velocity: {:>6,.3f} m/s'.format(self.last_ticks * self.m_per_tick, self.top_speed))
         if self.counter != None:
             self.counter.close()
             self.counter = None
