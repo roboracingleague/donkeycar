@@ -420,7 +420,9 @@ class RKNN(Interpreter):
 
     def predict(self, img_arr, other_arr) \
             -> Sequence[Union[float, np.ndarray]]:
-        inputs = img_arr.astype('uint8')
+        img_arr_denorm = 255 * img_arr # Now scale by 255
+        img = img_arr_denorm.astype(np.uint8)
+        inputs = img
         outputs_rknn = self.rknn_lite.inference(inputs=[inputs])
         outputs = [out.squeeze(axis=0) for out in outputs_rknn]
         reordered_outputs = [outputs[1],outputs[3],outputs[2],outputs[0]]
