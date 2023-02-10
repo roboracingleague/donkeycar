@@ -364,12 +364,12 @@ class RKNN(Interpreter):
     """
     This class wraps around the TensorFlow Lite interpreter.
     """
-    from rknnlite.api import RKNNLite
 
     # decice tree for rk356x/rk3588
     DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
 
     def __init__(self):
+        from rknnlite.api import RKNNLite
         super().__init__()
         self.input_shapes = (120, 160, 3)
         self.host_name = self.get_host()
