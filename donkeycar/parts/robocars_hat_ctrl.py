@@ -191,9 +191,9 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                         self.inSteering = map_range(int(params[2]),
                             self.cfg.ROBOCARSHAT_PWM_IN_STEERING_MIN, self.cfg.ROBOCARSHAT_PWM_IN_STEERING_MAX,
                             -1, 1)
-                    if cfg.ROBOCARSHAT_PWM_IN_STEERING_INVERT:
+                    if self.cfg.ROBOCARSHAT_PWM_IN_STEERING_INVERT:
                         self.inSteering = -self.inSteering
-                        
+
                 if params[3].isnumeric():
                     self.inAux1 = map_range(int(params[3]),
                         self.cfg.ROBOCARSHAT_PWM_IN_AUX_MIN, self.cfg.ROBOCARSHAT_PWM_IN_AUX_MAX,
