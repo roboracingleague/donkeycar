@@ -11,7 +11,6 @@ from tensorflow import keras
 from tensorflow.python.framework.convert_to_constants import \
     convert_variables_to_constants_v2 as convert_var_to_const
 from tensorflow.python.saved_model import tag_constants, signature_constants
-from rknnlite.api import RKNNLite
 
 logger = logging.getLogger(__name__)
 
@@ -365,6 +364,7 @@ class RKNN(Interpreter):
     """
     This class wraps around the TensorFlow Lite interpreter.
     """
+    from rknnlite.api import RKNNLite
 
     # decice tree for rk356x/rk3588
     DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
