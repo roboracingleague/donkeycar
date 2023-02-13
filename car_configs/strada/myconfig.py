@@ -61,7 +61,7 @@ OBSTACLE_AVOIDANCE_ENABLED = False
 OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 CLOSE_AVOIDANCE_DIST_MM = 1000
 
-PATH_FOLLOWER_ENABLED = True
+PATH_PILOT_ENABLED = True
 
 # # For IMAGE_LIST camera
 # # PATH_MASK = "~/mycar/data/tub_1_20-03-12/*.jpg"
@@ -114,12 +114,11 @@ ROBOCARSHAT_SERIAL_PORT = '/dev/serial0'
 # ROBOCARSHAT_PWM_IN_AUX_MAX    =   2000
 
 ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE = 0.08 # For pilot_angle autonomous mode (aka constant throttle)
-ROBOCARSHAT_LOCAL_ANGLE_BRAKE_THROTTLE = -0.2
 
 #ODOM Sensor max value (max matching lowest speed)
 ROBOCARSHAT_ODOM_IN_MAX = 20000
 ROBOCARSHAT_PILOT_MODE = 'local' # Which autonomous mode is triggered by Hat : local_angle or local
-ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.2
+ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.3
 
 THROTTLE_BRAKE_REV_FILTER = True # False: ESC is configured in Fw/Rv mode (no braking)
 
@@ -149,7 +148,7 @@ ROBOCARSHAT_THROTTLE_DISCRET = None
 # # giving a range between -1 and 1, like [-0.1, 0.1]
 # #Example : ROBOCARSHAT_THROTTLE_FLANGER = [-0.1, 0.1], if not used, set to None 
 # ROBOCARSHAT_THROTTLE_FLANGER = None 
-ROBOCARSHAT_THROTTLE_FLANGER = [-0.2,0.2]
+ROBOCARSHAT_THROTTLE_FLANGER = [-0.4,0.2]
 
 # # ROBOCARSHAT_USE_AUTOCALIBRATION used to rely on idle coming from autocalibation done by hat
 ROBOCARSHAT_USE_AUTOCALIBRATION = True

@@ -410,14 +410,15 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
 
 
-    if cfg.PATH_FOLLOWER_ENABLED:
-        from donkeycar.parts.segmentation import TestTrajectory, PathFollower
+    if cfg.PATH_PILOT_ENABLED:
+        from donkeycar.parts.path_pilot import TestTrajectory, PathPilot
 
         V.add(TestTrajectory(), inputs=['run_pilot'], outputs=['path/time', 'path/waypoints'], threaded=False)
 
-        V.add(PathFollower(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH, fix_throttle=cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE),
-            inputs=['path/time', 'path/waypoints', 'pose/time', 'pose/x', 'pose/y', 'pose/orientation', 'enc/speed'],
-            outputs=['pilot/angle', 'pilot/throttle', 'pilot/end_of_path', 'pilot/crosstrack_error', 'pilot/crosstrack_steer', 'pilot/trajectory_steer', 'path/x', 'path/y', 'path/orientation'],
+        V.add(PathPilot(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
+                            fix_throttle=cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE, brake_throttle= cfg.ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE),
+            inputs=['path/time', 'path/waypoints', 'pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],
+            outputs=['pilot/angle', 'pilot/throttle', 'pilot/end_of_path', 'pilot/stanley_metrics', 'path/x_origin', 'path/y_origin', 'path/yaw_origin'],
             threaded=False)
 
 
@@ -554,7 +555,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
             inputs += ['enc/distance']
             types += ['int']
         elif cfg.ENCODER_TYPE == "FF_LS7366R" and cfg.DONKEY_GYM == False:
-            inputs += ['pose/time', 'pose/x', 'pose/y', 'pose/orientation', 'enc/distance']
+            inputs += ['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance']
             types += ['float', 'float', 'float', 'float', 'int']
 
     if cfg.TRAIN_BEHAVIORS:
@@ -580,9 +581,9 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
     #     inputs += ['cam/obstacle_distances']
     #     types += ['nparray']
 
-    if cfg.PATH_FOLLOWER_ENABLED:
-        inputs += ['path/time', 'path/waypoints', 'pilot/end_of_path', 'pilot/crosstrack_error', 'pilot/crosstrack_steer', 'pilot/trajectory_steer', 'path/x', 'path/y', 'path/orientation']
-        types += ['float', 'nparray', 'bool', 'float', 'float', 'float', 'float', 'float', 'float']
+    if cfg.PATH_PILOT_ENABLED:
+        inputs += ['path/time', 'path/waypoints', 'pilot/end_of_path', 'pilot/stanley_metrics', 'path/x_origin', 'path/y_origin', 'path/yaw_origin']
+        types += ['float', 'nparray', 'bool', 'list', 'float', 'float', 'float']
 
     # rbx
     if cfg.DONKEY_GYM:
@@ -926,7 +927,7 @@ def add_odometry(V, cfg):
                 max_velocity=cfg.ODOM_MAX_VELOCITY,
                 max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE,
                 odometry=odo)
-            V.add(enc, outputs=['pose/time', 'pose/x', 'pose/y', 'pose/orientation', 'enc/distance', 'enc/speed'], threaded=True)
+            V.add(enc, outputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance', 'enc/speed'], threaded=True)
         else:
             print("No supported encoder found")
 
