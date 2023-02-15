@@ -446,6 +446,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         # Should be run with following line only when autopilot is in charge
         # V.add(DepthAvoidance, inputs=inputs, outputs=outputs, run_condition='run_pilot')
 
+
     #
     # stop at a stop sign
     #
@@ -797,6 +798,27 @@ def get_camera(cfg):
         elif cfg.CAMERA_TYPE == "MOCK":
             from donkeycar.parts.camera import MockCamera
             cam = MockCamera(image_w=cfg.IMAGE_W, image_h=cfg.IMAGE_H, image_d=cfg.IMAGE_DEPTH)
+        elif cfg.CAMERA_TYPE == "OAK":
+            from donkeycar.parts.oak_d_camera import OakDCameraBuilder
+            # cam = OakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, depth=cfg.IMAGE_DEPTH, isp_scale=cfg.OAK_D_ISP_SCALE, framerate=cfg.CAMERA_FRAMERATE, enable_depth=cfg.OAK_ENABLE_DEPTH_MAP, enable_obstacle_dist=cfg.OAK_OBSTACLE_DETECTION_ENABLED, rgb_resolution=cfg.RGB_RESOLUTION)
+            cam = OakDCameraBuilder() \
+                    .with_width(cfg.IMAGE_W) \
+                    .with_height(cfg.IMAGE_H) \
+                    .with_depth(cfg.IMAGE_DEPTH) \
+                    .with_isp_scale(cfg.OAK_D_ISP_SCALE) \
+                    .with_framerate(cfg.CAMERA_FRAMERATE) \
+                    .with_enable_depth(cfg.OAK_ENABLE_DEPTH_MAP) \
+                    .with_enable_obstacle_dist(cfg.OAK_OBSTACLE_DETECTION_ENABLED) \
+                    .with_rgb_resolution(cfg.RGB_RESOLUTION) \
+                    .with_rgb_apply_cropping(cfg.RGB_APPLY_CROPPING) \
+                    .with_rgb_sensor_crop_x(cfg.RGB_SENSOR_CROP_X) \
+                    .with_rgb_sensor_crop_y(cfg.RGB_SENSOR_CROP_Y) \
+                    .with_rgb_video_size(cfg.RGB_VIDEO_SIZE) \
+                    .with_rgb_apply_manual_conf(cfg.RGB_APPLY_MANUAL_CONF) \
+                    .with_rgb_exposure_time(cfg.RGB_EXPOSURE_TIME) \
+                    .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
+                    .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
+                    .build()
         else:
             raise(Exception("Unkown camera type: %s" % cfg.CAMERA_TYPE))
     return cam
@@ -845,39 +867,61 @@ def add_camera(V, cfg, camera_type):
                        'imu/acl_x', 'imu/acl_y', 'imu/acl_z',
                        'imu/gyr_x', 'imu/gyr_y', 'imu/gyr_z'],
               threaded=True)
-    elif cfg.CAMERA_TYPE == "OAK":
-        from donkeycar.parts.oak_d_camera import ColorOakDCamera
-        cam = ColorOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE, isp_scale=cfg.OAK_D_ISP_SCALE, rgb_resolution=cfg.RGB_RESOLUTION)
-        outputs = ['cam/image_array']
-
-        # if cfg.OAK_ENABLE_DEPTH_MAP:
-        #     from donkeycar.parts.oak_d_camera import ColorAndDepthOakDCamera
-        #     cam = ColorAndDepthOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE, isp_scale=cfg.OAK_D_ISP_SCALE, rgb_resolution=cfg.RGB_RESOLUTION)
-        #     outputs = ['cam/image_array', 'cam/depth_array']
-        # elif cfg.OAK_OBSTACLE_DETECTION_ENABLED:
-        #     from donkeycar.parts.oak_d_camera import ColorAndObstacleDistanceOakDCamera
-        #     cam = ColorAndObstacleDistanceOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE, isp_scale=cfg.OAK_D_ISP_SCALE, rgb_resolution=cfg.RGB_RESOLUTION)
-        #     outputs = ['cam/image_array', 'cam/obstacle_distances']
-        # elif cfg.OAK_ENABLE_SEGMENTATION:
-        #     from donkeycar.parts.oak_d_camera import SegmentationOakDCamera
-        #     cam = SegmentationOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE, isp_scale=cfg.OAK_D_ISP_SCALE, rgb_resolution=cfg.RGB_RESOLUTION, model_blol_path=cfg.OAK_SEGMENTATION_MODEL_BLOB_PATH)
-        #     outputs = ['cam/image_array', 'cam/segmentation', 'cam/segmentation_time', 'cam/path']
-        # elif cfg.IMAGE_DEPTH == 3:
-        #     from donkeycar.parts.oak_d_camera import ColorOakDCamera
-        #     cam = ColorOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE, isp_scale=cfg.OAK_D_ISP_SCALE, rgb_resolution=cfg.RGB_RESOLUTION)
-        #     outputs = ['cam/image_array']
-        # elif cfg.IMAGE_DEPTH == 1:
-        #     from donkeycar.parts.oak_d_camera import MonoOakDCamera
-        #     cam = MonoOakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, framerate=cfg.CAMERA_FRAMERATE)
-        #     outputs = ['cam/image_array']
-        # else:
-        #     raise ValueError("OakDCamera : 'depth' parameter must be either '3' (RGB) or '1' (GRAY)")
-        
-        V.add(cam, inputs=[], outputs=outputs, threaded=True)
+    elif cfg.CAMERA_TYPE == "OAK" and cfg.OAK_ENABLE_DEPTH_MAP:
+        from donkeycar.parts.oak_d_camera import OakDCameraBuilder
+        # cam = OakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, depth=cfg.IMAGE_DEPTH, isp_scale=cfg.OAK_D_ISP_SCALE, framerate=cfg.CAMERA_FRAMERATE, enable_depth=cfg.OAK_ENABLE_DEPTH_MAP, enable_obstacle_dist=cfg.OAK_OBSTACLE_DETECTION_ENABLED, rgb_resolution=cfg.RGB_RESOLUTION)
+        cam = OakDCameraBuilder() \
+                    .with_width(cfg.IMAGE_W) \
+                    .with_height(cfg.IMAGE_H) \
+                    .with_depth(cfg.IMAGE_DEPTH) \
+                    .with_isp_scale(cfg.OAK_D_ISP_SCALE) \
+                    .with_framerate(cfg.CAMERA_FRAMERATE) \
+                    .with_enable_depth(cfg.OAK_ENABLE_DEPTH_MAP) \
+                    .with_enable_obstacle_dist(cfg.OAK_OBSTACLE_DETECTION_ENABLED) \
+                    .with_rgb_resolution(cfg.RGB_RESOLUTION) \
+                    .with_rgb_apply_cropping(cfg.RGB_APPLY_CROPPING) \
+                    .with_rgb_sensor_crop_x(cfg.RGB_SENSOR_CROP_X) \
+                    .with_rgb_sensor_crop_y(cfg.RGB_SENSOR_CROP_Y) \
+                    .with_rgb_video_size(cfg.RGB_VIDEO_SIZE) \
+                    .with_rgb_apply_manual_conf(cfg.RGB_APPLY_MANUAL_CONF) \
+                    .with_rgb_exposure_time(cfg.RGB_EXPOSURE_TIME) \
+                    .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
+                    .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
+                    .build()
+        V.add(cam, inputs=[],
+              outputs=['cam/image_array', 'cam/depth_array'],
+              threaded=True)
+    elif cfg.CAMERA_TYPE == "OAK" and cfg.OAK_OBSTACLE_DETECTION_ENABLED:
+        from donkeycar.parts.oak_d_camera import OakDCameraBuilder
+        # cam = OakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, depth=cfg.IMAGE_DEPTH, isp_scale=cfg.OAK_D_ISP_SCALE, framerate=cfg.CAMERA_FRAMERATE, enable_depth=cfg.OAK_ENABLE_DEPTH_MAP, enable_obstacle_dist=cfg.OAK_OBSTACLE_DETECTION_ENABLED, rgb_resolution=cfg.RGB_RESOLUTION)
+        cam = OakDCameraBuilder() \
+                    .with_width(cfg.IMAGE_W) \
+                    .with_height(cfg.IMAGE_H) \
+                    .with_depth(cfg.IMAGE_DEPTH) \
+                    .with_isp_scale(cfg.OAK_D_ISP_SCALE) \
+                    .with_framerate(cfg.CAMERA_FRAMERATE) \
+                    .with_enable_depth(cfg.OAK_ENABLE_DEPTH_MAP) \
+                    .with_enable_obstacle_dist(cfg.OAK_OBSTACLE_DETECTION_ENABLED) \
+                    .with_rgb_resolution(cfg.RGB_RESOLUTION) \
+                    .with_rgb_apply_cropping(cfg.RGB_APPLY_CROPPING) \
+                    .with_rgb_sensor_crop_x(cfg.RGB_SENSOR_CROP_X) \
+                    .with_rgb_sensor_crop_y(cfg.RGB_SENSOR_CROP_Y) \
+                    .with_rgb_video_size(cfg.RGB_VIDEO_SIZE) \
+                    .with_rgb_apply_manual_conf(cfg.RGB_APPLY_MANUAL_CONF) \
+                    .with_rgb_exposure_time(cfg.RGB_EXPOSURE_TIME) \
+                    .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
+                    .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
+                    .build()
+        V.add(cam, inputs=[],
+              outputs=['cam/image_array', 'cam/obstacle_distances'],
+              threaded=True)
     else:
+        inputs = []
+        outputs = ['cam/image_array']
+        threaded = True
         cam = get_camera(cfg)
         if cam:
-            V.add(cam, inputs=[], outputs=['cam/image_array'], threaded=True)
+            V.add(cam, inputs=inputs, outputs=outputs, threaded=threaded)
 
 
 def add_odometry(V, cfg):

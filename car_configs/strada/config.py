@@ -21,7 +21,7 @@ DATA_PATH = os.path.join(CAR_PATH, 'data')
 MODELS_PATH = os.path.join(CAR_PATH, 'models')
 
 #VEHICLE
-DRIVE_LOOP_HZ = 35      # the vehicle loop will pause if faster than this speed.
+DRIVE_LOOP_HZ = 30      # the vehicle loop will pause if faster than this speed.
 MAX_LOOPS = None        # the vehicle loop can abort after this many iterations, when given a positive integer.
 
 #CAMERA
@@ -44,19 +44,29 @@ CAMERA_TYPE = "OAK"   # (OAK|PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
 # OAK-D-WIDE: "800p" for rgb
 RGB_RESOLUTION = "800p" 
 
+RGB_APPLY_CROPPING = True
+RGB_SENSOR_CROP_X = 0.0
+RGB_SENSOR_CROP_Y = 0.175
+RGB_VIDEO_SIZE = (1280,560)
+
+RGB_APPLY_MANUAL_CONF = False
+RGB_EXPOSURE_TIME = 2000
+RGB_SENSOR_ISO = 400
+RGB_WB_MANUAL = 2800
+
 # OAK-D-LITE: from 1920/1080 (1,8)>>240/135 
 # OAK-D-WIDE: from 1280/800  (1,8)>>160/100 (3,16)>>240/150 5/32>>200/125 
-OAK_D_ISP_SCALE = (3,16) 
+OAK_D_ISP_SCALE = (1,1) 
 
 # OAK-D-LITE: color cam = 240 ISP 1/8 ou 192 ISP 1/10 ou 224 ISP 7/60
 # OAK-D-WIDE: 240 ou 200 ou 160
-IMAGE_W = 240 
+IMAGE_W = 320 
 # OAK-D-LITE: color cam = 135 ISP 1/8 ou 108 ISP 1/10 ou 126 ISP 7/60
 # OAK-D-WIDE: 150 ou 125 ou 100
-IMAGE_H = 150 
+IMAGE_H = 140 
 
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
-CAMERA_FRAMERATE = DRIVE_LOOP_HZ # 35hz
+CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 
 OAK_ENABLE_DEPTH_MAP = False # enables depth map output
 OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
@@ -65,6 +75,11 @@ OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
 OBSTACLE_AVOIDANCE_ENABLED = False
 OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 CLOSE_AVOIDANCE_DIST_MM = 1000
+
+# SEGMENTATION SETTINGS
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
+# OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
+# ALSO NEEDS: CAMERA_FRAMERATE = 4 CAMERA_ISP_SCALE = (9, 19) IMAGE_W = 896 IMAGE_H = 512 IMAGE_DEPTH = 3
 
 #CAMERA Settings Vivatech 2022 (nano)
 #CAMERA_TYPE = "CSIC"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
@@ -104,6 +119,7 @@ SSD1306_RESOLUTION = 1 # 1 = 128x32; 2 = 128x64
 # "DC_STEER_THROTTLE" uses HBridge pwm to control one steering dc motor, and one drive wheel motor
 # "DC_TWO_WHEEL" uses HBridge in 2-pin mode to control two drive motors, one on the left, and one on the right.
 # "DC_TWO_WHEEL_L298N" using HBridge in 3-pin mode to control two drive motors, one of the left and one on the right.
+# "ROBOCARSHAT" using robocars hat
 # "MOCK" no drive train.  This can be used to test other features in a test rig.
 # (deprecated) "SERVO_HBRIDGE_PWM" use ServoBlaster to output pwm control from the PiZero directly to control steering,
 #                                  and HBridge for a drive motor.
@@ -379,14 +395,23 @@ DC_TWO_WHEEL_L298N = {
     "RIGHT_EN_DUTY_PIN": "RPI_GPIO.BOARD.11",   # PWM pin generates duty cycle for right wheel speed
 }
 
-#ODOMETRY
-HAVE_ODOM = False                   # Do you have an odometer/encoder 
-ENCODER_TYPE = 'GPIO'            # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT
-MM_PER_TICK = 12.7625               # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
+# ODOMETRY
+HAVE_ODOM = False                    # Do you have an odometer/encoder 
+ENCODER_TYPE = 'GPIO'                # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT|LS7366R|FF_LS7366R
+MM_PER_TICK = 12.7625                # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
 ODOM_PIN = 13                        # if using GPIO, which GPIO board mode pin to use as input
-ODOM_DEBUG = False                  # Write out values on vel and distance as it runs
+ODOM_DEBUG = False                   # Write out values on vel and distance as it runs
+ODOM_FREQUENCY = DRIVE_LOOP_HZ * 3   # if odometer needs it, at what frequency should it poll measurements
+ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer 
+ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
+ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
+ODOM_VEHICLE_LENGTH = 0.27           # vehicle length from rear axle center to front axle center in meters
+ODOM_CENTER_LENGTH = 0.15            # vehicle length from rear axle center to gravity center (pose frame origin) in meters
+ODOM_MAX_VELOCITY = 1.5              # max vehicle linear velocity at full throttle in m/s, used by feed forward localization
+ODOM_MAX_STEERING_ANGLE = 30         # max steering angle in degree, used by feed forward localization
 
-# #LIDAR
+
+# LIDAR
 USE_LIDAR = False
 LIDAR_TYPE = 'RP' #(RP|YD)
 LIDAR_LOWER_LIMIT = 90 # angles that will be recorded. Use this to block out obstructed areas on your car, or looking backwards. Note that for the RP A1M8 Lidar, "0" is in the direction of the motor
@@ -521,7 +546,7 @@ MM1_SHOW_STEERING_VALUE = False
 #  eg.'/dev/tty.usbmodemXXXXXX' and replace the port accordingly
 MM1_SERIAL_PORT = '/dev/ttyS0'  # Serial Port for reading and sending MM1 data.
 
-#ROBOCARSHAT
+# ROBOCARSHAT
 USE_ROBOCARSHAT_AS_CONTROLLER  = True
 ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS1'
 

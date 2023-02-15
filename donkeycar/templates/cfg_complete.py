@@ -66,11 +66,10 @@ IMAGE_W = 320
 IMAGE_H = 165 
 
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
-CAMERA_FRAMERATE = DRIVE_LOOP_HZ # 35hz
+CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 
 OAK_ENABLE_DEPTH_MAP = False # enables depth map output
 OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
-OAK_ENABLE_SEGMENTATION = True # enable image segmentation output
 
 # OBSTACLE_AVOIDANCE SETTINGS
 OBSTACLE_AVOIDANCE_ENABLED = False
@@ -95,7 +94,8 @@ THROTTLE_FACTOR = 1.0
 STEERING_ON_THROTTLE_FACTOR = 1.0
 
 # SEGMENTATION SETTINGS
-OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
+# OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
 # ALSO NEEDS: CAMERA_FRAMERATE = 4 CAMERA_ISP_SCALE = (9, 19) IMAGE_W = 896 IMAGE_H = 512 IMAGE_DEPTH = 3
 
 #CAMERA Settings Vivatech 2022 (nano)
@@ -136,6 +136,7 @@ SSD1306_RESOLUTION = 1 # 1 = 128x32; 2 = 128x64
 # "DC_STEER_THROTTLE" uses HBridge pwm to control one steering dc motor, and one drive wheel motor
 # "DC_TWO_WHEEL" uses HBridge in 2-pin mode to control two drive motors, one on the left, and one on the right.
 # "DC_TWO_WHEEL_L298N" using HBridge in 3-pin mode to control two drive motors, one of the left and one on the right.
+# "ROBOCARSHAT" using robocars hat
 # "MOCK" no drive train.  This can be used to test other features in a test rig.
 # (deprecated) "SERVO_HBRIDGE_PWM" use ServoBlaster to output pwm control from the PiZero directly to control steering,
 #                                  and HBridge for a drive motor.
@@ -422,7 +423,6 @@ ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer
 ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
 ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
 ODOM_VEHICLE_LENGTH = 0.27           # vehicle length from rear axle center to front axle center in meters
-ODOM_CENTER_LENGTH = 0.15            # vehicle length from rear axle center to gravity center (pose frame origin) in meters
 ODOM_MAX_VELOCITY = 1.5              # max vehicle linear velocity at full throttle in m/s, used by feed forward localization
 ODOM_MAX_STEERING_ANGLE = 30         # max steering angle in degree, used by feed forward localization
 
@@ -564,7 +564,7 @@ MM1_SHOW_STEERING_VALUE = False
 #  eg.'/dev/tty.usbmodemXXXXXX' and replace the port accordingly
 MM1_SERIAL_PORT = '/dev/ttyS0'  # Serial Port for reading and sending MM1 data.
 
-#ROBOCARSHAT
+# ROBOCARSHAT
 USE_ROBOCARSHAT_AS_CONTROLLER  = True
 ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS1'
 ROBOCARSHAT_SERIAL_SPEED = 1000000

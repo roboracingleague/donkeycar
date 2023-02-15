@@ -554,6 +554,13 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         inputs += ['enc/speed']
         types += ['float']
 
+        if cfg.ENCODER_TYPE == "LS7366R" and cfg.DONKEY_GYM == False:
+            inputs += ['enc/distance']
+            types += ['int']
+        elif cfg.ENCODER_TYPE == "FF_LS7366R" and cfg.DONKEY_GYM == False:
+            inputs += ['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance']
+            types += ['float', 'float', 'float', 'float', 'int']
+
     if cfg.TRAIN_BEHAVIORS:
         inputs += ['behavior/state', 'behavior/label', "behavior/one_hot_state_array"]
         types += ['int', 'str', 'vector']
@@ -967,7 +974,7 @@ def add_odometry(V, cfg):
                 spi_max_speed_hz=cfg.ODOM_SPI_FREQUENCY,
                 reverse=cfg.ODOM_REVERSE,
                 debug=cfg.ODOM_DEBUG)
-            V.add(enc, outputs=['enc/speed'], threaded=True)
+            V.add(enc, outputs=['enc/distance', 'enc/speed'], threaded=True)
         elif cfg.ENCODER_TYPE == "FF_LS7366R" and cfg.DONKEY_GYM == False:
             from donkeycar.parts.encoder import LS7366ROdometry
             from donkeycar.parts.localization import FeedForwardLocalization
@@ -981,11 +988,10 @@ def add_odometry(V, cfg):
             enc = FeedForwardLocalization(
                 frequency=cfg.ODOM_FREQUENCY,
                 vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
-                center_length=cfg.ODOM_CENTER_LENGTH,
                 max_velocity=cfg.ODOM_MAX_VELOCITY,
                 max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE,
                 odometry=odo)
-            V.add(enc, outputs=['pose/x', 'pose/y', 'pose/orientation', 'enc/speed'], threaded=True)
+            V.add(enc, outputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance', 'enc/speed'], threaded=True)
         else:
             print("No supported encoder found")
 
