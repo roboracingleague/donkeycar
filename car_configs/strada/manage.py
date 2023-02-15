@@ -411,14 +411,15 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
 
     if cfg.PATH_PILOT_ENABLED:
-        from donkeycar.parts.path_pilot import TestTrajectory, PathPilot
+        from donkeycar.parts.motion_planner import TestTrajectory
+        from donkeycar.parts.path_pilot import PathPilot
 
-        V.add(TestTrajectory(), inputs=['run_pilot'], outputs=['path/time', 'path/waypoints'], threaded=False)
+        V.add(TestTrajectory(), inputs=['run_pilot', 'pos/time', 'pos/x', 'pos/y', 'pos/yaw'], outputs=['path/waypoints', 'path/time'], threaded=False)
 
         V.add(PathPilot(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
                             fix_throttle=cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE, brake_throttle= cfg.ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE),
-            inputs=['path/time', 'path/waypoints', 'pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],
-            outputs=['pilot/angle', 'pilot/throttle', 'pilot/end_of_path', 'pilot/stanley_metrics', 'path/x_origin', 'path/y_origin', 'path/yaw_origin'],
+            inputs=['path/waypoints', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],
+            outputs=['pilot/angle', 'pilot/throttle', 'pilot/end_of_path', 'pilot/stanley_metrics'],
             threaded=False)
 
 
@@ -582,8 +583,8 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
     #     types += ['nparray']
 
     if cfg.PATH_PILOT_ENABLED:
-        inputs += ['path/time', 'path/waypoints', 'pilot/end_of_path', 'pilot/stanley_metrics', 'path/x_origin', 'path/y_origin', 'path/yaw_origin']
-        types += ['float', 'nparray', 'bool', 'list', 'float', 'float', 'float']
+        inputs += ['path/waypoints', 'pilot/end_of_path', 'pilot/stanley_metrics']
+        types += ['nparray', 'bool', 'list']
 
     # rbx
     if cfg.DONKEY_GYM:
