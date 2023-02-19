@@ -358,3 +358,76 @@ class TensorRT(Interpreter):
         value = tf.compat.v1.get_variable("features", dtype=tf.float32,
                                           initializer=tf.constant(arr))
         return tf.convert_to_tensor(value=value)
+
+class RKNN(Interpreter):
+    """
+    This class wraps around the TensorFlow Lite interpreter.
+    """
+
+    # decice tree for rk356x/rk3588
+    DEVICE_COMPATIBLE_NODE = '/proc/device-tree/compatible'
+
+    def __init__(self):
+        from rknnlite.api import RKNNLite
+        super().__init__()
+        self.input_shapes = (120, 160, 3)
+        self.host_name = self.get_host()
+        self.rknn_lite = RKNNLite()
+
+
+    def get_host(self):
+        # get platform and device type
+        system = platform.system()
+        machine = platform.machine()
+        os_machine = system + '-' + machine
+        if os_machine == 'Linux-aarch64':
+            try:
+                with open(self.DEVICE_COMPATIBLE_NODE) as f:
+                    device_compatible_str = f.read()
+                    if 'rk3588' in device_compatible_str:
+                        host = 'RK3588'
+                    else:
+                        host = 'RK356x'
+            except IOError:
+                print('Read device node {} failed.'.format(DEVICE_COMPATIBLE_NODE))
+                exit(-1)
+        else:
+            host = os_machine
+        return host
+
+    def get_input_shapes(self):
+        return self.input_shapes
+
+    def load(self, model_path):
+        from rknnlite.api import RKNNLite
+        assert os.path.splitext(model_path)[1] == '.rknn', \
+            'RKNNPilot should load only .rknn files'
+        logger.info(f'Loading model {model_path}')
+        ret = self.rknn_lite.load_rknn(model_path)
+        if ret != 0:
+            print('Load model failed!')
+        else:
+            if self.host_name == 'RK3588':
+                ret = self.rknn_lite.init_runtime(core_mask=RKNNLite.NPU_CORE_0)
+            else:
+                ret = self.rknn_lite.init_runtime()
+            if ret != 0:
+                print('Init runtime environment failed')
+
+
+    def compile(self, **kwargs):
+        pass
+
+    def predict(self, img_arr, other_arr) \
+            -> Sequence[Union[float, np.ndarray]]:
+        img_arr_denorm = 255 * img_arr # Now scale by 255
+        inputs = img_arr_denorm.astype(np.uint8)
+        outputs_rknn = self.rknn_lite.inference(inputs=[inputs])
+        outputs = [out.squeeze(axis=0) for out in outputs_rknn]
+        # reorder outputs
+        reordered_outputs = [outputs[1],outputs[3],outputs[2],outputs[0]]
+        return reordered_outputs
+
+    def predict_from_dict(self, input_dict):
+        print("RKNN predict_from_dict not implemented")
+        pass
