@@ -400,6 +400,7 @@ class RKNN(Interpreter):
         return self.input_shapes
 
     def load(self, model_path):
+        from rknnlite.api import RKNNLite
         assert os.path.splitext(model_path)[1] == '.rknn', \
             'RKNNPilot should load only .rknn files'
         logger.info(f'Loading model {model_path}')
