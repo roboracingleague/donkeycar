@@ -1,0 +1,16 @@
+# introduction
+
+# prerequisites
+
+have python 3.9 (tested with  through pyenv)
+have RKNN-Toolkit2-lite installed as explained in https://wiki.t-firefly.com/en/Core-3588SJD4/usage_npu.html (https://github.com/rockchip-linux/rknn-toolkit2)
+Potential conflict in logging lib (LOGLEVEL redefined in RKNN), ensure RKNN is imported after all others libs.
+
+# convert tflite model to rknn
+see https://github.com/roboracingleague/rknn_convert
+
+# usage
+
+```
+python manage.py drive --model /path/to/model.rknn --type rknn_linear
+```
