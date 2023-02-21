@@ -2,7 +2,7 @@
 
 # prerequisites
 
-have python 3.9 (tested with  through pyenv)
+have python 3.9 (tested with  on tqrget, with 3.8.13 on host)
 have RKNN-Toolkit2-lite installed as explained in https://wiki.t-firefly.com/en/Core-3588SJD4/usage_npu.html (https://github.com/rockchip-linux/rknn-toolkit2)
 Potential conflict in logging lib (LOGLEVEL redefined in RKNN), ensure RKNN is imported after all others libs.
 
