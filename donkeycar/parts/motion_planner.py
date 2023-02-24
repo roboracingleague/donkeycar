@@ -20,9 +20,32 @@ def change_frame_2to1(origin2, yaw2, points_in_f2):
     return (R @ points_in_f2.T).T + origin2
 
 
+class LocalPlanner:
+    '''
+    Local Planner class. Takes environment mapping inputs and evaluate a position and velocity trajectory.
+    '''
+    def __init__(self):
+        logger.info("LocalPlanner ready")
+
+    def run(self, pos_time, x, y, yaw, speed, lane_center, left_lane, right_lane, occupancy_grid=None, signs=None):
+
+        trajectory = lane_center
+
+        return trajectory
+
+    def run_threaded(self):
+        raise RuntimeError('Not implemented')
+
+    def update(self):
+        raise RuntimeError('Not implemented')
+    
+    def shutdown(self):
+        logger.info('Stopping LocalPlanner')
+
+
 class TestTrajectory():
     def __init__(self):
-        self.path = self.shift_x(self.generate_path_w_trapeze(), 15)
+        self.trajectory = self.shift_x(self.generate_trapeze(), 15)
         self.sent = False
         self.poses = deque([], maxlen=20)
         logger.info('Starting TestTrajectory')
@@ -36,28 +59,24 @@ class TestTrajectory():
     def sigmoid(self, x):
         return 1 / (1 + math.exp(-x))
 
-    def generate_path_sigmoid(self):
+    def generate_sigmoid(self):
         x = np.array([x for x in range(150)]) / 100
         y = np.array([ self.sigmoid((x-75)/10) for x in range(150)]) / 2
-        p = np.vstack((x,y)).T
-        return p
+        return np.vstack((x,y)).T
     
-    def generate_path_w_trapeze(self):
+    def generate_trapeze(self):
         x = np.array([x for x in range(150)]) / 100
         y = [0]
         for i in range(1, 150):
             y.append(y[-1] + (i if i < 75 else 150 - i))
         y = np.array(y) / (2 * max(y))
-        p = np.vstack((x,y)).T
-        return p
+        return np.vstack((x,y)).T
     
-    def shift_x(self, p, l_cm):
-        # add l cm to the beginning of the trajectory
-        n = l_cm
-        x = np.concatenate([np.array([x for x in range(n)])/100, p[:,0] + n/100])
-        y = np.concatenate([np.array([0] * n), p[:,1]])
-        p = np.vstack((x,y)).T
-        return p
+    def shift_x(self, trajectory, delta):
+        # add delta (int) cm to the beginning of the trajectory
+        x = np.concatenate([np.array([x for x in range(delta)]) / 100, trajectory[:,0] + delta / 100])
+        y = np.concatenate([np.array([0] * delta), trajectory[:,1]])
+        return np.vstack((x,y)).T
     
     def find_pose_with_nearest_time(self, time):
         pose_times = np.array([p[0] for p in self.poses])
@@ -71,14 +90,14 @@ class TestTrajectory():
         if run_pilot:
             if not self.sent:
                 self.sent = True
-                path_origin = self.find_pose_with_nearest_time(pos_time)
-                path = change_frame_2to1(path_origin[:2], path_origin[2], self.path)
+                trajectory_origin = self.find_pose_with_nearest_time(pos_time)
+                trajectory = change_frame_2to1(trajectory_origin[:2], trajectory_origin[2], self.trajectory)
                 logger.debug('Sending a new path')
-                return path, path_origin[0]
+                return trajectory, trajectory_origin[0] # need to send 2 values at least to record None value in vehicle mem
         else:
             self.sent = False
         
-        return None, None # need to send 2 values at least to record None value in vehicle mem
+        return None, None
 
     def run_threaded(self):
         raise RuntimeError('Not implemented')
