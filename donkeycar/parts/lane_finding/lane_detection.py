@@ -204,10 +204,11 @@ def detect_hough_lines(binary, gauss_kernel_size=5, gauss_sigma_x=1, canny_thres
     #   maxLineGap      Maximum allowed gap between points on the same line to link them.
     # defaults: rho=1, theta=np.pi / 180, threshold=80, minLineLength=30, maxLineGap=10
     lines = cv2.HoughLinesP(binary, rho=hough_rho, theta=hough_theta, threshold=hough_threshold, minLineLength=hough_min_line_length, maxLineGap=hough_max_line_gap)
+    print(lines)
     lines = np.reshape(lines, (len(lines), 4))
     
     # dimensions of returned lines is (N x 4)
-    return lines, binary
+    return lines
 
 
 def merge_lines(lines, slope_similarity_threshold=0.1, intercept_similarity_threshold=40, min_slope_threshold=0):
@@ -554,7 +555,7 @@ def threshold_equalized_grayscale(frame, threshhold=250):
 
     _, th = cv2.threshold(eq_global, thresh=threshhold, maxval=255, type=cv2.THRESH_BINARY)
 
-    return th, eq_global
+    return th
 
 
 def detect_path(segmentation, vanishing_point, crop_top, height_ratio, pixel_in_cm=0.333, plot=False):
@@ -577,42 +578,96 @@ def detect_path(segmentation, vanishing_point, crop_top, height_ratio, pixel_in_
     return path_v
 
 
+# Generates range measurements for a laser scanner based on a map, vehicle position,
+# and sensor parameters.
+# Uses the ray tracing algorithm.
+def get_ranges(binary, origin, rmax, class_value=2, threshold=20):
+    (h, w) = np.shape(binary)
+    x, y = origin
+    meas_phi = [x * np.pi / 180 - np.pi for x in range(361)]
+    result = []
+    current = []
+    mask = np.zeros((h,w), dtype=np.uint8)
+    
+    # Iterate for each measurement bearing.
+    for i in range(len(meas_phi)):
+        # Iterate over each unit step up to and including rmax.
+        for r in range(1, rmax+1):
+            # Determine the coordinates of the cell.
+            xi = int(round(x + r * math.cos(meas_phi[i])))
+            yi = int(round(y + r * math.sin(meas_phi[i])))
+            
+            # If not in the map, set measurement there and stop going further.
+            if (xi < 0 or xi > w-1 or yi < 0 or yi > h-1):
+                break
+            # If in the map, but hitting an obstacle, set the measurement range
+            # and stop ray tracing.
+            elif binary[yi, xi] == class_value:
+                point = np.array([xi, yi])
+                if len(current) == 0:
+                    current.append(point)
+                    result.append(current)
+                elif np.linalg.norm(current[-1]-point) < threshold:
+                    current.append(point)
+                else:
+                    current = [point]
+                    result.append(current)
+                mask[yi, xi] = 1
+                break
+            elif binary[yi, xi] != 0:
+                break
+                
+    return result, mask
+
+
+
 if __name__ == '__main__':
     from matplotlib import pyplot as plt
     from donkeycar.parts.lane_finding.binarization import binarize
     from donkeycar.parts.lane_finding.perspective import Birdeye
     
     for test_img in glob.glob('test_images/*.jpg'):
-
+        print(test_img)
         frame = cv2.imread(test_img)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        birdeye = Birdeye(*frame.shape[:2], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7) \
-            .apply(frame, plot=False)
+        bird = Birdeye(*frame.shape[:2], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7)
+        birdeye = bird.apply(frame, plot=False)
+        mask = bird.apply(np.zeros(frame.shape[:2], dtype=np.uint8), border_value=1)
         
         gauss_kernel_size=5
         gauss_sigma_x=1
         birdeye = cv2.GaussianBlur(birdeye, (gauss_kernel_size, gauss_kernel_size), gauss_sigma_x)
-        binary, eq_global = threshold_equalized_grayscale(birdeye, threshhold=245)
+        binary = threshold_equalized_grayscale(birdeye, threshhold=245)
+
         
-        lines, edges = detect_hough_lines(binary, hough_threshold=30, hough_min_line_length=30, hough_max_line_gap=20)
+        
+        
+
+
+        binary[binary>0] = 1
+        binary[mask>0] = 2
+
+        origin = np.array([int(binary.shape[1] / 2 -1), int(binary.shape[0] -1)])
+
+        _, contours = get_ranges(binary, origin, rmax=150, class_value=1, threshold=20)
+
+
+        lines = detect_hough_lines(contours, hough_threshold=5, hough_min_line_length=20, hough_max_line_gap=40)
         merged_lines, lines_clusters = merge_lines(lines, slope_similarity_threshold=0.1, intercept_similarity_threshold=20)
 
-        origin = np.array([int(binary.shape[1] / 2), binary.shape[0]])
-
-        lane_lines = associate_lines_2(merged_lines, origin, threshold=40)
+        
+        # lane_lines = associate_lines_2(merged_lines, origin, threshold=40)
+        lane_lines = [merged_lines]
 
 
         left_lane, right_lane = find_left_right_lanes_2(lane_lines, origin)
-        left_lane, right_lane = discretize_lanes_2([left_lane, right_lane])
-
-        #lanes = discretize_lanes(lane_lines)
+        # left_lane, right_lane = discretize_lanes_2([left_lane, right_lane])
 
 
-        #left_lane, right_lane = find_left_right_lanes(lanes, origin)
-        estimated_path = estimate_path(left_lane, right_lane)
-        path = regularize_lane(estimated_path)
-        path_v = path_to_vehicule_frame(path, origin, pixel_in_cm=0.333)
+        # estimated_path = estimate_path(left_lane, right_lane)
+        # path = regularize_lane(estimated_path)
+        # path_v = path_to_vehicule_frame(path, origin, pixel_in_cm=0.333)
 
 
         fig = plt.figure(figsize=(11, 10))
@@ -627,45 +682,51 @@ if __name__ == '__main__':
         ax.set_title("birdeye image")
 
         ax = fig.add_subplot(rows, columns, 3)
-        plt.imshow(binary, cmap='gray', vmin=0, vmax=255)
+        plt.imshow(binary, cmap='gray')
         ax.set_title("edges")
 
+
         ax = fig.add_subplot(rows, columns, 4)
+        plt.imshow(contours, cmap='gray')
+        ax.set_title("contours points")
+
+
+        ax = fig.add_subplot(rows, columns, 5)
         plt.imshow(vis_cluster_lines(birdeye, lines_clusters))
         ax.set_title("clusters")
         print('merged lines count: ' + str(merged_lines.shape[0]))
 
-        ax = fig.add_subplot(rows, columns, 5)
+        ax = fig.add_subplot(rows, columns, 6)
         plt.imshow(vis_lanes(birdeye, merged_lines, multi_color=True))
         ax.set_title("merged lines")
 
-        ax = fig.add_subplot(rows, columns, 6)
-        plt.imshow(vis_cluster_lines(birdeye, lane_lines))
-        ax.set_title("lanes lines")
-        print('lanes count: ' + str(len(lane_lines)))
+        # ax = fig.add_subplot(rows, columns, 6)
+        # plt.imshow(vis_cluster_lines(birdeye, lane_lines))
+        # ax.set_title("lanes lines")
+        # print('lanes count: ' + str(len(lane_lines)))
 
 
 
-        # ax = fig.add_subplot(rows, columns, 7)
-        # plt.imshow(vis_points(birdeye, lanes))
-        # ax.set_title("lanes")
+        # # ax = fig.add_subplot(rows, columns, 7)
+        # # plt.imshow(vis_points(birdeye, lanes))
+        # # ax.set_title("lanes")
 
-        ax = fig.add_subplot(rows, columns, 8)
-        plt.imshow(vis_points(birdeye, [left_lane]))
-        ax.set_title("left lane")
+        # ax = fig.add_subplot(rows, columns, 8)
+        # plt.imshow(vis_points(birdeye, [left_lane]))
+        # ax.set_title("left lane")
 
-        ax = fig.add_subplot(rows, columns, 9)
-        plt.imshow(vis_points(birdeye, [right_lane]))
-        ax.set_title("right lane")
+        # ax = fig.add_subplot(rows, columns, 9)
+        # plt.imshow(vis_points(birdeye, [right_lane]))
+        # ax.set_title("right lane")
 
-        ax = fig.add_subplot(rows, columns, 10)
-        plt.imshow(vis_points(birdeye, [estimated_path]))
-        ax.set_title("central lane")
+        # ax = fig.add_subplot(rows, columns, 10)
+        # plt.imshow(vis_points(birdeye, [estimated_path]))
+        # ax.set_title("central lane")
 
-        ax = fig.add_subplot(rows, columns, 11)
-        plt.imshow(vis_points(birdeye, [path]))
-        ax.set_title("regularized central lane")
+        # ax = fig.add_subplot(rows, columns, 11)
+        # plt.imshow(vis_points(birdeye, [path]))
+        # ax.set_title("regularized central lane")
 
         plt.show()
 
-        # break
+        break

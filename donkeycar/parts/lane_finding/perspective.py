@@ -7,10 +7,11 @@ from donkeycar.parts.lane_finding.binarization import binarize
 
 
 class Birdeye:
-    def __init__(self, height, width, vanishing_point=0.35, crop_top=0.44, crop_corner=0.7, height_ratio=1.0):
+    def __init__(self, height, width, vanishing_point=0.35, crop_top=0.44, crop_corner=0.7, height_ratio=1.0, border_value=0):
         self.height = height
         self.width = width
         self.out_height = int(height * height_ratio)
+        self.border_value = border_value
         p = vanishing_point # position of vanishing point, from top, in percent of height (horizontal position is set to width / 2)
         c = crop_top # crop top in percent ; MUST be > p
         e = crop_corner # how much black in bottom corners
@@ -35,14 +36,15 @@ class Birdeye:
         self.Minv = cv2.getPerspectiveTransform(self.source_points, self.dest_points)
 
 
-    def apply(self, image, plot=False):
+    def apply(self, image, border_value=None, plot=False):
         """
         Apply perspective transform to input frame to get the bird's eye view.
         :param image: input frame
         :param verbose: if True, show the transformation result
         :return: warped image
         """
-        warped = cv2.warpPerspective(image, self.M, (self.width, self.out_height), flags=cv2.INTER_LINEAR)
+        border_value = border_value if border_value is not None else self.border_value
+        warped = cv2.warpPerspective(image, self.M, (self.width, self.out_height), flags=cv2.INTER_LINEAR, borderValue=border_value)
 
         if plot:
             f, ax = plt.subplots(1, 2)
