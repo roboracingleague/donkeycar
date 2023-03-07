@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from queue import SimpleQueue
 from scipy.spatial.distance import cdist
-from donkeycar.parts.lane_finding.perspective import Birdeye
-from donkeycar.parts.lane_finding.binarization import binarize_grayscale
+from donkeycar.parts.lane_detection.perspective import Birdeye
+from donkeycar.parts.lane_detection.binarization import binarize_grayscale
 
 
 logger = logging.getLogger(__name__)

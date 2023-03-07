@@ -2,8 +2,8 @@ import numpy as np
 import cv2
 import glob
 import matplotlib.pyplot as plt
-from donkeycar.parts.lane_finding.calibration import calibrate_camera, undistort
-from donkeycar.parts.lane_finding.binarization import binarize
+#from donkeycar.parts.lane_detection.calibration import calibrate_camera, undistort
+from donkeycar.parts.lane_detection.binarization import binarize
 
 
 class Birdeye:
@@ -66,7 +66,7 @@ class Birdeye:
 
 if __name__ == '__main__':
 
-    ret, mtx, dist, rvecs, tvecs = calibrate_camera(calib_images_dir='camera_cal')
+    #ret, mtx, dist, rvecs, tvecs = calibrate_camera(calib_images_dir='camera_cal')
 
     # show result on test images
     for test_img in glob.glob('test_images/*.jpg'):
