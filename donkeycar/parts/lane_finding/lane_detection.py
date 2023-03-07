@@ -2,34 +2,48 @@ import time
 import math
 import glob
 import logging
-from queue import SimpleQueue
-import matplotlib.colors as mcolors
-import numpy as np
 import cv2
+import numpy as np
+from queue import SimpleQueue
 from scipy.spatial.distance import cdist
-import depthai as dai
-from depthai_sdk import toTensorResult
 from donkeycar.parts.lane_finding.perspective import Birdeye
+from donkeycar.parts.lane_finding.binarization import binarize_grayscale
+
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
-class Template:
+class LaneDetection:
     '''
-    Template
+    Lane detection part based on opencv and image analysis, returns 2 numpy arrays of shape [N, 2] for left and right (sorted) points.
     '''
-    def __init__(self):
+    def __init__(self, image_width, image_height, vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
+                 eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
+                 left_anchor=np.array([0.0, -1.0, 250, 370]), right_anchor=np.array([0.0, -1.0, 390, 370])):
         self.result = None
         self.on = True
-        logger.info("Template ready")
+        self.eq_threshhold = eq_threshhold
+        self.blur_kernel_size = blur_kernel_size
+        self.blur_sigma_x = blur_sigma_x
+        self.close_kernel_size = close_kernel_size
+        self.left_anchor = left_anchor
+        self.right_anchor = right_anchor
+        self.birdeye = Birdeye(image_height, image_width, vanishing_point, crop_top, crop_corner, border_value=0)
 
-    def run(self):
+        logger.info("LaneDetection ready")
 
-        if(logger.isEnabledFor(logging.DEBUG)):
-            logger.debug('{:>6,.1f}'.format(0))
-
-        return None
+    def detect_lanes(self, image):
+        birdeye = self.birdeye.apply(image)
+        binary = binarize_grayscale(birdeye, self.eq_threshhold, self.blur_kernel_size, self.blur_sigma_x, self.close_kernel_size)
+        left_points, right_points, left_anchors, right_anchors, scan_points, unassigned_groups = \
+            scan_for_lane(binary, self.left_anchor, self.right_anchor)
+        
+        return left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups
+    
+    def run(self, image):
+        result = self.detect_lanes(image)
+        return result[0], result[1]
 
     def run_threaded(self):
         return self.result
@@ -41,692 +55,312 @@ class Template:
     
     def shutdown(self):
         self.on = False
-        logger.info('Stopping Template')
+        logger.info('Stopping LaneDetection')
 
 
+def scan_for_lane(binary, left_anchor, right_anchor, lane_width = 100, scan_iters=2, scan_radius=180, scan_steps=60, group_threshold=50):
+    """
+    Apply a ray tracing algorithme to find points from left and right lane borders and sort them 
+    """
+    left_points = np.empty((0,2))
+    right_points = np.empty((0,2))
+    left_anchors = []
+    right_anchors = []
+    scan_points = []
+    unassigned_groups = []
 
-def vis_lanes(image, lane_lines, multi_color=False):
-    image_out = image
-    colors = [tuple(255 * e for e in mcolors.to_rgb(c)) for n,c in mcolors.TABLEAU_COLORS.items()]
-    count = 0
-    if lane_lines is not None:
-        for line in lane_lines:
-            x1, y1, x2, y2 = line.astype(int)
-            color = colors[count%len(colors)] if multi_color else (255, 0, 255)
+    for i in range(scan_iters):
+        scan_point = np.mean([left_anchor[2:], right_anchor[2:]], axis=0)
+        points = scan(binary, scan_point, scan_radius=scan_radius, search_value=1, scan_steps=scan_steps)
 
-            image_out = cv2.line(image_out.astype(np.uint8), (x1, y1), (x2, y2), color, 7)
-            image_out = cv2.circle(image_out, (x1,y1), 5, (255, 0, 255), -1)
-            count += 1
-    return image_out
+        groups = greedy_group(points, threshold=group_threshold)
+        current_left, current_right, current_unassigned = assign_groups_to_anchors(groups, left_anchor, right_anchor)
 
-def vis_cluster_lines(image, clusters):
-    image_out = image
-    count = 0
-    colors = [tuple(255 * e for e in mcolors.to_rgb(c)) for n,c in mcolors.TABLEAU_COLORS.items()]
-    for cluster in clusters:
-        color = colors[count%len(colors)]
-        count += 1
-        for line in cluster:
-            x1, y1, x2, y2 = line.astype(int)
-            image_out = cv2.line(image_out.astype(np.uint8), (x1, y1), (x2, y2), color, 7)
-            image_out = cv2.circle(image_out, (x1,y1), 5, (255, 0, 255), -1)
-    return image_out
+        left_points, current_left = move_overlap(left_points, current_left)
+        right_points, current_right = move_overlap(right_points, current_right)
 
-def vis_points(image, points):
-    image_out = image.astype(np.uint8)
-    count = 1
-    colors = [tuple(255 * e for e in mcolors.to_rgb(c)) for n,c in mcolors.TABLEAU_COLORS.items()]
-    for line in points:
-        color = colors[count%len(colors)]
-        count += 1
-        if line is not None:
-            for point in line:
-                x, y = point.astype(int)
-                cv2.circle(image_out, (x,y), 5, color, -1)
-    return image_out
+        current_left = sort_points(current_left, left_anchor)
+        current_right = sort_points(current_right, right_anchor)
 
+        # save results of current slice
+        left_points = np.vstack((left_points, current_left))
+        right_points = np.vstack((right_points, current_right))
+        left_anchors.append(left_anchor)
+        right_anchors.append(right_anchor)
+        scan_points.append(scan_point)
+        unassigned_groups.extend(current_unassigned)
 
+        # find new anchors for next iter
+        left_anchor = find_new_anchor(left_points, left_anchor)
+        right_anchor = find_new_anchor(right_points, right_anchor)
 
+        if left_anchor is None and right_anchor is None:
+            break
 
+        if left_anchor is None:
+            vx, vy, x, y = right_anchor
+            n = np.linalg.norm(right_anchor[:2])
+            # estimate anchor by shifting existing one to the other side of the lane
+            left_anchor = np.array([vx, vy, int(x + vy * lane_width / n), int(y - vx * lane_width / n)])
 
-def get_slope_intecept(lines):
-    slopes = (lines[:, 3] - lines[:, 1]) / (lines[:, 2] - lines[:, 0] + 0.001)
-    intercepts = ((lines[:, 3] + lines[:, 1]) - slopes * (
-        lines[:, 2] + lines[:, 0])) / 2
-    return slopes, intercepts
+        if right_anchor is None:
+            vx, vy, x, y = left_anchor
+            n = np.linalg.norm(left_anchor[:2])
+            right_anchor = np.array([vx, vy, int(x - vy * lane_width / n), int(y + vx * lane_width / n)])
 
-
-def get_polar(lines):
-    x1 = lines[:,0]
-    y1 = lines[:,1]
-    x2 = lines[:,2]
-    y2 = lines[:,3]
-
-    theta = np.arctan2(y2 - y1, x2 - x1) - np.pi / 2
-
-    indices = x1 != x2
-    a = np.ones(x1.shape)
-    a[indices] = (y1 - y2)[indices] / (x2 - x1)[indices]
-    b = np.zeros(a.shape)
-    b[indices] = 1
-    c = a * x1 + b * y1
-
-    r = c / (a * np.cos(theta) + b * np.sin(theta))
-
-    indices = r < 0
-    r[indices] = - r[indices]
-    theta[indices] = theta[indices] - np.pi
-
-    indices = theta <= -np.pi
-    theta[indices] = theta[indices] + 2 * np.pi
-
-    return r, theta
+    return left_points, right_points, np.array(left_anchors), np.array(right_anchors), np.array(scan_points), unassigned_groups
 
 
-def project_points(slope, intercept, points):
-    # define a line by point a and b is parametrized by a + t * ab
-    # t for projection of a point p is ap.dot(ab) / norm(ab)^2
-    #  np.sum((ap * ab), axis=1) gives the line by line dot product: same as ap[i,:].dot(ab[i,:]) for all i
-    n = points.shape[0]
-    a = np.array([0, intercept])
-    ab = np.array([1, slope])
-    t = np.sum((points - a) * (np.tile(ab, (n, 1))), axis=1) / (slope**2 + 1)
-    p = a + np.multiply(np.tile(t, (2,1)).T, ab)
-    return (p, t)
-
-
-def line_to_points(start, end, step=20):
-    length = np.linalg.norm(end - start)
-    points = [start]
-    v = step * (end - start) / length
-    current = start
-
-    while length > step / 2:
-        current = current + v
-        points.append(current)
-        length -= step
-
+def scan(binary, origin, scan_radius, search_value, scan_steps=360):
+    """
+    Apply ray tracing algorithm.
+    """
+    (h, w) = np.shape(binary)
+    x, y = origin
+    points = []
+    angles = [i * 2 * np.pi / scan_steps for i in range(scan_steps)]
+    ranges = range(1, scan_radius)
+    
+    for i in range(len(angles)):
+        cos = math.cos(angles[i])
+        sin = math.sin(angles[i])
+        for r in ranges:
+            # determine the coordinates of the cell.
+            xi = int(x + r * cos)
+            yi = int(y + r * sin)
+            
+            # if not in the map, stop going further
+            if (xi < 0 or xi > w-1 or yi < 0 or yi > h-1):
+                break
+            # if in the map, but hitting an obstacle, retain point and stop ray tracing
+            if binary[yi, xi] == search_value:
+                points.append([xi, yi])
+                break
+            
     return np.array(points)
 
 
-def binarize_segmentation(segmentation):
+def greedy_group(points, threshold):
     """
-    Create an image with pixels belonging to lane boundary categories from the output of semantic segmentation
-    Get road mask by choosing pixels in segmentation output with value 2 or 3
+    Group points so that when to points are spaced by less than threshold, they share the same group.
     """
-    binary = np.zeros(segmentation.shape, dtype='uint8')
-    binary[segmentation == 2] = 1
-    binary[segmentation == 3] = 1
-    return binary
+    distances = cdist(points, points)
+
+    groups = []
+    remaining_indexes = [i for i in range(points.shape[0])]
+    open_indexes = SimpleQueue()
+    # loop until all points have been added to a group
+    while len(remaining_indexes) > 0:
+        open_indexes.put(remaining_indexes[0])
+        current_group_indexes = []
+        # iterate over current neighbours
+        while not open_indexes.empty():
+            idx = open_indexes.get()
+            # and if it has not been done
+            if idx in remaining_indexes:
+                current_group_indexes.append(idx)
+                remaining_indexes.remove(idx)
+                # add it's own neighbours to current neighbours
+                neighbours_indexes = np.argwhere(distances[idx, :] <= threshold)
+                for i in neighbours_indexes.flatten().tolist():
+                    open_indexes.put(i)
+        # when there is no more neighbours, close current group
+        groups.append(points[current_group_indexes])
+    return [np.array(group) for group in groups]
 
 
-def detect_hough_lines(binary, gauss_kernel_size=5, gauss_sigma_x=1, canny_threshold_1=0, canny_threshold_2=2, hough_rho=1, hough_theta=np.pi / 180, hough_threshold=80, hough_min_line_length=30, hough_max_line_gap=10):
+def assign_groups_to_anchors(groups, left_anchor, right_anchor):
     """
-    Estimates lines belonging to lane boundaries. Multiple lines could correspond to a single lane.
-
-    Arguments:
-    binary -- tensor of dimension (H,W), containing a binary representation of lane points
-    minLineLength -- Scalar, the minimum line length
-    maxLineGap -- Scalar, dimension (Nx1), containing the z coordinates of the points
-
-    Returns:
-    lines -- tensor of dimension (N, 4) containing lines in the form of [x_1, y_1, x_2, y_2], where [x_1,y_1] and [x_2,y_2] are
-    the coordinates of two points on the line in the (u,v) image coordinate frame.
+    Takes many array of points and find which is nearer to each anchor.
     """
-    # parameters
-    #   src         input image; the image can have any number of channels, which are processed independently, but the depth should be CV_8U, CV_16U, CV_16S, CV_32F or CV_64F.
-    #   dst         output image of the same size and type as src.
-    #   ksize       Gaussian kernel size. ksize.width and ksize.height can differ but they both must be positive and odd. Or, they can be zero's and then they are computed from sigma.
-    #   sigmaX      Gaussian kernel standard deviation in X direction.
-    #   sigmaY      Gaussian kernel standard deviation in Y direction; if sigmaY is zero, it is set to be equal to sigmaX, if both sigmas are zeros, they are computed from ksize.width and ksize.height, respectively (see getGaussianKernel for details); to fully control the result regardless of possible future modifications of all this semantics, it is recommended to specify all of ksize, sigmaX, and sigmaY.
-    #   borderType  pixel extrapolation method, see BorderTypes. BORDER_WRAP is not supported.
-    #binary = cv2.GaussianBlur(binary, (gauss_kernel_size, gauss_kernel_size), gauss_sigma_x)
-
-    # parameters:
-    #   image         8-bit input image.
-    #   threshold1    first threshold for the hysteresis procedure.
-    #   threshold2    second threshold for the hysteresis procedure.
-    #   apertureSize  aperture size for the Sobel operator.
-    #   L2gradient    a flag, indicating whether a more accurate L2 norm =sqrt((dI/dx)2+(dI/dy)2) should be used to calculate 
-    #                 the image gradient magnitude ( L2gradient=true ), or whether the default L1 norm =|dI/dx|+|dI/dy| is enough.
-    # returns:
-    #   edges         output edge map; single channels 8-bit image, which has the same size as image .
-    # defaults: apertureSize = 3, L2gradient = false
-    #edges = cv2.Canny(binary, 0, 2, apertureSize = 3, L2gradient = True)
+    if len(groups) < 1:
+        return None, None, None
     
-    # parameters
-    #   image           8-bit, single-channel binary source image. The image may be modified by the function.
-    #   lines           Output vector of lines. Each line is represented by a 4-element vector (x1,y1,x2,y2) , where (x1,y1) and (x2,y2) are the ending points of each detected line segment.
-    #   rho             Distance resolution of the accumulator in pixels.
-    #   theta           Angle resolution of the accumulator in radians.
-    #   threshold       Accumulator threshold parameter. Only those lines are returned that get enough votes ( >𝚝𝚑𝚛𝚎𝚜𝚑𝚘𝚕𝚍 ).
-    #   minLineLength   Minimum line length. Line segments shorter than that are rejected.
-    #   maxLineGap      Maximum allowed gap between points on the same line to link them.
-    # defaults: rho=1, theta=np.pi / 180, threshold=80, minLineLength=30, maxLineGap=10
-    lines = cv2.HoughLinesP(binary, rho=hough_rho, theta=hough_theta, threshold=hough_threshold, minLineLength=hough_min_line_length, maxLineGap=hough_max_line_gap)
-    print(lines)
-    lines = np.reshape(lines, (len(lines), 4))
-    
-    # dimensions of returned lines is (N x 4)
-    return lines
+    left_dists = []
+    right_dists = []
+    for group in groups:
+        left_dists.append(np.min(np.linalg.norm(group - left_anchor[2:], axis=1)))
+        right_dists.append(np.min(np.linalg.norm(group - right_anchor[2:], axis=1)))
+    left_dists = np.array(left_dists)
+    right_dists = np.array(right_dists)
 
+    left_indexes = np.argsort(left_dists)
+    left_index = left_indexes[0]
+    right_indexes = np.argsort(right_dists)
+    right_index = right_indexes[0]
 
-def merge_lines(lines, slope_similarity_threshold=0.1, intercept_similarity_threshold=40, min_slope_threshold=0):
-    """
-    Merges lines to output a single line per lane, using the slope and intercept as similarity measures.
-    Also, filters horizontal lane lines based on a minimum slope threshold.
-
-    Arguments:
-    lines -- tensor of dimension (N, 4) containing lines in the form of [x_1, y_1, x_2, y_2],
-    the coordinates of two points on the line.
-
-    Returns:
-    merged_lines -- tensor of dimension (N, 4) containing lines in the form of [x_1, y_1, x_2, y_2],
-    the coordinates of two points on the line.
-    """
-    
-    # Step 1: Get slope and intercept of lines
-    slopes, intercepts = get_slope_intecept(lines)
-    radiuses, thetas = get_polar(lines)
-    
-    # Step 2: Determine lines with slope less than horizontal slope threshold.
-    keep = abs(slopes) >= min_slope_threshold
-    
-    # Step 3: Iterate over all remaining slopes and intercepts and cluster lines that are close to each other using a slope and intercept threshold.
-    clusters = []
-    clusters_indices = []
-    
-    for i, (theta, r) in enumerate(zip(thetas, radiuses)):
-        exists_in_clusters = np.array([i in current for current in clusters_indices])
-
-        if not exists_in_clusters.any():
-            slope_cluster = np.logical_and(
-                thetas < (theta + slope_similarity_threshold),
-                thetas > (theta - slope_similarity_threshold)
-            )
-            intercept_cluster = np.logical_and(
-                radiuses < (r + intercept_similarity_threshold),
-                radiuses > (r - intercept_similarity_threshold)
-            )
-            indices = np.argwhere(slope_cluster & intercept_cluster & keep).T.flatten()
-            if indices.size:
-                clusters_indices.append(indices)
-                clusters.append(lines[indices])
-
-    # Step 4: Merge all lines in clusters using mean averaging
-    def merge(cluster, slopes, intercepts, i):
-        cluster_len = len(cluster)
-        if cluster_len != slopes.shape[0] or cluster_len != intercepts.shape[0]:
-            raise ValueError('cluster ({}) and slopes ({}) and intercepts ({}) must be of same length'.format(cluster_len, slopes.shape[0], intercepts.shape[0]))
-        points = np.reshape(cluster, (cluster_len * 2, 2))
-
-        slope = np.mean(slopes)
-        intercept = np.mean(intercepts)
-        r, t = project_points(slope, intercept, points)
-        i_min = np.argmin(t)
-        i_max = np.argmax(t)
-
-        return np.hstack((r[i_min], r[i_max]))
-
-    merged_lines = [merge(cluster, slopes[clusters_indices[i]], intercepts[clusters_indices[i]], i) for i, cluster in enumerate(clusters)]
-    merged_lines = np.array(merged_lines)
-    
-    # dimensions of returned lines is (N x 4)
-    return merged_lines, clusters
-
-
-def _find_nearest_from_point(lines, point):
-    start_dist = np.linalg.norm(lines[:,0:2] - point, axis=1)
-    end_dist = np.linalg.norm(lines[:,2:4] - point, axis=1)
-    i = np.argmin(start_dist)
-    j = np.argmin(end_dist)
-    k, d = (i, start_dist[i]) if start_dist[i] < end_dist[j] else (j, end_dist[j])
-    # index, start, end, distance
-    return (k, lines[k, 0:2], lines[k, 2:4], d)
-
-
-def _check_regularity(before, after, step=20):
-    if len(before) > 1 and len(after) > 1:
-        u = before[-1] - before[-2]
-        v = after[1] - after[0]
-        w = after[0] - before[-1]
-        change_dir = np.sign(np.cross(u, v)) != np.sign(np.cross(u, w)) # u cross v = |u|.|v|.sin(angle)
-        go_back = np.sign(u.dot(v)) != np.sign(u.dot(w)) # u dot v = |u|.|v|.cos(angle)
-        dist = np.linalg.norm(w)
-        too_close = dist < (step / 2)
-        too_far = dist > (step * 1.5)
-        return (change_dir, go_back, too_close, too_far)
-    return (False, False, False, False)
-
-
-def _extend_lane(lane, points, step=20):
-    if points.shape[0] == 0:
-        return lane
-    change_dir, go_back, too_close, too_far = _check_regularity(lane, points, step)
-    if change_dir:
-        return _extend_lane(lane, points[1:], step)
-    if go_back:
-        return _extend_lane(lane[:-1], points, step)
-    if too_close:
-        return _extend_lane(lane, points[1:], step)
-    if too_far:
-        fill = line_to_points(lane[-1], points[0], step=20)
-        lane = _extend_lane(lane, fill[1:-1], step)
-        return _extend_lane(lane, points, step)
-    return np.vstack((lane, points))
-
-
-def associate_and_discretize_lane_lines(lines, origin, threshold=50, step=20):
-    print(lines.shape)
-    print(lines)
-    todo = [i for i in range(lines.shape[0])]
-    lanes = []
-    while len(todo) > 0:
-        new_lane = False
-        i, start, end, dist = _find_nearest_from_point(lines[todo], lanes[-1][-1] if len(lanes) > 0 else origin)
-        if dist > threshold:
-            i, start, end, dist = _find_nearest_from_point(lines[todo], origin)
-            new_lane = True
-        todo.remove(todo[i])
-        points = line_to_points(start, end)
-        if points is not None:
-            if len(lanes) > 0 and not new_lane:
-                lanes[-1] =  _extend_lane(lanes[-1], points, step)
-            else:
-                lanes.append(points)
-
-    return lanes
-
-
-def associate_lines(lines, origin, threshold=50):
-    todo = [i for i in range(lines.shape[0])]
-    lanes = []
-    while len(todo) > 0:
-        new_lane = False
-        i, start, end, dist = _find_nearest_from_point(lines[todo], lanes[-1][-1][2:4] if len(lanes) > 0 else origin)
-        if dist > threshold:
-            i, start, end, dist = _find_nearest_from_point(lines[todo], origin)
-            new_lane = True
-        todo.remove(todo[i])
-        if len(lanes) > 0 and not new_lane:
-            lanes[-1].append(np.hstack((start, end)))
+    # check if same group is the nearest from both sides
+    if left_index == right_index:
+        if left_dists[left_index] < right_dists[right_index]:
+            right_index = right_indexes[1] if len(right_indexes) > 1 else None
         else:
-            lanes.append([np.hstack((start, end))])
+            left_index = left_indexes[1] if len(left_indexes) > 1 else None
 
-    return [np.array(lane) for lane in lanes]
+    left_points = groups[left_index] if left_index is not None else None
+    right_points = groups[right_index] if right_index is not None else None
 
+    unassigned_indexes = [i for i in range(len(groups)) if i not in [left_index, right_index]]
+    unassigned_groups = [groups[i] for i in unassigned_indexes]
 
-def calc_point_to_segment_distance(p1, p2, p):
-    # http://paulbourke.net/geometry/pointlineplane/
-    u = (p[0] - p1[0]) * (p2[0] - p1[0]) + (p[1] - p1[1]) * (p2[1] - p1[1]) / np.linalg.norm(p2 - p1) ** 2
-    u = min(1.0, max(0.0, u))
-    d = np.linalg.norm(p1 + u * (p2 - p1) - p)
-    return d
+    if len(unassigned_groups) > 0:
+       logger.debug('WARNING found points that where not assigned to left or right lane')
 
-
-def calc_lines_distances(lines):
-    distances = np.ones((lines.shape[0], lines.shape[0])) * np.inf
-    for i, iline in enumerate(lines):
-        for j, jline in enumerate(lines):
-            if i != j:
-                d1 = calc_point_to_segment_distance(jline[:2], jline[2:], iline[:2])
-                d2 = calc_point_to_segment_distance(jline[:2], jline[2:], iline[2:])
-                if i < j:
-                    distances[i, j] =  min(d1, d2)
-                else:
-                    distances[i, j] = distances[j, i] = min(d1, d2, distances[j, i])
-    return distances
+    return left_points, right_points, unassigned_groups
 
 
-def associate_lines_2(lines, origin, threshold=50):
-    distances = calc_lines_distances(lines)
-
-    todo = [i for i in range(lines.shape[0])]
-    lanes = []
-    open = SimpleQueue()
-    while len(todo) > 0:
-        i, _, _, _ = _find_nearest_from_point(lines[todo], origin)
-        open.put(todo[i])
-        current_lane_idx = []
-        while not open.empty():
-            idx = open.get()
-            if idx in todo:
-                todo.remove(idx)
-                current_lane_idx.append(idx)
-                next_idx = np.argwhere(distances[idx, :] <= threshold)
-                for i in next_idx.flatten().tolist():
-                    open.put(i)
-        lanes.append(lines[current_lane_idx])
-        
-    return [np.array(lane) for lane in lanes]
-
-
-def discretize_lanes_2(lane_lines, step=20):
-    lanes = []
-    for lines in lane_lines:
-        new_lane = True
-        for line in lines:
-            points = line_to_points(line[0:2], line[2:4])
-            if new_lane:
-                lane_points = points
-                new_lane = False
-            else:
-                lane_points = np.vstack((lane_points, points))
-        # sort points
-        # slopes, intercepts = get_slope_intecept(lines)
-        # slope = np.mean(slopes)
-        # intercept = np.mean(intercepts)
-        # _, t = project_points(slope, intercept, lane_points)
-        # indices = np.argsort(t)
-        # lanes.append(lane_points[indices])
-        lanes.append(lane_points)
-
-    return lanes
-
-
-def discretize_lanes(lane_lines, step=20):
-    lanes = []
-    for lines in lane_lines:
-        new_lane = True
-        for line in lines:
-            points = line_to_points(line[0:2], line[2:4])
-            if new_lane:
-                lane_points = points
-                new_lane = False
-            else:
-                lane_points = _extend_lane(lane_points, points, step)
-        # sort points
-        # slopes, intercepts = get_slope_intecept(lines)
-        # slope = np.mean(slopes)
-        # intercept = np.mean(intercepts)
-        # _, t = project_points(slope, intercept, lane_points)
-        # indices = np.argsort(t)
-        # lanes.append(lane_points[indices])
-        lanes.append(lane_points)
-
-    return lanes
-
-
-def find_left_right_lanes(lanes, origin):
-    x0, y0 = origin
-    positions = []
-    for lane in lanes:
-        line = np.reshape(lane[0:2,:], (1, 4))
-        slopes, intercepts = get_slope_intecept(line)
-        if slopes[0] != 0:
-            x = (y0-intercepts[0]) / slopes[0]
-            positions.append(x)
-        else:
-            print('WARINING: found slope = 0')
-
-    positions= np.array(positions)
-    if positions.size == 0:
-        return (None, None)
-    ranks = np.argsort(positions)
-    [right_indice] = np.digitize([x0], positions[ranks]) # x0 is between right_indice-1 and right_indice
-
-    if ranks.size == 1:
-        return (None, lanes[ranks[0]]) if right_indice == 0 else (lanes[ranks[0]], None)
-    if right_indice == 0:
-        return (lanes[ranks[0]], lanes[ranks[1]]) # all lanes are at right
-    if right_indice == len(ranks):
-        return (lanes[ranks[-2]], lanes[ranks[-1]]) # all lanes are at left
-    return (lanes[ranks[right_indice-1]], lanes[ranks[right_indice]])
-
-
-def find_left_right_lanes_2(lane_lines, origin):
-    distances = []
-    nearest_points = []
-    for lane in lane_lines:
-        points = np.vstack((lane[:,:2], lane[:,2:]))
-        dists = np.linalg.norm(points - origin, axis=1)
-        min_index = np.argmin(dists)
-        distances.append(dists[min_index])
-        nearest_points.append(points[min_index])
-
-    index = np.argmin(np.array(distances))
-    vect = nearest_points[index] - origin
-    distances[index] = np.inf
-    lane_1 = lane_lines[index]
-    angle_1 = np.arctan2(vect[1], vect[0])
-
-    index = np.argmin(np.array(distances))
-    vect = nearest_points[index] - origin
-    lane_2 = lane_lines[index]
-    angle_2 = np.arctan2(vect[1], vect[0])
-    
-    return (lane_1, lane_2) if angle_1 > angle_2 else (lane_2, lane_1)
-
-
-
-def estimate_path(left_lane, right_lane):
-    cross_dist = cdist(left_lane, right_lane)
-
-    if left_lane.size <= right_lane.size:
-        indices = np.argmin(cross_dist.T, axis=-1)
-        left = left_lane[indices]
-        right = right_lane
-    else:
-        indices = np.argmin(cross_dist, axis=-1)
-        left = left_lane
-        right = right_lane[indices]
-
-    return left + (right - left) / 2
-
-
-def regularize_lane(lane, step=30):
-    path = [lane[0]]
-    remaining = step
-    distance = 0
-    index = 0
-
-    while True:
-        if remaining < distance:
-            current = current + remaining * u / distance
-            u = next - current
-            distance = np.linalg.norm(u)
-            remaining = step
-            path.append(current)
-        else:
-            if index + 1 >= lane.shape[0]:
-                path.append(current + remaining * u / distance)
-                break
-            remaining -= distance
-            current = lane[index]
-            next = lane[index+1]
-            u = next - current
-            distance = np.linalg.norm(u)
-            index += 1
-
-    return np.array(path)
-
-
-def path_to_vehicule_frame(path, origin, pixel_in_cm):
-    return (origin - path) @ np.array([[0, 1], [1, 0]]) * pixel_in_cm
-
-
-def threshold_equalized_grayscale(frame, threshhold=250):
+def move_overlap(points_a, points_b):
     """
-    Apply histogram equalization to an input frame, threshold it and return the (binary) result.
+    Move points from points_a to points_b if they are inside a rect containing points_b.
     """
-    gray = frame if len(frame.shape) < 3 or frame.shape[2] == 1 else cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-
-    eq_global = cv2.equalizeHist(gray)
-
-    _, th = cv2.threshold(eq_global, thresh=threshhold, maxval=255, type=cv2.THRESH_BINARY)
-
-    return th
-
-
-def detect_path(segmentation, vanishing_point, crop_top, height_ratio, pixel_in_cm=0.333, plot=False):
-    birdeye = Birdeye(*segmentation.shape, vanishing_point=vanishing_point, crop_top=crop_top, crop_corner=1, height_ratio=height_ratio)
-    rectified_segmentation = birdeye.apply(segmentation)
-    binary = binarize_segmentation(rectified_segmentation)
-
-    lines, edges = detect_hough_lines(binary, hough_threshold=30, hough_min_line_length=30, hough_max_line_gap=20)
-    merged_lines, lines_clusters = merge_lines(lines, slope_similarity_threshold=0.1, intercept_similarity_threshold=20)
-
-    origin = np.array([int(binary.shape[1] / 2), binary.shape[0]])
-
-    lane_lines = associate_lines(merged_lines, origin, threshold=70)
-    lanes = discretize_lanes(lane_lines)
-    left_lane, right_lane = find_left_right_lanes(lanes, origin)
-    estimated_path = estimate_path(left_lane, right_lane)
-    path = regularize_lane(estimated_path)
-    path_v = path_to_vehicule_frame(path, origin, pixel_in_cm=pixel_in_cm)
-
-    return path_v
+    p_min = np.min(points_b, axis=0)
+    p_max = np.max(points_b, axis=0)
+    has_overlap = np.logical_and(np.all(points_a >= p_min, axis=1), np.all(points_a <= p_max, axis=1))
+    no_overlap_indexes = np.argwhere(np.logical_not(has_overlap)).flatten()
+    no_overlap = points_a[no_overlap_indexes,:]
+    overlap_indexes = np.argwhere(has_overlap).flatten()
+    overlap = points_a[overlap_indexes,:]
+    return no_overlap, np.vstack((overlap, points_b))
 
 
-# Generates range measurements for a laser scanner based on a map, vehicle position,
-# and sensor parameters.
-# Uses the ray tracing algorithm.
-def get_ranges(binary, origin, rmax, class_value=2, threshold=20):
-    (h, w) = np.shape(binary)
-    x, y = origin
-    meas_phi = [x * np.pi / 180 - np.pi for x in range(361)]
-    result = []
-    current = []
-    mask = np.zeros((h,w), dtype=np.uint8)
+def sort_points(points, anchor):
+    """
+    Sort points according to anchor vector direction.
+    """
+    if points is None or points.shape[0] < 2:
+        return points
     
-    # Iterate for each measurement bearing.
-    for i in range(len(meas_phi)):
-        # Iterate over each unit step up to and including rmax.
-        for r in range(1, rmax+1):
-            # Determine the coordinates of the cell.
-            xi = int(round(x + r * math.cos(meas_phi[i])))
-            yi = int(round(y + r * math.sin(meas_phi[i])))
-            
-            # If not in the map, set measurement there and stop going further.
-            if (xi < 0 or xi > w-1 or yi < 0 or yi > h-1):
-                break
-            # If in the map, but hitting an obstacle, set the measurement range
-            # and stop ray tracing.
-            elif binary[yi, xi] == class_value:
-                point = np.array([xi, yi])
-                if len(current) == 0:
-                    current.append(point)
-                    result.append(current)
-                elif np.linalg.norm(current[-1]-point) < threshold:
-                    current.append(point)
-                else:
-                    current = [point]
-                    result.append(current)
-                mask[yi, xi] = 1
-                break
-            elif binary[yi, xi] != 0:
-                break
-                
-    return result, mask
+    line = fit_line(points, anchor, pos_to_anchor=True)
+    # calc parametric position of point projection on the line, see: http://paulbourke.net/geometry/pointlineplane/
+    u = (points[:,0] - line[2]) * line[0] + (points[:,1] - line[3]) * line[1] / np.linalg.norm(line[:2]) ** 2
+
+    sorted_points = points[np.argsort(u),:]
+    return sorted_points
 
 
+def find_new_anchor(points, last_anchor, point_count=5):
+    """
+    Create an anchor at the position of the last point and with a vector that fit the orientation
+    of the last 'point_count' points and shares direction with 'last_anchor'.
+    """
+    if points is None or points.shape[0] < 2:
+        return None
+    
+    n = min(points.shape[0], point_count) if point_count > 0 else points.shape[0]
+    last_points = points[-n:,:]
+    line = fit_line(last_points, last_anchor, pos_to_anchor=False)
+
+    return line
+
+
+def fit_line(points, anchor, pos_to_anchor=False):
+    """
+    Fit a line, sharing orientation with the given anchor vector and make it goes through last point (or anchor point if asked so).
+    """
+    # fit a line [vx, vy, x0, y0]
+    line = cv2.fitLine(points, distType=cv2.DIST_L2, param=0, reps=0.01, aeps=0.01)
+    # correct orientation to correspond to given anchor
+    line[:2] = line[:2] if anchor[:2].dot(line[:2]) > 0 else -line[:2]
+    # and take line that goes through anchor point or last point
+    line[2:] = np.reshape(anchor[2:] if pos_to_anchor else points[-1,:], (2,1))
+    return np.squeeze(line)
+
+
+def mask_to_color(gray):
+    max_val = np.max(gray)
+    scale = int(255.0 / max_val) if max_val > 0 else 1
+    return np.dstack([gray * scale,] * 3)
+
+
+def draw_points(image, points, size=4, color_index=1):
+    import matplotlib.colors as mcolors
+
+    image_out = image.astype(np.uint8)
+    colors = [tuple(255 * e for e in mcolors.to_rgb(c)) for n,c in mcolors.TABLEAU_COLORS.items()]
+    color = colors[color_index%len(colors)]
+    if points is not None:
+        for point in points:
+            x, y = point.astype(int)
+            cv2.circle(image_out, (x,y), size, color, -1)
+        image_out = cv2.circle(image_out, points[-1].astype(int), size, (255, 0, 255), -1)
+    return image_out
+
+
+def draw_points_groups(image, groups, size=4, color_index=1):
+    if groups is not None:
+        for i in range(len(groups)):
+            image = draw_points(image, groups[i], size, color_index+i)
+    return image
+
+
+def draw_anchor(image, anchor, size=6):
+    image_out = image
+    if anchor is not None:
+        x, y = anchor[2:].astype(np.int32)
+        ux, uy = anchor[:2] * 6 * size / np.linalg.norm(anchor[:2])
+        color = (255, 0, 255)
+        image_out = cv2.line(image_out.astype(np.uint8), (x, y), (int(x + ux), int(y + uy)), color, thickness=int(size/2))
+        image_out = cv2.circle(image_out, (x, y), size, color, -1)
+    return image_out
+
+
+def draw_anchors(image, anchors, size=6):
+    if anchors is not None:
+        for i in range(anchors.shape[0]):
+            image = draw_anchor(image, anchors[i,:], size)
+    return image
+
+
+def main(image_name):
+    from matplotlib import pyplot as plt
+
+    print(image_name)
+    frame = cv2.imread(image_name)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    part = LaneDetection(frame.shape[1], frame.shape[0], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
+                 eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
+                 left_anchor=np.array([0.0, -1.0, 250, 370]), right_anchor=np.array([0.0, -1.0, 390, 370]))
+    
+    start = time.time()
+    left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups = part.detect_lanes(frame)
+    print('execution time (s) :', time.time() - start)
+
+    scan_mask = np.zeros((binary.shape[0], binary.shape[1], 3))
+    scan_mask = draw_points_groups(scan_mask, [left_points, right_points] + unassigned_groups)
+
+    fig = plt.figure(figsize=(14, 16))
+    (rows, columns) = (4,3)
+
+    ax = fig.add_subplot(rows, columns, 1)
+    plt.imshow(frame, cmap='gray', vmin=0, vmax=255)
+    ax.set_title("frame")
+
+    ax = fig.add_subplot(rows, columns, 2)
+    plt.imshow(birdeye)
+    ax.set_title("birdeye")
+
+    ax = fig.add_subplot(rows, columns, 3)
+    plt.imshow(binary, cmap='gray')
+    ax.set_title("binary")
+
+    ax = fig.add_subplot(rows, columns, 4)
+    plt.imshow(draw_points(scan_mask, scan_points, color_index=1))
+    ax.set_title("scan points")
+
+    ax = fig.add_subplot(rows, columns, 5)
+    plt.imshow(draw_anchors(draw_points(birdeye, left_points, color_index=3), left_anchors))
+    ax.set_title("left points")
+
+    ax = fig.add_subplot(rows, columns, 6)
+    plt.imshow(draw_anchors(draw_points(birdeye, right_points, color_index=2), right_anchors))
+    ax.set_title("right points")
+
+    ax = fig.add_subplot(rows, columns, 7)
+    plt.imshow(draw_points_groups(birdeye, unassigned_groups, color_index=4))
+    ax.set_title("unassigned points")
+
+    plt.show()
 
 if __name__ == '__main__':
-    from matplotlib import pyplot as plt
-    from donkeycar.parts.lane_finding.binarization import binarize
-    from donkeycar.parts.lane_finding.perspective import Birdeye
-    
     for test_img in glob.glob('test_images/*.jpg'):
-        print(test_img)
-        frame = cv2.imread(test_img)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        bird = Birdeye(*frame.shape[:2], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7)
-        birdeye = bird.apply(frame, plot=False)
-        mask = bird.apply(np.zeros(frame.shape[:2], dtype=np.uint8), border_value=1)
-        
-        gauss_kernel_size=5
-        gauss_sigma_x=1
-        birdeye = cv2.GaussianBlur(birdeye, (gauss_kernel_size, gauss_kernel_size), gauss_sigma_x)
-        binary = threshold_equalized_grayscale(birdeye, threshhold=245)
-
-        
-        
-        
-
-
-        binary[binary>0] = 1
-        binary[mask>0] = 2
-
-        origin = np.array([int(binary.shape[1] / 2 -1), int(binary.shape[0] -1)])
-
-        _, contours = get_ranges(binary, origin, rmax=150, class_value=1, threshold=20)
-
-
-        lines = detect_hough_lines(contours, hough_threshold=5, hough_min_line_length=20, hough_max_line_gap=40)
-        merged_lines, lines_clusters = merge_lines(lines, slope_similarity_threshold=0.1, intercept_similarity_threshold=20)
-
-        
-        # lane_lines = associate_lines_2(merged_lines, origin, threshold=40)
-        lane_lines = [merged_lines]
-
-
-        left_lane, right_lane = find_left_right_lanes_2(lane_lines, origin)
-        # left_lane, right_lane = discretize_lanes_2([left_lane, right_lane])
-
-
-        # estimated_path = estimate_path(left_lane, right_lane)
-        # path = regularize_lane(estimated_path)
-        # path_v = path_to_vehicule_frame(path, origin, pixel_in_cm=0.333)
-
-
-        fig = plt.figure(figsize=(11, 10))
-        (rows, columns) = (4,3)
-
-        ax = fig.add_subplot(rows, columns, 1)
-        plt.imshow(frame)
-        ax.set_title("image")
-
-        ax = fig.add_subplot(rows, columns, 2)
-        plt.imshow(birdeye)
-        ax.set_title("birdeye image")
-
-        ax = fig.add_subplot(rows, columns, 3)
-        plt.imshow(binary, cmap='gray')
-        ax.set_title("edges")
-
-
-        ax = fig.add_subplot(rows, columns, 4)
-        plt.imshow(contours, cmap='gray')
-        ax.set_title("contours points")
-
-
-        ax = fig.add_subplot(rows, columns, 5)
-        plt.imshow(vis_cluster_lines(birdeye, lines_clusters))
-        ax.set_title("clusters")
-        print('merged lines count: ' + str(merged_lines.shape[0]))
-
-        ax = fig.add_subplot(rows, columns, 6)
-        plt.imshow(vis_lanes(birdeye, merged_lines, multi_color=True))
-        ax.set_title("merged lines")
-
-        # ax = fig.add_subplot(rows, columns, 6)
-        # plt.imshow(vis_cluster_lines(birdeye, lane_lines))
-        # ax.set_title("lanes lines")
-        # print('lanes count: ' + str(len(lane_lines)))
-
-
-
-        # # ax = fig.add_subplot(rows, columns, 7)
-        # # plt.imshow(vis_points(birdeye, lanes))
-        # # ax.set_title("lanes")
-
-        # ax = fig.add_subplot(rows, columns, 8)
-        # plt.imshow(vis_points(birdeye, [left_lane]))
-        # ax.set_title("left lane")
-
-        # ax = fig.add_subplot(rows, columns, 9)
-        # plt.imshow(vis_points(birdeye, [right_lane]))
-        # ax.set_title("right lane")
-
-        # ax = fig.add_subplot(rows, columns, 10)
-        # plt.imshow(vis_points(birdeye, [estimated_path]))
-        # ax.set_title("central lane")
-
-        # ax = fig.add_subplot(rows, columns, 11)
-        # plt.imshow(vis_points(birdeye, [path]))
-        # ax.set_title("regularized central lane")
-
-        plt.show()
-
-        break
+        main(test_img)

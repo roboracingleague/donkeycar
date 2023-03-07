@@ -47,7 +47,7 @@ def threshold_equalized_grayscale(frame, threshhold=250):
 
     eq_global = cv2.equalizeHist(gray)
 
-    _, th = cv2.threshold(eq_global, thresh=threshhold, maxval=255, type=cv2.THRESH_BINARY)
+    _, th = cv2.threshold(eq_global, thresh=threshhold, maxval=1, type=cv2.THRESH_BINARY)
 
     return th
 
@@ -118,6 +118,20 @@ def binarize(image, hsv_min=None, hsv_max=None, eq_threshhold=250, sobel_kernel_
         plt.show()
 
     return closing if close_kernel_size is not None else binary.astype(np.uint8)
+
+
+def binarize_grayscale(image, eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5):
+    if blur_kernel_size is not None and blur_sigma_x is not None:
+        image = cv2.GaussianBlur(image, (blur_kernel_size, blur_kernel_size), blur_sigma_x)
+    
+    binary = threshold_equalized_grayscale(image, threshhold=eq_threshhold)
+    
+    # apply a light morphology to "fill the gaps" in the binary image
+    if close_kernel_size is not None:
+        kernel = np.ones((close_kernel_size, close_kernel_size), np.uint8)
+        binary = cv2.morphologyEx(binary.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
+
+    return binary
 
 
 if __name__ == '__main__':
