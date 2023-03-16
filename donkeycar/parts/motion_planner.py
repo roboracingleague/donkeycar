@@ -27,9 +27,9 @@ class LocalPlanner:
     def __init__(self):
         logger.info("LocalPlanner ready")
 
-    def run(self, pos_time, x, y, yaw, speed, lane_center, left_lane, right_lane, occupancy_grid=None, signs=None):
+    def run(self, pos_time, x, y, yaw, speed, left_lane, lane_center, right_lane, occupancy_grid=None, signs=None):
 
-        trajectory = lane_center
+        trajectory = plan_trajectory()
 
         return trajectory
 
@@ -45,8 +45,9 @@ class LocalPlanner:
 
 class TestTrajectory():
     def __init__(self):
-        self.trajectory = self.shift_x(self.generate_trapeze(), 15)
-        self.sent = False
+        self.trajectory = np.array([0.0, 0.0])
+        self.trajectory_origin = np.array([0.0, 0.0, 0.0, 0.0])
+        self.updated = False
         self.poses = deque([], maxlen=20)
         logger.info('Starting TestTrajectory')
 
@@ -81,21 +82,25 @@ class TestTrajectory():
     def find_pose_with_nearest_time(self, time):
         pose_times = np.array([p[0] for p in self.poses])
         index = np.argmin(np.absolute(pose_times - time))
-        return self.poses[index][1:4] # [x, y, yaw]
+        return self.poses[index] # [t, x, y, yaw]
+
+    def update_trajectory(self):
+        trajectory = self.shift_x(self.generate_trapeze(), 15)
+        self.trajectory_origin = self.poses[-1]
+        self.trajectory = change_frame_2to1(self.trajectory_origin[1:3], self.trajectory_origin[3], trajectory)
+        logger.debug('Sending a new path')
 
     def run(self, run_pilot, pos_time, x, y, yaw):
         pose = np.array([pos_time, x, y, yaw])
         self.poses.append(pose)
 
         if run_pilot:
-            if not self.sent:
-                self.sent = True
-                trajectory_origin = self.find_pose_with_nearest_time(pos_time)
-                trajectory = change_frame_2to1(trajectory_origin[:2], trajectory_origin[2], self.trajectory)
-                logger.debug('Sending a new path')
-                return trajectory, trajectory_origin[0] # need to send 2 values at least to record None value in vehicle mem
+            if not self.updated:
+                self.update_trajectory()
+                self.updated = True
+                return self.trajectory, self.trajectory_origin[0] # need to send 2 values at least to record None value in vehicle mem
         else:
-            self.sent = False
+            self.updated = False
         
         return None, None
 

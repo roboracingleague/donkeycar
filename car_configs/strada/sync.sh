@@ -11,10 +11,11 @@ REMOTE_PATH="/home/$USER/car/"
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 LOCAL_PATH="${SCRIPT_DIR}/"
 
-echo SENDING
+echo "SENDING"
 rsync -rv --progress --partial --delete \
   --exclude=.DS_Store --exclude=data --exclude=logs --exclude=.git \
   "$LOCAL_PATH" "$USER"@"$SRV":"${REMOTE_PATH}"
 
-echo RECEIVING DATA AND LOGS
+echo
+echo "RECEIVING DATA AND LOGS"
 rsync -rv --progress --partial --include=logs/*** --include=data/*** --exclude=* "$USER"@"$SRV":"${REMOTE_PATH}" "$LOCAL_PATH"
