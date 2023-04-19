@@ -148,6 +148,8 @@ class OakDCamera:
         self.frame_xout = None
         self.frame_xout_depth = None
         
+        self.cam_ts = None
+
         # depth config
         # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
         self.extended_disparity = True
@@ -388,6 +390,7 @@ class OakDCamera:
         if self.queue_xout is not None:
             data_xout = self.queue_xout.get() # blocking
             image_data_xout = data_xout.getFrame()
+            self.cam_ts = time.time_ns()
             self.frame_xout = np.moveaxis(image_data_xout,0,-1)
 
             if logger.isEnabledFor(logging.DEBUG):
@@ -427,11 +430,11 @@ class OakDCamera:
 
     def run_threaded(self):
         if self.enable_depth:
-            return self.frame_xout,self.frame_xout_depth
+            return self.frame_xout,self.frame_xout_depth, self.cam_ts
         elif self.enable_obstacle_dist:
-            return self.frame_xout, np.array(self.roi_distances)
+            return self.frame_xout, np.array(self.roi_distances), self.cam_ts
         else:
-            return self.frame_xout
+            return self.frame_xout, self.cam_ts
 
     def update(self):
         # Keep looping infinitely until the thread is stopped

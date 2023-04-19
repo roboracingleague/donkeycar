@@ -23,6 +23,7 @@ class OakDLiteCamera(BaseCamera):
         
         self.frame = None
         self.qRgb = None
+        self.cam_ts = None
 
         self.init_camera()
         self.running = True
