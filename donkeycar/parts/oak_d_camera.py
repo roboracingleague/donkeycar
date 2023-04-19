@@ -390,7 +390,7 @@ class OakDCamera:
         if self.queue_xout is not None:
             data_xout = self.queue_xout.get() # blocking
             image_data_xout = data_xout.getFrame()
-            self.cam_ts = time.time()
+            self.cam_ts = time.time()*1000000
             self.frame_xout = np.moveaxis(image_data_xout,0,-1)
 
             if logger.isEnabledFor(logging.DEBUG):
