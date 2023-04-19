@@ -73,7 +73,7 @@ class OakDLiteCamera(BaseCamera):
 
     def poll_camera(self):
         self.frame = self.qRgb.get()  # blocking call, will wait until a new data has arrived
-        self.cam_ts = time.time_ns()
+        self.cam_ts = time.time()
 
     def run(self):
         self.poll_camera()

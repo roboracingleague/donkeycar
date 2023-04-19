@@ -611,7 +611,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
     if cfg.ROBOCARS_LATENCY_MEASURE_ENABLED:
         inputs += ['latency/top_ts', 'latency/cam_ts','latency/rc_ts']
-        types += ['int', 'int', 'int']
+        types += ['float', 'float', 'float']
 
     # do we want to store new records into own dir or append to existing
     tub_path = TubHandler(path=cfg.DATA_PATH).create_tub_path() if \
