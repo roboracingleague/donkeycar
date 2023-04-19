@@ -433,8 +433,8 @@ class RobocarsLatencyPulse:
         self.count=0
         self.top_ts = None
         GPIO.setmode(GPIO.BOARD)  # BOARD pin-numbering scheme
-        GPIO.setup(self.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.OUT)  # latency pin set as output
-        GPIO.output(self.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
+        GPIO.setup(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.OUT)  # latency pin set as output
+        GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
 
     def update(self):
 
@@ -451,10 +451,10 @@ class RobocarsLatencyPulse:
     def run (self):
         self.count+=1
         if (self.count%self.cfg.DRIVE_LOOP_HZ == 0):
-            GPIO.output(self.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.HIGH)
+            GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.HIGH)
             self.top_ts = time.time_ns()
         if (self.count%self.cfg.DRIVE_LOOP_HZ == int(self.cfg.DRIVE_LOOP_HZ/2)) :
-            GPIO.output(self.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
+            GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
 
         return self.top_ts
     
