@@ -450,11 +450,9 @@ class RobocarsLatencyPulse:
 
     def run (self):
         self.count+=1
-        if (self.count%self.cfg.DRIVE_LOOP_HZ == 0):
+        if (self.count == self.cfg.DRIVE_LOOP_HZ*5):
             GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.HIGH)
             self.top_ts = time.time()
-        if (self.count%self.cfg.DRIVE_LOOP_HZ > int(self.cfg.DRIVE_LOOP_HZ/4)) :
-            GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
 
         return self.top_ts
     
