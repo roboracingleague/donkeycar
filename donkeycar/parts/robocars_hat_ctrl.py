@@ -153,7 +153,7 @@ class RobocarsHatInCtrl:
         if rxch_msg:
             params = rxch_msg.split(',')
             if len(params) == 5 and int(params[0])==1 :
-                self.in_ts = time_ns()
+                self.in_ts = time.time_ns()
                 if params[1].isnumeric() and self.inThrottleIdle != -1:
                     if (self.cfg.ROBOCARSHAT_USE_AUTOCALIBRATION==True) :
                         self.inThrottle = dualMap(int(params[1]),
@@ -452,8 +452,8 @@ class RobocarsLatencyPulse:
         self.count+=1
         if (self.count%self.cfg.DRIVE_LOOP_HZ == 0):
             GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.HIGH)
-            self.top_ts = time_ns()
-        if (self.count%self.cfg.DRIVE_LOOP_HZ > int(self.cfg.DRIVE_LOOP_HZ/4)) :
+            self.top_ts = time.time_ns()
+        if (self.count%self.cfg.DRIVE_LOOP_HZ > int(self.cfg.DRIVE_LOOP_HZ/)) :
             GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
 
         return self.top_ts
