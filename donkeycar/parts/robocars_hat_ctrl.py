@@ -458,6 +458,7 @@ class RobocarsLatencyPulse:
     
     def shutdown(self):
         # indicate that the thread should be stopped
+        GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
         self.on = False
         time.sleep(.5)
 
