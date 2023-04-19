@@ -78,6 +78,12 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         ch.setFormatter(logging.Formatter(cfg.LOGGING_FORMAT))
         logger.addHandler(ch)
 
+    if cfg.ROBOCARS_LATENCY_MEASURE_ENABLED:
+        from donkeycar.parts.robocars_hat_ctrl import RobocarsLatencyPulse
+        ctr = RobocarsLatencyPulse(cfg)
+        outputs=['latency/top_ts']
+        V.add(ctr, outputs=outputs,threaded=False)
+
     if cfg.HAVE_MQTT_TELEMETRY:
         from donkeycar.parts.telemetry import MqttTelemetry
         tel = MqttTelemetry(cfg)
@@ -603,6 +609,10 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types += ['float', 'float', 'float']
         V.add(mon, inputs=[], outputs=perfmon_outputs, threaded=True)
 
+    if cfg.ROBOCARS_LATENCY_MEASURE_ENABLED:
+        inputs += ['latency/top_ts', 'latency/cam_ts','latency/rc_ts']
+        types += ['int', 'int', 'int']
+
     # do we want to store new records into own dir or append to existing
     tub_path = TubHandler(path=cfg.DATA_PATH).create_tub_path() if \
         cfg.AUTO_CREATE_NEW_TUB else cfg.DATA_PATH
@@ -715,7 +725,10 @@ def add_user_controller(V, cfg, use_joystick, input_image='cam/image_array'):
     if cfg.USE_ROBOCARSHAT_AS_CONTROLLER:
         from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCtrl
         ctr = RobocarsHatInCtrl(cfg)
-        V.add(ctr, outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],threaded=False)
+        outputs=['user/angle', 'user/throttle', 'user/mode', 'recording']
+        if cfg.ROBOCARS_LATENCY_MEASURE_ENABLED:
+            outputs+=['latency/rc_ts']
+        V.add(ctr, outputs=outputs,threaded=False)
 
     return ctr
 
@@ -916,6 +929,8 @@ def add_camera(V, cfg, camera_type):
     else:
         inputs = []
         outputs = ['cam/image_array']
+        if cfg.ROBOCARS_LATENCY_MEASURE_ENABLED:
+            outputs+=['latency/cam_ts']
         threaded = True
         cam = get_camera(cfg)
         if cam:

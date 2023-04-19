@@ -2,6 +2,7 @@ import logging
 import cv2
 import depthai as dai
 from donkeycar.parts.camera import BaseCamera
+import time
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -71,14 +72,16 @@ class OakDLiteCamera(BaseCamera):
 
     def poll_camera(self):
         self.frame = self.qRgb.get()  # blocking call, will wait until a new data has arrived
+        self.cam_ts = time.time_ns()
 
     def run(self):
         self.poll_camera()
-        return self.frame
+        return self.frame, self.cam_ts
+
 
     def run_threaded(self):
-        return self.frame
-    
+        return self.frame, self.cam_ts
+
     def shutdown(self):
         self.running = False
         logger.info('Stopping OakDLiteCamera')
