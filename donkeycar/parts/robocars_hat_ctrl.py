@@ -127,8 +127,6 @@ class RobocarsHatInCtrl:
             self.inThrottleIdle = 1500
             self.inSteeringIdle = 1500
 
-        self.inSpeed = 0
-
         #Aux feature
         self.ch3Feature = self.AUX_FEATURE_NONE
         self.ch4Feature = self.AUX_FEATURE_NONE
@@ -153,7 +151,7 @@ class RobocarsHatInCtrl:
         if rxch_msg:
             params = rxch_msg.split(',')
             if len(params) == 5 and int(params[0])==1 :
-                self.in_ts = time.time()
+                self.in_ts = time.time()*1000000
                 if params[1].isnumeric() and self.inThrottleIdle != -1:
                     if (self.cfg.ROBOCARSHAT_USE_AUTOCALIBRATION==True) :
                         self.inThrottle = dualMap(int(params[1]),
@@ -362,12 +360,12 @@ class RobocarsHatInCtrl:
 
     def run_threaded(self):
         user_throttle, user_steering = self.processAltModes ()
-        return user_steering, user_throttle, self.mode, self.recording, self.inSpeed, self.in_ts
+        return user_steering, user_throttle, self.mode, self.recording, self.in_ts
 
     def run (self):
         self.getCommand()
         user_throttle, user_steering = self.processAltModes ()
-        return user_steering, user_throttle, self.mode, self.recording, self.inSpeed, self.in_ts
+        return user_steering, user_throttle, self.mode, self.recording, self.in_ts
     
 
     def shutdown(self):
@@ -431,7 +429,7 @@ class RobocarsLatencyPulse:
 
         self.cfg = cfg
         self.count=0
-        self.top_ts = None
+        self.top_ts = 0
         GPIO.setmode(GPIO.BOARD)  # BOARD pin-numbering scheme
         GPIO.setup(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.OUT)  # latency pin set as output
         GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.LOW)
@@ -452,7 +450,7 @@ class RobocarsLatencyPulse:
         self.count+=1
         if (self.count == self.cfg.DRIVE_LOOP_HZ*5):
             GPIO.output(self.cfg.ROBOCARS_LATENCY_MEASURE_GPIO, GPIO.HIGH)
-            self.top_ts = time.time()
+            self.top_ts = time.time()*1000000
 
         return self.top_ts
     
