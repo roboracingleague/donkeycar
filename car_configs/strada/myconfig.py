@@ -15,8 +15,8 @@
 # DATA_PATH = os.path.join(CAR_PATH, 'data')
 # MODELS_PATH = os.path.join(CAR_PATH, 'models')
 # 
-# #VEHICLE
-# DRIVE_LOOP_HZ = 30      # the vehicle loop will pause if faster than this speed.
+# # VEHICLE
+DRIVE_LOOP_HZ = 30      # the vehicle loop will pause if faster than this speed.
 # MAX_LOOPS = None        # the vehicle loop can abort after this many iterations, when given a positive integer.
 # 
 # #CAMERA
@@ -32,48 +32,48 @@
 # # CSIC_CAM_GSTREAMER_FLIP_PARM = 0 # (0 => none , 4 => Flip horizontally, 6 => Flip vertically)
 # # OAK_D_ISP_SCALE = None
 # 
-# # OAK-D-LITE CAMERA SETTINGS
-# CAMERA_TYPE = "OAK"   # (OAK|PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
-# 
-# # OAK-D-LITE: "1080p" for rgb
-# # OAK-D-WIDE: "800p" for rgb
-RGB_RESOLUTION = "1080p" 
-# 
+# OAK-D CAMERA SETTINGS
+CAMERA_TYPE = "OAK"   # (OAK|PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
+
+# OAK-D-LITE: "1080p" for rgb
+# OAK-D-WIDE: "800p" for rgb
+RGB_RESOLUTION = "1080p"
+
 RGB_APPLY_CROPPING = False
 # RGB_SENSOR_CROP_X = 0.0
 # RGB_SENSOR_CROP_Y = 0.175
-# RGB_VIDEO_SIZE = (1280,560)
-# 
-# RGB_APPLY_MANUAL_CONF = False
+# RGB_VIDEO_SIZE = (640,400)
+
+RGB_APPLY_MANUAL_CONF = False
 # RGB_EXPOSURE_TIME = 2000
 # RGB_SENSOR_ISO = 400
 # RGB_WB_MANUAL = 2800
-# 
-# # OAK-D-LITE: from 1920/1080 (1,8)>>240/135 
-# # OAK-D-WIDE: from 1280/800  (1,8)>>160/100 (3,16)>>240/150 5/32>>200/125 
-OAK_D_ISP_SCALE = (1,8)
-# 
-# # OAK-D-LITE: color cam = 240 ISP 1/8 ou 192 ISP 1/10 ou 224 ISP 7/60
-# # OAK-D-WIDE: 240 ou 200 ou 160
-IMAGE_W = 240 
-# # OAK-D-LITE: color cam = 135 ISP 1/8 ou 108 ISP 1/10 ou 126 ISP 7/60
-# # OAK-D-WIDE: 150 ou 125 ou 100
-IMAGE_H = 135 
-# 
-IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
-# CAMERA_FRAMERATE = DRIVE_LOOP_HZ
-# 
-# OAK_ENABLE_DEPTH_MAP = False # enables depth map output
-# OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
+
+# OAK-D-LITE: from 1920/1080 (1,8)>>240/135 
+# OAK-D-WIDE: from 1280/800  (1,8)>>160/100 (3,16)>>240/150 5/32>>200/125 
+OAK_D_ISP_SCALE = (1,2)
+
+# OAK-D-LITE: color cam = 240 ISP 1/8 ou 192 ISP 1/10 ou 224 ISP 7/60
+# OAK-D-WIDE: 240 ou 200 ou 160
+IMAGE_W = 640 
+# OAK-D-LITE: color cam = 135 ISP 1/8 ou 108 ISP 1/10 ou 126 ISP 7/60
+# OAK-D-WIDE: 150 ou 125 ou 100
+IMAGE_H = 400 
+
+IMAGE_DEPTH = 1         # default RGB=3, make 1 for mono
+CAMERA_FRAMERATE = DRIVE_LOOP_HZ
+
+OAK_ENABLE_DEPTH_MAP = False # enables depth map output
+OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
 PATH_PILOT_ENABLED = True
-# 
-# # OBSTACLE_AVOIDANCE SETTINGS
-# OBSTACLE_AVOIDANCE_ENABLED = False
+
+# OBSTACLE_AVOIDANCE SETTINGS
+OBSTACLE_AVOIDANCE_ENABLED = False
 # OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 # CLOSE_AVOIDANCE_DIST_MM = 1000
-# 
-# # SEGMENTATION SETTINGS
-# OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
+
+# SEGMENTATION SETTINGS
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
 # # OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
 # # ALSO NEEDS: CAMERA_FRAMERATE = 4 CAMERA_ISP_SCALE = (9, 19) IMAGE_W = 896 IMAGE_H = 512 IMAGE_DEPTH = 3
 # 
@@ -122,8 +122,8 @@ PATH_PILOT_ENABLED = True
 # # (deprecated) "PIGPIO_PWM" uses Raspberrys internal PWM
 # # (deprecated) "I2C_SERVO" uses PCA9685 servo controller to control a steering servo and an ESC, as in a standard RC car
 # #
-# DRIVE_TRAIN_TYPE = "ROBOCARSHAT"
-# 
+DRIVE_TRAIN_TYPE = "ROBOCARSHAT"
+
 # #
 # # PWM_STEERING_THROTTLE
 # #
@@ -390,21 +390,21 @@ PATH_PILOT_ENABLED = True
 #     "RIGHT_BWD_PIN": "RPI_GPIO.BOARD.13",       # TTL output pin enables right wheel reverse
 #     "RIGHT_EN_DUTY_PIN": "RPI_GPIO.BOARD.11",   # PWM pin generates duty cycle for right wheel speed
 # }
-# 
-# # ODOMETRY
+
+# ODOMETRY
 HAVE_ODOM = True                     # Do you have an odometer/encoder 
 ENCODER_TYPE = 'FF_LS7366R'          # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT|LS7366R|FF_LS7366R
 MM_PER_TICK = 0.0278                 # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
 # ODOM_PIN = 13                      # if using GPIO, which GPIO board mode pin to use as input
-# ODOM_DEBUG = False                   # Write out values on vel and distance as it runs
-# ODOM_FREQUENCY = DRIVE_LOOP_HZ * 3   # if odometer needs it, at what frequency should it poll measurements
-# ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer 
-# ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
-# ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
+ODOM_DEBUG = False                   # Write out values on vel and distance as it runs
+ODOM_FREQUENCY = DRIVE_LOOP_HZ * 3   # if odometer needs it, at what frequency should it poll measurements
+ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer 
+ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
+ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
 ODOM_VEHICLE_LENGTH = 0.273          # vehicle length from rear axle center to front axle center in meters
 ODOM_MAX_VELOCITY = 1.5              # max vehicle linear velocity at full throttle in m/s, used by feed forward localization (FF_LS7366R)
 ODOM_MAX_STEERING_ANGLE = 22.89      # max steering angle in degree, used by feed forward localization (FF_LS7366R)
-#
+
 #
 # # LIDAR
 # USE_LIDAR = False
@@ -426,7 +426,7 @@ ODOM_MAX_STEERING_ANGLE = 22.89      # max steering angle in degree, used by fee
 # # python manage.py train and drive commands.
 # # tensorflow models: (linear|categorical|tflite_linear|tensorrt_linear)
 # # pytorch models: (resnet18)
-DEFAULT_MODEL_TYPE = 'tflite_linear'
+DEFAULT_MODEL_TYPE = 'linear'
 # BATCH_SIZE = 128                #how many records to use when doing one pass of gradient decent. Use a smaller number if your gpu is running out of memory.
 # TRAIN_TEST_SPLIT = 0.8          #what percent of records to use for training. the remaining used for validation.
 # MAX_EPOCHS = 100                #how many times to visit all records of your data
@@ -434,7 +434,7 @@ DEFAULT_MODEL_TYPE = 'tflite_linear'
 # VERBOSE_TRAIN = True            #would you like to see a progress bar with text during training?
 # USE_EARLY_STOP = True           #would you like to stop the training if we see it's not improving fit?
 # EARLY_STOP_PATIENCE = 5         #how many epochs to wait before no improvement
-MIN_DELTA = .0001               #early stop will want this much loss change before calling it improved.
+# MIN_DELTA = .0005               #early stop will want this much loss change before calling it improved.
 # PRINT_MODEL_SUMMARY = True      #print layers and weights to stdout
 # OPTIMIZER = None                #adam, sgd, rmsprop, etc.. None accepts default
 # LEARNING_RATE = 0.001           #only used when OPTIMIZER specified
@@ -451,7 +451,7 @@ MIN_DELTA = .0001               #early stop will want this much loss change befo
 # 
 # # Augmentations and Transformations
 # AUGMENTATIONS = []
-TRANSFORMATIONS = ['CROP']
+# TRANSFORMATIONS = []
 # # Settings for brightness and blur, use 'MULTIPLY' and/or 'BLUR' in
 # # AUGMENTATIONS
 # AUG_MULTIPLY_RANGE = (0.5, 3.0)
@@ -459,7 +459,7 @@ TRANSFORMATIONS = ['CROP']
 # # Region of interest cropping, requires 'CROP' in TRANSFORMATIONS to be set
 # # If these crops values are too large, they will cause the stride values to
 # # become negative and the model with not be valid.
-ROI_CROP_TOP = 10               # the number of rows of pixels to ignore on the top of the image
+# ROI_CROP_TOP = 45               # the number of rows of pixels to ignore on the top of the image
 # ROI_CROP_BOTTOM = 0             # the number of rows of pixels to ignore on the bottom of the image
 # ROI_CROP_RIGHT = 0              # the number of rows of pixels to ignore on the right of the image
 # ROI_CROP_LEFT = 0               # the number of rows of pixels to ignore on the left of the image
@@ -481,8 +481,8 @@ ROI_CROP_TOP = 10               # the number of rows of pixels to ignore on the 
 # #WEB CONTROL
 # WEB_CONTROL_PORT = int(os.getenv("WEB_CONTROL_PORT", 8887))  # which port to listen on when making a web controller
 # WEB_INIT_MODE = "user"              # which control mode to start in. one of user|local_angle|local. Setting local will start in ai mode.
-# 
-# #JOYSTICK
+
+#JOYSTICK
 # USE_JOYSTICK_AS_DEFAULT = False      #when starting the manage.py, when True, will not require a --js option to use the joystick
 # JOYSTICK_MAX_THROTTLE = 0.5         #this scalar is multiplied with the -1 to 1 throttle value to limit the maximum throttle. This can help if you drop the controller or just don't need the full speed available.
 # JOYSTICK_STEERING_SCALE = 1.0       #some people want a steering that is less sensitve. This scalar is multiplied with the steering -1 to 1. It can be negative to reverse dir.
@@ -540,11 +540,12 @@ AUTO_RECORD_ON_THROTTLE = False      #if true, we will record whenever throttle 
 # # -- MacOS/Linux:please use 'ls /dev/tty.*' to find the correct serial port for mm1 
 # #  eg.'/dev/tty.usbmodemXXXXXX' and replace the port accordingly
 # MM1_SERIAL_PORT = '/dev/ttyS0'  # Serial Port for reading and sending MM1 data.
-# 
-# # ROBOCARSHAT
-# USE_ROBOCARSHAT_AS_CONTROLLER  = True
-ROBOCARSHAT_SERIAL_PORT = '/dev/serial0'
-# 
+
+# ROBOCARSHAT
+USE_ROBOCARSHAT_AS_CONTROLLER = True
+ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS1'
+ROBOCARSHAT_SERIAL_SPEED = 250000
+
 # # Following values must be aligned with values in Hat !
 # ROBOCARSHAT_PWM_OUT_THROTTLE_MIN    =   1000
 # ROBOCARSHAT_PWM_OUT_THROTTLE_IDLE   =   1500
@@ -601,12 +602,12 @@ ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.3
 # #Example : ROBOCARSHAT_THROTTLE_FLANGER = [-0.1, 0.1], if not used, set to None 
 # #ROBOCARSHAT_THROTTLE_FLANGER = None 
 ROBOCARSHAT_THROTTLE_FLANGER = [ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE, 0.2] 
-# 
+
 # # ROBOCARSHAT_USE_AUTOCALIBRATION used to rely on idle coming from autocalibation done by hat
 # ROBOCARSHAT_USE_AUTOCALIBRATION = True
 # 
-# 
-# #LOGGING
+
+#LOGGING
 HAVE_CONSOLE_LOGGING = False
 # LOGGING_LEVEL = 'INFO'          # (Python logging level) 'NOTSET' / 'DEBUG' / 'INFO' / 'WARNING' / 'ERROR' / 'FATAL' / 'CRITICAL'
 # LOGGING_FORMAT = '%(message)s'  # (Python logging format - https://docs.python.org/3/library/logging.html#formatter-objects
@@ -627,11 +628,11 @@ HAVE_CONSOLE_LOGGING = False
 # 
 # # PERF MONITOR
 # HAVE_PERFMON = False
-# 
-# #RECORD OPTIONS
+
+#RECORD OPTIONS
 RECORD_DURING_AI = True        #normally we do not record during ai mode. Set this to true to get image and steering records for your Ai. Be careful not to use them to train.
-AUTO_CREATE_NEW_TUB = True     #create a new tub (tub_YY_MM_DD) directory when recording or append records to data directory directly
-# 
+AUTO_CREATE_NEW_TUB = False     #create a new tub (tub_YY_MM_DD) directory when recording or append records to data directory directly
+
 # #LED
 # HAVE_RGB_LED = False            #do you have an RGB LED like https://www.amazon.com/dp/B07BNRZWNF
 # LED_INVERT = False              #COMMON ANODE? Some RGB LED use common anode. like https://www.amazon.com/Xia-Fly-Tri-Color-Emitting-Diffused/dp/B07MYJQP8B
@@ -693,7 +694,7 @@ DONKEY_GYM = False
 DONKEY_SIM_PATH = "/Users/romain/Sources/perso/DonkeySimMac/donkey_sim.app/Contents/MacOS/donkey_sim" #"/home/tkramer/projects/sdsandbox/sdsim/build/DonkeySimLinux/donkey_sim.x86_64" when racing on virtual-race-league use "remote", or user "remote" when you want to start the sim manually first.
 DONKEY_GYM_ENV_NAME = "donkey-roboracingleague-track-v0" # ("donkey-generated-track-v0"|"donkey-generated-roads-v0"|"donkey-warehouse-v0"|"donkey-avc-sparkfun-v0")
 GYM_CONF = { "body_style" : "donkey", "body_rgb" : (128, 128, 128), "car_name" : "car", "font_size" : 100} # body style(donkey|bare|car01) body rgb 0-255
-GYM_CONF["cam_resolution"] = (120, 160, 3)
+GYM_CONF["cam_resolution"] = (IMAGE_H, IMAGE_W, IMAGE_DEPTH)
 GYM_CONF["cam_config"] = { "fov": 120 }
 # GYM_CONF["racer_name"] = "Your Name"
 # GYM_CONF["country"] = "Place"

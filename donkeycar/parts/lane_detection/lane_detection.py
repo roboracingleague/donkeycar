@@ -5,7 +5,6 @@ import logging
 from collections import deque
 import cv2
 import numpy as np
-from queue import SimpleQueue
 from scipy.spatial.distance import cdist
 from donkeycar.parts.lane_detection.perspective import Birdeye
 from donkeycar.parts.lane_detection.binarization import binarize_grayscale
@@ -16,51 +15,35 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 
-class PoseHistoSample():
-    def __init__(self):
-        self.trajectory = np.array([0.0, 0.0])
-        self.trajectory_origin = np.array([0.0, 0.0, 0.0, 0.0])
-        self.poses = deque([], maxlen=20)
-        logger.info('Starting TestTrajectory')
-    
-    def find_pose_with_nearest_time(self, time):
-        pose_times = np.array([p[0] for p in self.poses])
-        index = np.argmin(np.absolute(pose_times - time))
-        return self.poses[index] # [t, x, y, yaw]
-
-    def update_trajectory(self, time):
-        trajectory = ...
-        self.trajectory_origin = self.find_pose_with_nearest_time(time)
-        self.trajectory = change_frame_2to1(self.trajectory_origin[1:3], self.trajectory_origin[3], trajectory)
-        logger.debug('Sending a new path')
-
-    def run(self, run_pilot, pos_time, x, y, yaw):
-        pose = np.array([pos_time, x, y, yaw])
-        self.poses.append(pose)
-        return self.trajectory, self.trajectory_origin[0] # need to send 2 values at least to record None value in vehicle mem
-    
-
 class LaneDetection:
     '''
     Lane detection part based on opencv and image analysis, returns 2 numpy arrays of shape [N, 2] for left and right (sorted) points.
     '''
-    def __init__(self, image_width, image_height, vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
+    def __init__(self, image_width,
+                 image_height, vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
                  eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
-                 left_anchor=np.array([0.0, -1.0, 250, 370]), right_anchor=np.array([0.0, -1.0, 390, 370]),
-                 width_m_per_pix=1.0, height_m_per_pix=1.0):
-        self.thread_input = None
-        self.thread_output = None
-        self.on = True
+                 left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]),
+                 width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0,
+                 position_queue_size=30):
+        # birdeye transform
+        self.birdeye = Birdeye(image_height, image_width, vanishing_point, crop_top, crop_corner, border_value=0)
+        # binarize params
         self.eq_threshhold = eq_threshhold
         self.blur_kernel_size = blur_kernel_size
         self.blur_sigma_x = blur_sigma_x
         self.close_kernel_size = close_kernel_size
-        self.left_anchor = left_anchor
-        self.right_anchor = right_anchor
+        # lane detection params
+        self.left_anchor = np.multiply(np.array([1.0, 1.0, image_width, image_height]), left_anchor)
+        self.right_anchor = np.multiply(np.array([1.0, 1.0, image_width, image_height]), right_anchor)
+        # frame change params
         self.width_m_per_pix = width_m_per_pix
         self.height_m_per_pix = height_m_per_pix
-        self.birdeye = Birdeye(image_height, image_width, vanishing_point, crop_top, crop_corner, border_value=0)
-        self.poses = deque([], maxlen=20)
+        self.camera_origin_x_m = camera_origin_x_m
+        # working vars
+        self.poses = deque([], maxlen=position_queue_size)
+        self.thread_input = None
+        self.thread_output = None
+        self.on = True
         logger.info("LaneDetection ready")
 
     def find_pose_with_nearest_time(self, time):
@@ -71,25 +54,34 @@ class LaneDetection:
         return self.poses[index] # [t, x, y, yaw]
     
     def detect_lanes(self, image_time, image):
-        image_origin = self.find_pose_with_nearest_time(image_time)
+        # find vehicule position when image was taken
+        origin_time, origin_x, origin_y, origin_yaw = self.find_pose_with_nearest_time(image_time)
+        origin = np.array([origin_x, origin_y])
+
+        # find lanes in image coords
         birdeye = self.birdeye.apply(image)
         binary = binarize_grayscale(birdeye, self.eq_threshhold, self.blur_kernel_size, self.blur_sigma_x, self.close_kernel_size)
         left_points, right_points, left_anchors, right_anchors, scan_points, unassigned_groups = \
             scan_for_lane(binary, self.left_anchor, self.right_anchor)
         
-        # TODO : change frame (image x, y ?) and scale
-        left_points_vframe = change_frame_2to1(image_origin[1:3], image_origin[3], left_points)
-        right_points_vframe = change_frame_2to1(image_origin[1:3], image_origin[3], right_points)
+        # switch to world coords
+        left_points_vehicule_frame = to_vehicule_frame(left_points,
+            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m)
+        left_points_world_frame = to_world_frame(origin, origin_yaw, left_points_vehicule_frame)
 
-        # TODO : eval center_points
-        center_points_vframe = None
+        right_points_vehicule_frame = to_vehicule_frame(right_points,
+            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m)
+        right_points_world_frame = to_world_frame(origin, origin_yaw, right_points_vehicule_frame)
+
+        # find center of the lane
+        center_points_world_frame = estimate_center(left_points_world_frame, right_points_world_frame)
         
-        return left_points_vframe, center_points_vframe, right_points_vframe, \
+        return origin_time, left_points_world_frame, center_points_world_frame, right_points_world_frame, \
                left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups
     
     def run(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
-        return self.detect_lanes(image_time, image)[:3]
+        return self.detect_lanes(image_time, image)[:4]
 
     def run_threaded(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
@@ -101,9 +93,9 @@ class LaneDetection:
         # keep looping infinitely until the thread is stopped
         while self.on:
             if self.thread_input is not None:
-                frame_time, frame = self.thread_input
+                image_time, image = self.thread_input
                 self.thread_input = None
-                self.thread_output = self.detect_lanes(frame_time, frame)[:3]
+                self.thread_output = self.detect_lanes(image_time, image)[:4]
             else:
                 time.sleep(0.005)
     
@@ -202,14 +194,15 @@ def greedy_group(points, threshold):
 
     groups = []
     remaining_indexes = [i for i in range(points.shape[0])]
-    open_indexes = SimpleQueue()
+    open_indexes = []
     # loop until all points have been added to a group
     while len(remaining_indexes) > 0:
-        open_indexes.put(remaining_indexes[0])
+        open_indexes.append(remaining_indexes[0])
         current_group_indexes = []
         # iterate over current neighbours
-        while not open_indexes.empty():
-            idx = open_indexes.get()
+        while len(open_indexes) > 0:
+            idx = open_indexes[0]
+            open_indexes = open_indexes[1:]
             # and if it has not been done
             if idx in remaining_indexes:
                 current_group_indexes.append(idx)
@@ -217,7 +210,7 @@ def greedy_group(points, threshold):
                 # add it's own neighbours to current neighbours
                 neighbours_indexes = np.argwhere(distances[idx, :] <= threshold)
                 for i in neighbours_indexes.flatten().tolist():
-                    open_indexes.put(i)
+                    open_indexes.append(i)
         # when there is no more neighbours, close current group
         groups.append(points[current_group_indexes])
     return [np.array(group) for group in groups]
@@ -322,6 +315,35 @@ def fit_line(points, anchor, pos_to_anchor=False):
     return np.squeeze(line)
 
 
+def to_vehicule_frame(points, width, height, width_m_per_pix, height_m_per_pix, camera_origin_x_m):
+    result = np.zeros_like(points)
+    result[:,0] = (height - points[:,1]) * height_m_per_pix + camera_origin_x_m
+    result[:,1] = (width - points[:,0]) * width_m_per_pix
+    return result
+
+
+def to_world_frame(origin_pos, origin_yaw, points):
+    return change_frame_2to1(origin_pos, origin_yaw, points)
+
+
+def estimate_center(left_points, right_points):
+    """
+    Find points that are in the middle of the given left and right points lists.
+    """
+    cross_dist = cdist(left_points, right_points)
+
+    if left_points.size <= right_points.size:
+        indices = np.argmin(cross_dist.T, axis=-1)
+        left = left_points[indices]
+        right = right_points
+    else:
+        indices = np.argmin(cross_dist, axis=-1)
+        left = left_points
+        right = right_points[indices]
+
+    return (left + right) / 2
+
+
 def mask_to_color(gray):
     max_val = np.max(gray)
     scale = int(255.0 / max_val) if max_val > 0 else 1
@@ -372,10 +394,10 @@ def main_from_frame(frame):
 
     part = LaneDetection(frame.shape[1], frame.shape[0], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
                  eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
-                 left_anchor=np.array([0.0, -1.0, 250, 370]), right_anchor=np.array([0.0, -1.0, 390, 370]))
+                 left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]))
     
     start = time.time()
-    left_points_v, center_points_v, right_points_v, left_points, right_points, birdeye, \
+    lane_time, left_points_world, center_points_world, right_points_world, left_points, right_points, birdeye, \
         binary, left_anchors, right_anchors, scan_points, unassigned_groups = part.detect_lanes(0.0, frame)
     print('execution time (s) :', time.time() - start)
 
@@ -412,6 +434,21 @@ def main_from_frame(frame):
     ax = fig.add_subplot(rows, columns, 7)
     plt.imshow(draw_points_groups(birdeye, unassigned_groups, color_index=4))
     ax.set_title("unassigned points")
+
+    ax = fig.add_subplot(rows, columns, 8)
+
+
+    ax.scatter(-center_points_world[:,1], center_points_world[:,0])
+    ax.scatter(-left_points_world[:,1], left_points_world[:,0])
+    ax.scatter(-right_points_world[:,1], right_points_world[:,0])
+    ax.set_title("path")
+    ax.set_xlabel("-Y")
+    ax.set_ylabel("X")
+    ax.set_aspect('equal', adjustable='box')
+
+
+
+    ax.set_title("world coordinates")
 
     plt.show()
 

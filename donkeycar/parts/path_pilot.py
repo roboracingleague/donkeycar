@@ -10,32 +10,24 @@ logger.setLevel(logging.DEBUG)
 
 class PathPilot:
     def __init__(self, max_steering_angle, vehicle_length, fix_throttle, brake_throttle, Kc=2.0, Ks=0.1):
-        self.BRAKE_DURATION_S = 1
         self.max_steering_angle_rad = deg2rad(max_steering_angle)
         self.vehicle_length = vehicle_length
         self.fix_throttle = fix_throttle
         self.brake_throttle = brake_throttle
         self.Kc = Kc
         self.Ks = Ks
-        self.brake_until = time.time() - 1
-        self.path = None
         logger.info("PathPilot ready.")
         
     def run(self, path, x, y, yaw, speed):
         if path is not None:
-            self.path = path
-            logger.debug('Received a new path')
-        
-        if self.path is not None:
-            angle, throttle, end_of_path, stanley_metrics = self.control(self.path, x, y, yaw, speed)
-
+            angle, throttle, end_of_path, stanley_metrics = self.control(path, x, y, yaw, speed)
             if not end_of_path:
                 return angle, throttle, end_of_path, stanley_metrics
-            else:
-                self.brake_until = time.time() + self.BRAKE_DURATION_S
-                self.path = None
-            
-        return 0.0, self.brake_throttle if self.brake_until >= time.time() else 0.0, True, None
+        
+        # no path or end of path reached: let's brake
+        if abs(speed) > 0.1:
+            return 0.0, self.brake_throttle, True, None
+        return 0.0, 0.0, True, None
 
     def find_nearest_waypoints(self, path, position):
         end_of_path = False

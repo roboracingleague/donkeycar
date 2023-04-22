@@ -411,11 +411,44 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
 
     if cfg.PATH_PILOT_ENABLED:
-        from donkeycar.parts.motion_planner import TestTrajectory
+        from donkeycar.parts.lane_detection.lane_detection import LaneDetection
+        from donkeycar.parts.motion_planner import LocalPlanner, TestTrajectory
         from donkeycar.parts.path_pilot import PathPilot
 
-        V.add(TestTrajectory(), inputs=['run_pilot', 'pos/time', 'pos/x', 'pos/y', 'pos/yaw'], outputs=['path/waypoints', 'path/time'], threaded=False)
+        # TODO 'cam/image_time'
+        # Camera
+        # out: ['cam/image_array']
 
+        # Odometry
+        # out: ['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance', 'enc/speed']
+
+        # LaneDetection
+        # in : pos_time, x, y, yaw, image_time, image
+        # out: lane_time, left_points_world_frame, center_points_world_frame, right_points_world_frame
+        V.add(LaneDetection(),
+              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'cam/image_time', 'cam/image_array'],
+              outputs=['lane/time', 'lane/left_points', 'lane/center_points', 'lane/right_points'],
+              threaded=False)
+
+        # LocalPlanner
+        # in : pos_time, x, y, yaw, speed, left_lane, lane_center, right_lane, occupancy_grid=None, signs=None
+        # out: trajectory
+        V.add(LocalPlanner(),
+              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed', 'lane/left_points', 'lane/center_points', 'lane/right_points'],
+              outputs=['path/waypoints'],
+              threaded=False)
+
+        # TestTrajectory
+        # in : run_pilot, pos_time, x, y, yaw
+        # out: trajectory, trajectory_time
+        # V.add(TestTrajectory(),
+        #       inputs=['run_pilot', 'pos/time', 'pos/x', 'pos/y', 'pos/yaw'],
+        #       outputs=['path/waypoints', 'path/time'],
+        #       threaded=False)
+
+        # PathPilot
+        # in : path, x, y, yaw, speed
+        # out: angle, throttle, end_of_path, stanley_metrics
         V.add(PathPilot(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
                             fix_throttle=cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE, brake_throttle= cfg.ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE),
             inputs=['path/waypoints', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],

@@ -28,10 +28,11 @@ class LocalPlanner:
         logger.info("LocalPlanner ready")
 
     def run(self, pos_time, x, y, yaw, speed, left_lane, lane_center, right_lane, occupancy_grid=None, signs=None):
-
-        trajectory = plan_trajectory()
-
+        trajectory = self.plan_trajectory(lane_center)
         return trajectory
+
+    def plan_trajectory(self, lane_center):
+        return lane_center
 
     def run_threaded(self):
         raise RuntimeError('Not implemented')
@@ -45,10 +46,7 @@ class LocalPlanner:
 
 class TestTrajectory():
     def __init__(self):
-        self.trajectory = np.array([0.0, 0.0])
-        self.trajectory_origin = np.array([0.0, 0.0, 0.0, 0.0])
         self.updated = False
-        self.poses = deque([], maxlen=20)
         logger.info('Starting TestTrajectory')
 
     def generate_path_straight_50cm(self):
@@ -78,27 +76,19 @@ class TestTrajectory():
         x = np.concatenate([np.array([x for x in range(delta)]) / 100, trajectory[:,0] + delta / 100])
         y = np.concatenate([np.array([0] * delta), trajectory[:,1]])
         return np.vstack((x,y)).T
-    
-    def find_pose_with_nearest_time(self, time):
-        pose_times = np.array([p[0] for p in self.poses])
-        index = np.argmin(np.absolute(pose_times - time))
-        return self.poses[index] # [t, x, y, yaw]
 
-    def update_trajectory(self):
+    def update_trajectory(self, pose):
         trajectory = self.shift_x(self.generate_trapeze(), 15)
-        self.trajectory_origin = self.poses[-1]
-        self.trajectory = change_frame_2to1(self.trajectory_origin[1:3], self.trajectory_origin[3], trajectory)
-        logger.debug('Sending a new path')
+        return change_frame_2to1(pose[1:3], pose[3], trajectory)
 
     def run(self, run_pilot, pos_time, x, y, yaw):
-        pose = np.array([pos_time, x, y, yaw])
-        self.poses.append(pose)
-
         if run_pilot:
             if not self.updated:
-                self.update_trajectory()
+                pose = np.array([pos_time, x, y, yaw])
+                trajectory = self.update_trajectory(pose)
                 self.updated = True
-                return self.trajectory, self.trajectory_origin[0] # need to send 2 values at least to record None value in vehicle mem
+                logger.debug('Sending a new path')
+                return trajectory, pos_time # need to send 2 values at least to record None value in vehicle mem
         else:
             self.updated = False
         
