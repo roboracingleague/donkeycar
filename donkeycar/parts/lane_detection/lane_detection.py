@@ -19,8 +19,8 @@ class LaneDetection:
     '''
     Lane detection part based on opencv and image analysis, returns 2 numpy arrays of shape [N, 2] for left and right (sorted) points.
     '''
-    def __init__(self, image_width,
-                 image_height, vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
+    def __init__(self, image_width, image_height,
+                 vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
                  eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
                  left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]),
                  width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0,
@@ -73,15 +73,19 @@ class LaneDetection:
             self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m)
         right_points_world_frame = to_world_frame(origin, origin_yaw, right_points_vehicule_frame)
 
-        # find center of the lane
-        center_points_world_frame = estimate_center(left_points_world_frame, right_points_world_frame)
+        # do not return empty array
+        if left_points_world_frame.shape[0] == 0:
+            left_points_world_frame = None
+
+        if right_points_world_frame.shape[0] == 0:
+            right_points_world_frame = None
         
-        return origin_time, left_points_world_frame, center_points_world_frame, right_points_world_frame, \
-               left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups
+        return origin_time, left_points_world_frame, right_points_world_frame, \
+               left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups # more vars for debug
     
     def run(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
-        return self.detect_lanes(image_time, image)[:4]
+        return self.detect_lanes(image_time, image)[:3]
 
     def run_threaded(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
@@ -95,7 +99,7 @@ class LaneDetection:
             if self.thread_input is not None:
                 image_time, image = self.thread_input
                 self.thread_input = None
-                self.thread_output = self.detect_lanes(image_time, image)[:4]
+                self.thread_output = self.detect_lanes(image_time, image)[:3]
             else:
                 time.sleep(0.005)
     
@@ -118,41 +122,42 @@ def scan_for_lane(binary, left_anchor, right_anchor, lane_width = 100, scan_iter
     for i in range(scan_iters):
         scan_point = np.mean([left_anchor[2:], right_anchor[2:]], axis=0)
         points = scan(binary, scan_point, scan_radius=scan_radius, search_value=1, scan_steps=scan_steps)
+        
+        if points.shape[0] > 0:
+            groups = greedy_group(points, threshold=group_threshold)
+            current_left, current_right, current_unassigned = assign_groups_to_anchors(groups, left_anchor, right_anchor)
 
-        groups = greedy_group(points, threshold=group_threshold)
-        current_left, current_right, current_unassigned = assign_groups_to_anchors(groups, left_anchor, right_anchor)
+            left_points, current_left = move_overlap(left_points, current_left)
+            right_points, current_right = move_overlap(right_points, current_right)
 
-        left_points, current_left = move_overlap(left_points, current_left)
-        right_points, current_right = move_overlap(right_points, current_right)
+            current_left = sort_points(current_left, left_anchor)
+            current_right = sort_points(current_right, right_anchor)
 
-        current_left = sort_points(current_left, left_anchor)
-        current_right = sort_points(current_right, right_anchor)
+            # save results of current slice
+            left_points = np.vstack((left_points, current_left)) if current_left is not None else left_points
+            right_points = np.vstack((right_points, current_right)) if current_right is not None else right_points
+            left_anchors.append(left_anchor)
+            right_anchors.append(right_anchor)
+            scan_points.append(scan_point)
+            unassigned_groups.extend(current_unassigned)
 
-        # save results of current slice
-        left_points = np.vstack((left_points, current_left)) if current_left is not None else left_points
-        right_points = np.vstack((right_points, current_right)) if current_right is not None else right_points
-        left_anchors.append(left_anchor)
-        right_anchors.append(right_anchor)
-        scan_points.append(scan_point)
-        unassigned_groups.extend(current_unassigned)
+            # find new anchors for next iter
+            left_anchor = find_new_anchor(left_points, left_anchor)
+            right_anchor = find_new_anchor(right_points, right_anchor)
 
-        # find new anchors for next iter
-        left_anchor = find_new_anchor(left_points, left_anchor)
-        right_anchor = find_new_anchor(right_points, right_anchor)
+            if left_anchor is None and right_anchor is None:
+                break
 
-        if left_anchor is None and right_anchor is None:
-            break
+            if left_anchor is None:
+                vx, vy, x, y = right_anchor
+                n = np.linalg.norm(right_anchor[:2])
+                # estimate anchor by shifting existing one to the other side of the lane
+                left_anchor = np.array([vx, vy, int(x + vy * lane_width / n), int(y - vx * lane_width / n)])
 
-        if left_anchor is None:
-            vx, vy, x, y = right_anchor
-            n = np.linalg.norm(right_anchor[:2])
-            # estimate anchor by shifting existing one to the other side of the lane
-            left_anchor = np.array([vx, vy, int(x + vy * lane_width / n), int(y - vx * lane_width / n)])
-
-        if right_anchor is None:
-            vx, vy, x, y = left_anchor
-            n = np.linalg.norm(left_anchor[:2])
-            right_anchor = np.array([vx, vy, int(x - vy * lane_width / n), int(y + vx * lane_width / n)])
+            if right_anchor is None:
+                vx, vy, x, y = left_anchor
+                n = np.linalg.norm(left_anchor[:2])
+                right_anchor = np.array([vx, vy, int(x - vy * lane_width / n), int(y + vx * lane_width / n)])
 
     return left_points, right_points, np.array(left_anchors), np.array(right_anchors), np.array(scan_points), unassigned_groups
 
@@ -326,24 +331,6 @@ def to_world_frame(origin_pos, origin_yaw, points):
     return change_frame_2to1(origin_pos, origin_yaw, points)
 
 
-def estimate_center(left_points, right_points):
-    """
-    Find points that are in the middle of the given left and right points lists.
-    """
-    cross_dist = cdist(left_points, right_points)
-
-    if left_points.size <= right_points.size:
-        indices = np.argmin(cross_dist.T, axis=-1)
-        left = left_points[indices]
-        right = right_points
-    else:
-        indices = np.argmin(cross_dist, axis=-1)
-        left = left_points
-        right = right_points[indices]
-
-    return (left + right) / 2
-
-
 def mask_to_color(gray):
     max_val = np.max(gray)
     scale = int(255.0 / max_val) if max_val > 0 else 1
@@ -397,7 +384,7 @@ def main_from_frame(frame):
                  left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]))
     
     start = time.time()
-    lane_time, left_points_world, center_points_world, right_points_world, left_points, right_points, birdeye, \
+    lane_time, left_points_world, right_points_world, left_points, right_points, birdeye, \
         binary, left_anchors, right_anchors, scan_points, unassigned_groups = part.detect_lanes(0.0, frame)
     print('execution time (s) :', time.time() - start)
 
@@ -436,19 +423,12 @@ def main_from_frame(frame):
     ax.set_title("unassigned points")
 
     ax = fig.add_subplot(rows, columns, 8)
-
-
-    ax.scatter(-center_points_world[:,1], center_points_world[:,0])
     ax.scatter(-left_points_world[:,1], left_points_world[:,0])
     ax.scatter(-right_points_world[:,1], right_points_world[:,0])
-    ax.set_title("path")
     ax.set_xlabel("-Y")
     ax.set_ylabel("X")
     ax.set_aspect('equal', adjustable='box')
-
-
-
-    ax.set_title("world coordinates")
+    ax.set_title("lane in world coordinates")
 
     plt.show()
 

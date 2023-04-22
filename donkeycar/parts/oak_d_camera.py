@@ -5,7 +5,7 @@ import numpy as np
 import depthai as dai
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class CameraError(Exception):
@@ -161,6 +161,7 @@ class OakDCamera:
         self.queue_xout_depth = None
         self.queue_xout_spatial_data = None
         self.frame_xout = None
+        self.frame_time = None
         self.frame_xout_depth = None
         self.roi_distances = []
         self.latencies = deque([], maxlen=20)
@@ -368,9 +369,12 @@ class OakDCamera:
                 image_data_xout = np.moveaxis(image_data_xout,0,-1)
             self.frame_xout = image_data_xout
 
+            latency = (dai.Clock.now() - data_xout.getTimestamp()).total_seconds()
+            self.frame_time = time.time() - latency
+
             if logger.isEnabledFor(logging.DEBUG):
                 # Latency in miliseconds 
-                self.latencies.append((dai.Clock.now() - data_xout.getTimestamp()).total_seconds() * 1000)
+                self.latencies.append(latency * 1000)
                 if len(self.latencies) >= self.latencies.maxlen:
                     logger.debug('Image latency: {:.2f} ms, Average latency: {:.2f} ms, Std: {:.2f}' \
                         .format(self.latencies[-1], np.average(self.latencies), np.std(self.latencies)))
@@ -409,7 +413,7 @@ class OakDCamera:
         elif self.enable_obstacle_dist:
             return self.frame_xout, np.array(self.roi_distances)
         else:
-            return self.frame_xout
+            return self.frame_xout, self.frame_time
 
     def update(self):
         # Keep looping infinitely until the thread is stopped

@@ -2,22 +2,11 @@ import logging
 from collections import deque
 import numpy as np
 import math
+from scipy.spatial.distance import cdist
 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-# change points given in F1 to F2: translate first and then rotate
-def change_frame_1to2(origin2, yaw2, points_in_f1):
-    rotation = -yaw2
-    R = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
-    return (R @ (points_in_f1 - origin2).T).T
-
-# change points given in F2 to F1: rotate first and then translate
-def change_frame_2to1(origin2, yaw2, points_in_f2):
-    R = np.array([[np.cos(yaw2), -np.sin(yaw2)], [np.sin(yaw2), np.cos(yaw2)]])
-    return (R @ points_in_f2.T).T + origin2
 
 
 class LocalPlanner:
@@ -27,11 +16,13 @@ class LocalPlanner:
     def __init__(self):
         logger.info("LocalPlanner ready")
 
-    def run(self, pos_time, x, y, yaw, speed, left_lane, lane_center, right_lane, occupancy_grid=None, signs=None):
-        trajectory = self.plan_trajectory(lane_center)
+    def run(self, pos_time, x, y, yaw, speed, left_lane, right_lane, occupancy_grid=None, signs=None):
+        trajectory = self.plan_trajectory(left_lane, right_lane)
         return trajectory
 
-    def plan_trajectory(self, lane_center):
+    def plan_trajectory(self, left_lane, right_lane):
+        # find center of the lane
+        lane_center = estimate_lane_center(left_lane, right_lane)
         return lane_center
 
     def run_threaded(self):
@@ -102,3 +93,42 @@ class TestTrajectory():
 
     def shutdown(self):
         logger.info('Stopping TestTrajectory')
+
+
+# change points given in F1 to F2: translate first and then rotate
+def change_frame_1to2(origin2, yaw2, points_in_f1):
+    rotation = -yaw2
+    R = np.array([[np.cos(rotation), -np.sin(rotation)], [np.sin(rotation), np.cos(rotation)]])
+    return (R @ (points_in_f1 - origin2).T).T
+
+
+# change points given in F2 to F1: rotate first and then translate
+def change_frame_2to1(origin2, yaw2, points_in_f2):
+    R = np.array([[np.cos(yaw2), -np.sin(yaw2)], [np.sin(yaw2), np.cos(yaw2)]])
+    return (R @ points_in_f2.T).T + origin2
+
+
+def estimate_lane_center(left_points, right_points):
+    """
+    Find points that are in the middle of the given left and right points lists.
+    """
+    # TODO one is empty, or both 
+    if left_points is None and right_points is None:
+        return None
+    elif left_points is None:
+        return right_points
+    elif right_points is None:
+        return left_points
+    
+    cross_dist = cdist(left_points, right_points)
+
+    if left_points.size <= right_points.size:
+        indices = np.argmin(cross_dist.T, axis=-1)
+        left = left_points[indices]
+        right = right_points
+    else:
+        indices = np.argmin(cross_dist, axis=-1)
+        left = left_points
+        right = right_points[indices]
+
+    return (left + right) / 2

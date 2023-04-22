@@ -76,6 +76,25 @@ OBSTACLE_AVOIDANCE_ENABLED = False
 OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 CLOSE_AVOIDANCE_DIST_MM = 1000
 
+# OBSTACLE_DETECTOR
+OBSTACLE_DETECTOR_ENABLED = True
+OBSTACLE_DETECTOR_NUM_LOCATIONS = 4
+OBSTACLE_DETECTOR_MODEL_PATH = "~/mycar/models/pilot_23-02-15_29.tflite"
+OBSTACLE_DETECTOR_MODEL_TYPE = "tflite_obstacle_detector"
+OBSTACLE_DETECTOR_BEHAVIOR_LIST = ['NA', 'left', 'middle', 'right']
+BEHAVIOR_LIST = ['left', 'right']
+OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = False # To free drive using behavior model
+
+# PATH_PILOT
+PATH_PILOT_ENABLED = False
+BINARIZE_THRESHOLD = 240
+BIRDEYE_VANISHING_POINT = 0.3
+BIRDEYE_CROP_TOP = 0.5
+BIRDEYE_CROP_CORNER = 0.7
+WIDTH_M_PER_PIX = 1.0
+HEIGHT_M_PER_PIX = 1.0
+CAMERA_ORIGIN_X_M = 0.0
+
 # SEGMENTATION SETTINGS
 OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
 # OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
@@ -445,8 +464,9 @@ OPTIMIZER = None                #adam, sgd, rmsprop, etc.. None accepts default
 LEARNING_RATE = 0.001           #only used when OPTIMIZER specified
 LEARNING_RATE_DECAY = 0.0       #only used when OPTIMIZER specified
 SEND_BEST_MODEL_TO_PI = False   #change to true to automatically send best model during training
-CREATE_TF_LITE = True           # automatically create tflite model in training
+CREATE_TF_LITE = False           # automatically create tflite model in training
 CREATE_TENSOR_RT = False        # automatically create tensorrt model in training
+CREATE_ONNX_MODEL = True       # automatically create onnx model in training
 
 PRUNE_CNN = False               #This will remove weights from your model. The primary goal is to increase performance.
 PRUNE_PERCENT_TARGET = 75       # The desired percentage of pruning.
@@ -549,6 +569,7 @@ MM1_SERIAL_PORT = '/dev/ttyS0'  # Serial Port for reading and sending MM1 data.
 # ROBOCARSHAT
 USE_ROBOCARSHAT_AS_CONTROLLER  = True
 ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS1'
+ROBOCARSHAT_SERIAL_SPEED = 1000000
 
 # Following values must be aligned with values in Hat !
 ROBOCARSHAT_PWM_OUT_THROTTLE_MIN    =   1000
@@ -557,6 +578,7 @@ ROBOCARSHAT_PWM_OUT_THROTTLE_MAX    =   2000
 ROBOCARSHAT_PWM_OUT_STEERING_MIN    =   1000
 ROBOCARSHAT_PWM_OUT_STEERING_IDLE   =   1500
 ROBOCARSHAT_PWM_OUT_STEERING_MAX    =   2000
+ROBOCARSHAT_PWM_OUT_STEERING_INVERT    =   False
 
 # Folowing values can be ajusted to normalized btzeen -1 and 1.
 # # If  ROBOCARSHAT_USE_AUTOCALIBRATION is used, IDLE values are automatically identified by the Hat
@@ -676,16 +698,16 @@ MODEL_RELOADED_LED_B = 0
 #When training the Behavioral Neural Network model, make a list of the behaviors,
 #Set the TRAIN_BEHAVIORS = True, and use the BEHAVIOR_LED_COLORS to give each behavior a color
 TRAIN_BEHAVIORS = False
-BEHAVIOR_LIST = ['Left_Lane', "Right_Lane"]
-BEHAVIOR_LED_COLORS = [(0, 10, 0), (10, 0, 0)]  #RGB tuples 0-100 per chanel
+# BEHAVIOR_LIST = ['Left_Lane', "Right_Lane"]
+# BEHAVIOR_LED_COLORS = [(0, 10, 0), (10, 0, 0)]  #RGB tuples 0-100 per chanel
 
 #Localizer
 #The localizer is a neural network that can learn to predict its location on the track.
 #This is an experimental feature that needs more developement. But it can currently be used
 #to predict the segement of the course, where the course is divided into NUM_LOCATIONS segments.
 TRAIN_LOCALIZER = False
-NUM_LOCATIONS = 10
-BUTTON_PRESS_NEW_TUB = False #when enabled, makes it easier to divide our data into one tub per track length if we make a new tub on each X button press.
+# NUM_LOCATIONS = 10
+# BUTTON_PRESS_NEW_TUB = False #when enabled, makes it easier to divide our data into one tub per track length if we make a new tub on each X button press.
 
 #DonkeyGym
 #Only on Ubuntu linux, you can use the simulator as a virtual donkey and
@@ -703,6 +725,11 @@ GYM_CONF["bio"] = "I race robots."
 
 SIM_HOST = "127.0.0.1"              # when racing on virtual-race-league use host "trainmydonkey.com"
 SIM_ARTIFICIAL_LATENCY = 0          # this is the millisecond latency in controls. Can use useful in emulating the delay when useing a remote server. values of 100 to 400 probably reasonable.
+
+#Donkey Webot
+DONKEY_WEBOT = False
+DONKEY_WEBOT_WORLD_NAME="vivatech_2023"
+WEBOT_CONF={}
 
 # Save info from Simulator (pln)
 SIM_RECORD_LOCATION = False

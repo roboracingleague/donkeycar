@@ -415,26 +415,35 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         from donkeycar.parts.motion_planner import LocalPlanner, TestTrajectory
         from donkeycar.parts.path_pilot import PathPilot
 
-        # TODO 'cam/image_time'
         # Camera
-        # out: ['cam/image_array']
+        # out: ['cam/image_array', 'cam/image_time']
 
         # Odometry
         # out: ['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/distance', 'enc/speed']
 
         # LaneDetection
+        # __init__(self, image_width, image_height,
+        #     vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
+        #     eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
+        #     left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]),
+        #     width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0,
+        #     position_queue_size=30)
         # in : pos_time, x, y, yaw, image_time, image
-        # out: lane_time, left_points_world_frame, center_points_world_frame, right_points_world_frame
-        V.add(LaneDetection(),
+        # out: lane_time, left_points_world_frame, right_points_world_frame
+        V.add(LaneDetection(cfg.IMAGE_W, cfg.IMAGE_H,
+                            vanishing_point=cfg.BIRDEYE_VANISHING_POINT, crop_top=cfg.BIRDEYE_CROP_TOP, crop_corner=cfg.BIRDEYE_CROP_CORNER,
+                            eq_threshhold=cfg.BINARIZE_THRESHOLD,
+                            width_m_per_pix=cfg.WIDTH_M_PER_PIX, height_m_per_pix=cfg.HEIGHT_M_PER_PIX, camera_origin_x_m=cfg.CAMERA_ORIGIN_X_M),
               inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'cam/image_time', 'cam/image_array'],
-              outputs=['lane/time', 'lane/left_points', 'lane/center_points', 'lane/right_points'],
+              outputs=['lane/time', 'lane/left_points', 'lane/right_points'],
               threaded=False)
 
         # LocalPlanner
-        # in : pos_time, x, y, yaw, speed, left_lane, lane_center, right_lane, occupancy_grid=None, signs=None
+        # __init__(self)
+        # in : pos_time, x, y, yaw, speed, left_lane, right_lane, occupancy_grid=None, signs=None
         # out: trajectory
         V.add(LocalPlanner(),
-              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed', 'lane/left_points', 'lane/center_points', 'lane/right_points'],
+              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed', 'lane/left_points', 'lane/right_points'],
               outputs=['path/waypoints'],
               threaded=False)
 
@@ -447,6 +456,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         #       threaded=False)
 
         # PathPilot
+        # __init__(self, max_steering_angle, vehicle_length, fix_throttle, brake_throttle, Kc=2.0, Ks=0.1)
         # in : path, x, y, yaw, speed
         # out: angle, throttle, end_of_path, stanley_metrics
         V.add(PathPilot(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
@@ -947,6 +957,29 @@ def add_camera(V, cfg, camera_type):
                     .build()
         V.add(cam, inputs=[],
               outputs=['cam/image_array', 'cam/obstacle_distances'],
+              threaded=True)
+    elif cfg.CAMERA_TYPE == "OAK":
+        from donkeycar.parts.oak_d_camera import OakDCameraBuilder
+        cam = OakDCameraBuilder() \
+                    .with_width(cfg.IMAGE_W) \
+                    .with_height(cfg.IMAGE_H) \
+                    .with_depth(cfg.IMAGE_DEPTH) \
+                    .with_isp_scale(cfg.OAK_D_ISP_SCALE) \
+                    .with_framerate(cfg.CAMERA_FRAMERATE) \
+                    .with_enable_depth(cfg.OAK_ENABLE_DEPTH_MAP) \
+                    .with_enable_obstacle_dist(cfg.OAK_OBSTACLE_DETECTION_ENABLED) \
+                    .with_rgb_resolution(cfg.RGB_RESOLUTION) \
+                    .with_rgb_apply_cropping(cfg.RGB_APPLY_CROPPING) \
+                    .with_rgb_sensor_crop_x(cfg.RGB_SENSOR_CROP_X) \
+                    .with_rgb_sensor_crop_y(cfg.RGB_SENSOR_CROP_Y) \
+                    .with_rgb_video_size(cfg.RGB_VIDEO_SIZE) \
+                    .with_rgb_apply_manual_conf(cfg.RGB_APPLY_MANUAL_CONF) \
+                    .with_rgb_exposure_time(cfg.RGB_EXPOSURE_TIME) \
+                    .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
+                    .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
+                    .build()
+        V.add(cam, inputs=[],
+              outputs=['cam/image_array', 'cam/image_time'],
               threaded=True)
     else:
         inputs = []

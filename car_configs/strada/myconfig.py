@@ -65,12 +65,30 @@ CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 
 OAK_ENABLE_DEPTH_MAP = False # enables depth map output
 OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
-PATH_PILOT_ENABLED = True
 
 # OBSTACLE_AVOIDANCE SETTINGS
 OBSTACLE_AVOIDANCE_ENABLED = False
 # OBSTACLE_AVOIDANCE_FOR_AUTOPILOT = False # True activates avoidance for autopilot, False for user (manual control)
 # CLOSE_AVOIDANCE_DIST_MM = 1000
+
+# OBSTACLE_DETECTOR
+OBSTACLE_DETECTOR_ENABLED = False
+# OBSTACLE_DETECTOR_NUM_LOCATIONS = 4
+# OBSTACLE_DETECTOR_MODEL_PATH = "~/mycar/models/pilot_23-02-15_29.tflite"
+# OBSTACLE_DETECTOR_MODEL_TYPE = "tflite_obstacle_detector"
+# OBSTACLE_DETECTOR_BEHAVIOR_LIST = ['NA', 'left', 'middle', 'right']
+# BEHAVIOR_LIST = ['left', 'right']
+# OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = False # To free drive using behavior model
+
+# PATH_PILOT
+PATH_PILOT_ENABLED = True
+BINARIZE_THRESHOLD = 240
+BIRDEYE_VANISHING_POINT = 0.46
+BIRDEYE_CROP_TOP = 0.5
+BIRDEYE_CROP_CORNER = 0.7
+WIDTH_M_PER_PIX = 1.0
+HEIGHT_M_PER_PIX = 1.0
+CAMERA_ORIGIN_X_M = 0.0
 
 # SEGMENTATION SETTINGS
 OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
@@ -440,8 +458,9 @@ DEFAULT_MODEL_TYPE = 'linear'
 # LEARNING_RATE = 0.001           #only used when OPTIMIZER specified
 # LEARNING_RATE_DECAY = 0.0       #only used when OPTIMIZER specified
 # SEND_BEST_MODEL_TO_PI = False   #change to true to automatically send best model during training
-# CREATE_TF_LITE = True           # automatically create tflite model in training
+CREATE_TF_LITE = True           # automatically create tflite model in training
 # CREATE_TENSOR_RT = False        # automatically create tensorrt model in training
+CREATE_ONNX_MODEL = True       # automatically create onnx model in training
 # 
 # PRUNE_CNN = False               #This will remove weights from your model. The primary goal is to increase performance.
 # PRUNE_PERCENT_TARGET = 75       # The desired percentage of pruning.
@@ -544,7 +563,7 @@ AUTO_RECORD_ON_THROTTLE = False      #if true, we will record whenever throttle 
 # ROBOCARSHAT
 USE_ROBOCARSHAT_AS_CONTROLLER = True
 ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS1'
-ROBOCARSHAT_SERIAL_SPEED = 250000
+ROBOCARSHAT_SERIAL_SPEED = 1000000 #250000
 
 # # Following values must be aligned with values in Hat !
 # ROBOCARSHAT_PWM_OUT_THROTTLE_MIN    =   1000
@@ -553,6 +572,7 @@ ROBOCARSHAT_SERIAL_SPEED = 250000
 # ROBOCARSHAT_PWM_OUT_STEERING_MIN    =   1000
 # ROBOCARSHAT_PWM_OUT_STEERING_IDLE   =   1500
 # ROBOCARSHAT_PWM_OUT_STEERING_MAX    =   2000
+# ROBOCARSHAT_PWM_OUT_STEERING_INVERT    =   False
 # 
 # # Folowing values can be ajusted to normalized btzeen -1 and 1.
 # # # If  ROBOCARSHAT_USE_AUTOCALIBRATION is used, IDLE values are automatically identified by the Hat
@@ -702,6 +722,11 @@ GYM_CONF["cam_config"] = { "fov": 120 }
 # 
 # SIM_HOST = "127.0.0.1"              # when racing on virtual-race-league use host "trainmydonkey.com"
 # SIM_ARTIFICIAL_LATENCY = 0          # this is the millisecond latency in controls. Can use useful in emulating the delay when useing a remote server. values of 100 to 400 probably reasonable.
+# 
+# #Donkey Webot
+# DONKEY_WEBOT = False
+# DONKEY_WEBOT_WORLD_NAME="vivatech_2023"
+# WEBOT_CONF={}
 # 
 # # Save info from Simulator (pln)
 # SIM_RECORD_LOCATION = False
