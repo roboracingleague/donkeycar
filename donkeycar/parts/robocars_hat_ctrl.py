@@ -464,6 +464,10 @@ class RobocarsHatInCam:
         self.hatInMsg = RobocarsHatIn(self.cfg)
         self.on = True
         self.jpg_conv = JpgToImgArr()
+        self.frame = None
+        self.image_d = image_d
+        self.image_w = image_w
+        self.image_h = image_h
 
     def processCam(self):
         cam_msg = self.hatInMsg.getCam()
