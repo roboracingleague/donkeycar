@@ -1272,6 +1272,7 @@ class RobocarsHat (metaclass=Singleton):
                     sensors = list(filter(lambda line: line.startswith('2'), lines[:-1]))
                     calibration = list(filter(lambda line: line.startswith('3'), lines[:-1]))
                     alarm = list(filter(lambda line: line.startswith('4'), lines[:-1]))
+                    cam = list(filter(lambda line: line.startswith('5'), lines[:-1]))
                     debug = list(filter(lambda line: line.startswith('9'), lines[:-1]))
                     if (len(drive)>0) :
                         last_received.append(drive[-1].rstrip())
@@ -1284,6 +1285,8 @@ class RobocarsHat (metaclass=Singleton):
                     if (len(alarm)>0) :
                         actlogger.info(f"Rx Alarm :{alarm}")
                         last_received.append(alarm[-1].rstrip())
+                    if (len(cam)>0) :
+                        last_received.append(cam[-1].rstrip())
                     if (len(debug)>0) :
                         actlogger.debug(f"Rx Debug :{debug}")
 

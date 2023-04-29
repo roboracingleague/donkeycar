@@ -11,6 +11,7 @@ import socket
 import errno
 import sys
 import fcntl,os
+import base64
 
 mylogger = init_special_logger ("Rx")
 mylogger.setLevel(logging.INFO)
@@ -57,6 +58,7 @@ class RobocarsHatIn(metaclass=Singleton):
         self.last_battery_msg=None
         self.last_sensors_msg=None
         self.last_calibration_msg=None
+        self.last_cam_msg = None
 
     def getCommand(self):
         cmds = self.sensor.readline()
@@ -71,6 +73,8 @@ class RobocarsHatIn(metaclass=Singleton):
                     self.last_sensors_msg = l
                 if len(params) == 5 and int(params[0])==0 : # Battery
                     self.last_battery_msg = l
+                if len(params) == 2 and int(params[0])==5 : # Camera
+                    self.last_cam_msg = l
 
     def getRxCh(self):
         self.getCommand()
@@ -83,6 +87,10 @@ class RobocarsHatIn(metaclass=Singleton):
     def getSensors(self):
         self.getCommand()
         return self.last_sensors_msg
+
+    def getCam(self):
+        self.getCommand()
+        return self.last_cam_msg
 
     def getCalibration(self):
         self.getCommand()
@@ -445,6 +453,64 @@ class RobocarsHatInOdom:
         # indicate that the thread should be stopped
         self.on = False
         print('stopping Robocars Hat Controller')
+        time.sleep(.5)
+
+class RobocarsHatInCam:
+
+    def __init__(self, cfg):
+        from donkeycar.parts.image import JpgToImgArr
+        self.cfg = cfg
+        self.inSpeed = 0
+        self.hatInMsg = RobocarsHatIn(self.cfg)
+        self.on = True
+        self.jpg_conv = JpgToImgArr()
+
+    def processCam(self):
+        cam_msg = self.hatInMsg.getCam()
+        if cam_msg:
+            params = cam_msg.split(',')
+            if len(params) == 2 and int(params[0])==5 :
+                mylogger.debug("CtrlIn Cam {} ".format(int(params[1])))
+                jpg = base64.b64decode(params[1])
+                self.frame = self.jpg_conv.run(jpg)
+
+    def getCommand(self):
+        self.processCam()
+
+    def update(self):
+
+        while self.on:
+            start = datetime.now()
+            stop = datetime.now()
+            s = 0.01 - (stop - start).total_seconds()
+            if s > 0:
+                time.sleep(s)
+
+    def run(self):
+        self.getCommand()
+        return self.frame
+
+    def update(self):	
+        from datetime import datetime, timedelta
+        while self.on:
+            start = datetime.now()
+            self.run()
+            stop = datetime.now()
+            s = 1 / self.framerate - (stop - start).total_seconds()
+            if s > 0:
+                time.sleep(s)
+
+
+    def run_threaded(self):
+        return self.frame
+
+    def shutdown(self):
+        # indicate that the thread should be stopped
+        self.on = False
+        if self.cam:
+            logger.info('stopping RobocarsHatInCam')
+            self.cam.stop()
+            self.cam = None
         time.sleep(.5)
 
 class RobocarsHatLedCtrl():

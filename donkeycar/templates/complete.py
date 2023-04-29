@@ -830,6 +830,8 @@ def get_camera(cfg):
                     .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
                     .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
                     .build()
+        elif cfg.CAMERA_TYPE == "ESP32CAM":
+            cam = RobocarsHatInCam();
         else:
             raise(Exception("Unkown camera type: %s" % cfg.CAMERA_TYPE))
     return cam
@@ -925,7 +927,7 @@ def add_camera(V, cfg, camera_type):
                     .build()
         V.add(cam, inputs=[],
               outputs=['cam/image_array', 'cam/obstacle_distances'],
-              threaded=True)
+              threaded=True)        
     else:
         inputs = []
         outputs = ['cam/image_array']
