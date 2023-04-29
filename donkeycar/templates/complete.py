@@ -832,7 +832,7 @@ def get_camera(cfg):
                     .build()
         elif cfg.CAMERA_TYPE == "ESP32CAM":
             from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCam
-            cam = RobocarsHatInCam();
+            cam = RobocarsHatInCam(cfg);
         else:
             raise(Exception("Unkown camera type: %s" % cfg.CAMERA_TYPE))
     return cam

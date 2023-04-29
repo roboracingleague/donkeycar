@@ -460,7 +460,6 @@ class RobocarsHatInCam:
     def __init__(self, cfg):
         from donkeycar.parts.image import JpgToImgArr
         self.cfg = cfg
-        self.inSpeed = 0
         self.hatInMsg = RobocarsHatIn(self.cfg)
         self.on = True
         self.jpg_conv = JpgToImgArr()
@@ -470,7 +469,6 @@ class RobocarsHatInCam:
         if cam_msg:
             params = cam_msg.split(',')
             if len(params) == 2 and int(params[0])==5 :
-                mylogger.debug("CtrlIn Cam {} ".format(int(params[1])))
                 jpg = base64.b64decode(params[1])
                 self.frame = self.jpg_conv.run(jpg)
 
