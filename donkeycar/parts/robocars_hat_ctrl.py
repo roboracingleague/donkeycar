@@ -457,9 +457,10 @@ class RobocarsHatInOdom:
 
 class RobocarsHatInCam:
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, image_w=160, image_h=120, image_d=3, framerate = 15):
         from donkeycar.parts.image import JpgToImgArr
         self.cfg = cfg
+        self.framerate = framerate
         self.hatInMsg = RobocarsHatIn(self.cfg)
         self.on = True
         self.jpg_conv = JpgToImgArr()
