@@ -19,7 +19,9 @@ import signal
 import logging
 from typing import List, Any, Tuple, Union
 
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
