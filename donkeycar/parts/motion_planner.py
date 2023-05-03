@@ -114,10 +114,13 @@ def estimate_lane_center(left_points, right_points):
     """
     # TODO one is empty, or both 
     if left_points is None and right_points is None:
+        logger.debug('no left or right input points')
         return None
     elif left_points is None:
+        logger.debug('no left input points')
         return right_points
     elif right_points is None:
+        logger.debug('no right input points')
         return left_points
     
     cross_dist = cdist(left_points, right_points)

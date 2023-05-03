@@ -1,6 +1,7 @@
 import logging
 import time
 import numpy as np
+from collections import deque
 from donkeycar.utils import deg2rad, wrap_to_pi
 
 
@@ -16,13 +17,25 @@ class PathPilot:
         self.brake_throttle = brake_throttle
         self.Kc = Kc
         self.Ks = Ks
+        self.latencies = deque([], maxlen=20)
         logger.info("PathPilot ready.")
         
-    def run(self, path, x, y, yaw, speed):
+    def run(self, path, lane_time, x, y, yaw, speed):
         if path is not None:
+            if logger.isEnabledFor(logging.DEBUG):
+                latency = time.time() - lane_time
+                self.latencies.append(latency * 1000)
+                if len(self.latencies) >= self.latencies.maxlen:
+                    logger.debug('Path latency: {:.2f} ms, Average latency: {:.2f} ms, Std: {:.2f}' \
+                        .format(self.latencies[-1], np.average(self.latencies), np.std(self.latencies)))
+                    self.latencies.clear()
+
             angle, throttle, end_of_path, stanley_metrics = self.control(path, x, y, yaw, speed)
             if not end_of_path:
                 return angle, throttle, end_of_path, stanley_metrics
+            
+        if path is None:
+            logger.debug('path is None')
         
         # no path or end of path reached: let's brake
         if abs(speed) > 0.1:

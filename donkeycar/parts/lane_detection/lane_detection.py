@@ -23,7 +23,8 @@ class LaneDetection:
                  vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
                  eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
                  left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]),
-                 width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0,
+                 lane_width=0.15, scan_iters=1, scan_radius=0.28, scan_steps=60, group_threshold=0.08,
+                 width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0, camera_origin_y_m=0.0,
                  position_queue_size=30):
         # birdeye transform
         self.birdeye = Birdeye(image_height, image_width, vanishing_point, crop_top, crop_corner, border_value=0)
@@ -35,10 +36,16 @@ class LaneDetection:
         # lane detection params
         self.left_anchor = np.multiply(np.array([1.0, 1.0, image_width, image_height]), left_anchor)
         self.right_anchor = np.multiply(np.array([1.0, 1.0, image_width, image_height]), right_anchor)
+        self.lane_width = lane_width * image_width
+        self.scan_iters = scan_iters
+        self.scan_radius = int(scan_radius * image_width)
+        self.scan_steps = scan_steps
+        self.group_threshold = int(group_threshold * image_width)
         # frame change params
         self.width_m_per_pix = width_m_per_pix
         self.height_m_per_pix = height_m_per_pix
         self.camera_origin_x_m = camera_origin_x_m
+        self.camera_origin_y_m = camera_origin_y_m
         # working vars
         self.poses = deque([], maxlen=position_queue_size)
         self.thread_input = None
@@ -62,15 +69,15 @@ class LaneDetection:
         birdeye = self.birdeye.apply(image)
         binary = binarize_grayscale(birdeye, self.eq_threshhold, self.blur_kernel_size, self.blur_sigma_x, self.close_kernel_size)
         left_points, right_points, left_anchors, right_anchors, scan_points, unassigned_groups = \
-            scan_for_lane(binary, self.left_anchor, self.right_anchor)
+            scan_for_lane(binary, self.left_anchor, self.right_anchor, self.lane_width, self.scan_iters, self.scan_radius, self.scan_steps, self.group_threshold)
         
         # switch to world coords
         left_points_vehicule_frame = to_vehicule_frame(left_points,
-            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m)
+            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m, self.camera_origin_y_m)
         left_points_world_frame = to_world_frame(origin, origin_yaw, left_points_vehicule_frame)
 
         right_points_vehicule_frame = to_vehicule_frame(right_points,
-            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m)
+            self.birdeye.width, self.birdeye.height, self.width_m_per_pix, self.height_m_per_pix, self.camera_origin_x_m, self.camera_origin_y_m)
         right_points_world_frame = to_world_frame(origin, origin_yaw, right_points_vehicule_frame)
 
         # do not return empty array
@@ -80,12 +87,12 @@ class LaneDetection:
         if right_points_world_frame.shape[0] == 0:
             right_points_world_frame = None
         
-        return origin_time, left_points_world_frame, right_points_world_frame, \
+        return left_points_world_frame, right_points_world_frame, image_time, origin_time, \
                left_points, right_points, birdeye, binary, left_anchors, right_anchors, scan_points, unassigned_groups # more vars for debug
     
     def run(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
-        return self.detect_lanes(image_time, image)[:3]
+        return self.detect_lanes(image_time, image)[:4]
 
     def run_threaded(self, pos_time, x, y, yaw, image_time, image):
         self.poses.append(np.array([pos_time, x, y, yaw]))
@@ -99,7 +106,7 @@ class LaneDetection:
             if self.thread_input is not None:
                 image_time, image = self.thread_input
                 self.thread_input = None
-                self.thread_output = self.detect_lanes(image_time, image)[:3]
+                self.thread_output = self.detect_lanes(image_time, image)[:4]
             else:
                 time.sleep(0.005)
     
@@ -108,7 +115,7 @@ class LaneDetection:
         logger.info('Stopping LaneDetection')
 
 
-def scan_for_lane(binary, left_anchor, right_anchor, lane_width = 100, scan_iters=2, scan_radius=180, scan_steps=60, group_threshold=50):
+def scan_for_lane(binary, left_anchor, right_anchor, lane_width=100, scan_iters=2, scan_radius=180, scan_steps=60, group_threshold=50):
     """
     Apply a ray tracing algorithme to find points from left and right lane borders and sort them 
     """
@@ -320,10 +327,10 @@ def fit_line(points, anchor, pos_to_anchor=False):
     return np.squeeze(line)
 
 
-def to_vehicule_frame(points, width, height, width_m_per_pix, height_m_per_pix, camera_origin_x_m):
+def to_vehicule_frame(points, width, height, width_m_per_pix, height_m_per_pix, camera_origin_x_m, camera_origin_y_m):
     result = np.zeros_like(points)
     result[:,0] = (height - points[:,1]) * height_m_per_pix + camera_origin_x_m
-    result[:,1] = (width - points[:,0]) * width_m_per_pix
+    result[:,1] = (width / 2 - points[:,0]) * width_m_per_pix + camera_origin_y_m
     return result
 
 
@@ -343,7 +350,7 @@ def draw_points(image, points, size=4, color_index=1):
     image_out = image.astype(np.uint8)
     colors = [tuple(255 * e for e in mcolors.to_rgb(c)) for n,c in mcolors.TABLEAU_COLORS.items()]
     color = colors[color_index%len(colors)]
-    if points is not None:
+    if points is not None and points.shape[0] > 0:
         for point in points:
             x, y = point.astype(int)
             cv2.circle(image_out, (x,y), size, color, -1)
@@ -380,11 +387,11 @@ def main_from_frame(frame):
     from matplotlib import pyplot as plt
 
     part = LaneDetection(frame.shape[1], frame.shape[0], vanishing_point=0.46, crop_top=0.5, crop_corner=0.7,
-                 eq_threshhold=240, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
+                 eq_threshhold=220, blur_kernel_size=5, blur_sigma_x=1, close_kernel_size=5,
                  left_anchor=np.array([0.0, -1.0, 0.391, 0.925]), right_anchor=np.array([0.0, -1.0, 0.609, 0.925]))
     
     start = time.time()
-    lane_time, left_points_world, right_points_world, left_points, right_points, birdeye, \
+    left_points_world, right_points_world, lane_time, lane_origin_time, left_points, right_points, birdeye, \
         binary, left_anchors, right_anchors, scan_points, unassigned_groups = part.detect_lanes(0.0, frame)
     print('execution time (s) :', time.time() - start)
 
@@ -423,8 +430,10 @@ def main_from_frame(frame):
     ax.set_title("unassigned points")
 
     ax = fig.add_subplot(rows, columns, 8)
-    ax.scatter(-left_points_world[:,1], left_points_world[:,0])
-    ax.scatter(-right_points_world[:,1], right_points_world[:,0])
+    if left_points_world is not None:
+        ax.scatter(-left_points_world[:,1], left_points_world[:,0])
+    if right_points_world is not None:
+        ax.scatter(-right_points_world[:,1], right_points_world[:,0])
     ax.set_xlabel("-Y")
     ax.set_ylabel("X")
     ax.set_aspect('equal', adjustable='box')

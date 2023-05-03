@@ -429,23 +429,24 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         #     width_m_per_pix=1.0, height_m_per_pix=1.0, camera_origin_x_m=0.0,
         #     position_queue_size=30)
         # in : pos_time, x, y, yaw, image_time, image
-        # out: lane_time, left_points_world_frame, right_points_world_frame
-        V.add(LaneDetection(cfg.IMAGE_W, cfg.IMAGE_H,
-                            vanishing_point=cfg.BIRDEYE_VANISHING_POINT, crop_top=cfg.BIRDEYE_CROP_TOP, crop_corner=cfg.BIRDEYE_CROP_CORNER,
-                            eq_threshhold=cfg.BINARIZE_THRESHOLD,
-                            width_m_per_pix=cfg.WIDTH_M_PER_PIX, height_m_per_pix=cfg.HEIGHT_M_PER_PIX, camera_origin_x_m=cfg.CAMERA_ORIGIN_X_M),
-              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'cam/image_time', 'cam/image_array'],
-              outputs=['lane/time', 'lane/left_points', 'lane/right_points'],
-              threaded=False)
+        # out: left_points_world_frame, right_points_world_frame, lane_time, lane_origin_time
+        # V.add(LaneDetection(cfg.IMAGE_W, cfg.IMAGE_H,
+        #                     vanishing_point=cfg.BIRDEYE_VANISHING_POINT, crop_top=cfg.BIRDEYE_CROP_TOP, crop_corner=cfg.BIRDEYE_CROP_CORNER,
+        #                     eq_threshhold=cfg.BINARIZE_THRESHOLD,
+        #                     width_m_per_pix=cfg.WIDTH_M_PER_PIX, height_m_per_pix=cfg.HEIGHT_M_PER_PIX,
+        #                     camera_origin_x_m=cfg.CAMERA_ORIGIN_X_M, camera_origin_y_m=cfg.CAMERA_ORIGIN_Y_M),
+        #       inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'cam/image_time', 'cam/image_array'],
+        #       outputs=['lane/left_points', 'lane/right_points', 'lane/time', 'lane/origin_time'],
+        #       threaded=True)
 
         # LocalPlanner
         # __init__(self)
         # in : pos_time, x, y, yaw, speed, left_lane, right_lane, occupancy_grid=None, signs=None
         # out: trajectory
-        V.add(LocalPlanner(),
-              inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed', 'lane/left_points', 'lane/right_points'],
-              outputs=['path/waypoints'],
-              threaded=False)
+        # V.add(LocalPlanner(),
+        #       inputs=['pos/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed', 'lane/left_points', 'lane/right_points'],
+        #       outputs=['path/waypoints'],
+        #       threaded=False)
 
         # TestTrajectory
         # in : run_pilot, pos_time, x, y, yaw
@@ -457,11 +458,11 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
         # PathPilot
         # __init__(self, max_steering_angle, vehicle_length, fix_throttle, brake_throttle, Kc=2.0, Ks=0.1)
-        # in : path, x, y, yaw, speed
+        # in : path, lane_time, x, y, yaw, speed
         # out: angle, throttle, end_of_path, stanley_metrics
         V.add(PathPilot(max_steering_angle=cfg.ODOM_MAX_STEERING_ANGLE, vehicle_length=cfg.ODOM_VEHICLE_LENGTH,
                             fix_throttle=cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE, brake_throttle= cfg.ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE),
-            inputs=['path/waypoints', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],
+            inputs=['path/waypoints', 'lane/time', 'pos/x', 'pos/y', 'pos/yaw', 'enc/speed'],
             outputs=['pilot/angle', 'pilot/throttle', 'pilot/end_of_path', 'pilot/stanley_metrics'],
             threaded=False)
 
