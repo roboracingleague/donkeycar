@@ -445,20 +445,6 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         # Should be run with following line only when autopilot is in charge
         # V.add(DepthAvoidance, inputs=inputs, outputs=outputs, run_condition='run_pilot')
 
-    # 
-    # steering/throttle scaler
-    # enabled
-    # steering_factor
-    # throttle_factor
-    # steering_on_throttle_factor
-    # 
-    if cfg.STEERING_THROTTLE_SCALER_ENABLED:
-        inputs = ["pilot/angle", "pilot/throttle"]
-        outputs = ['pilot/angle', 'pilot/throttle']
-        from donkeycar.parts.steering_throttle_scaler import SteeringThrottleScaler
-        V.add(SteeringThrottleScaler(cfg), inputs=inputs, outputs=outputs, run_condition='run_pilot')
-
-
     #
     # stop at a stop sign
     #
@@ -508,6 +494,19 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
           inputs=['user/mode', 'user/angle', 'user/throttle',
                   'pilot/angle', 'pilot/throttle'],
           outputs=['angle', 'throttle'])
+
+    # 
+    # steering/throttle scaler
+    # enabled
+    # steering_factor
+    # throttle_factor
+    # steering_on_throttle_factor
+    # 
+    if cfg.STEERING_THROTTLE_SCALER_ENABLED:
+        inputs = ["angle", "throttle"]
+        outputs = ['angle', 'throttle']
+        from donkeycar.parts.steering_throttle_scaler import SteeringThrottleScaler
+        V.add(SteeringThrottleScaler(cfg), inputs=inputs, outputs=outputs, run_condition='run_pilot')
 
 
 
