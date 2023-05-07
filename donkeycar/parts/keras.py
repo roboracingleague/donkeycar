@@ -983,7 +983,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu', prefix=''):
                          name=prefix + 'conv2d_' + str(layer_num))
 
 
-def core_cnn_layers(img_in, drop, l4_stride=2):
+def core_cnn_layers(img_in, drop, l4_stride=3):
     """
     Returns the core CNN layers that are shared among the different models,
     like linear, imu, behavioural
