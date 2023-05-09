@@ -995,36 +995,47 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     """
     x = img_in
     
-    # 1 on remplace les 24 channels par 16
-    # x = conv2d(24, 5, 2, 1)(x)
     x = conv2d(16, 5, 2, 1)(x)
     x = Dropout(drop)(x)
-    
-    # 2 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
-    # x = conv2d(32, 5, 2, 2)(x)
-    # x = Dropout(drop)(x)
-    x = conv2d(32, 3, 1, 2)(x)
+    x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 3, 2, 3)(x)
+    x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
-   
-    # 3 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
-    # x = conv2d(64, 5, 2, 3)(x)
-    # x = Dropout(drop)(x)
-    x = conv2d(64, 3, 1, 4)(x)
+    x = conv2d(64, 3, l4_stride, 4)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 2, 5)(x)
+    x = conv2d(64, 3, 1, 5)(x)
     x = Dropout(drop)(x)
-    
-    # x = conv2d(128, 3, l4_stride, 6)(x)
-    # x = Dropout(drop)(x)
-    # x = conv2d(128, 3, 2, 7)(x)
-    # x = Dropout(drop)(x)
 
-    x = conv2d(32, 3, 1, 6)(x)
-    x = Dropout(drop)(x)
-    # x = conv2d(16, 3, 1, 7)(x)
+    # # 1 on remplace les 24 channels par 16
+    # # x = conv2d(24, 5, 2, 1)(x)
+    # x = conv2d(16, 5, 2, 1)(x)
     # x = Dropout(drop)(x)
+    
+    # # 2 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
+    # # x = conv2d(32, 5, 2, 2)(x)
+    # # x = Dropout(drop)(x)
+    # x = conv2d(32, 3, 1, 2)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(32, 3, 2, 3)(x)
+    # x = Dropout(drop)(x)
+   
+    # # 3 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
+    # # x = conv2d(64, 5, 2, 3)(x)
+    # # x = Dropout(drop)(x)
+    # x = conv2d(64, 3, 1, 4)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(64, 3, 2, 5)(x)
+    # x = Dropout(drop)(x)
+    
+    # # x = conv2d(128, 3, l4_stride, 6)(x)
+    # # x = Dropout(drop)(x)
+    # # x = conv2d(128, 3, 2, 7)(x)
+    # # x = Dropout(drop)(x)
+
+    # x = conv2d(32, 3, 1, 6)(x)
+    # x = Dropout(drop)(x)
+    # # x = conv2d(16, 3, 1, 7)(x)
+    # # x = Dropout(drop)(x)
 
     x = Flatten(name='flattened')(x)
     return x
