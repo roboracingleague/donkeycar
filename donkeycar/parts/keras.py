@@ -983,7 +983,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu', prefix=''):
                          name=prefix + 'conv2d_' + str(layer_num))
 
 
-def core_cnn_layers(img_in, drop, l4_stride=2):
+def core_cnn_layers(img_in, drop, l4_stride=1):
     """
     Returns the core CNN layers that are shared among the different models,
     like linear, imu, behavioural
@@ -994,11 +994,20 @@ def core_cnn_layers(img_in, drop, l4_stride=2):
     :return:                stack of CNN layers
     """
     x = img_in
+    
+    # 1 on remplace les 24 channels par 16
     # x = conv2d(24, 5, 2, 1)(x)
     x = conv2d(16, 5, 2, 1)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 5, 2, 2)(x)
+    
+    # 2 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
+    # x = conv2d(32, 5, 2, 2)(x)
+    # x = Dropout(drop)(x)
+    x = conv2d(32, 3, 2, 2)(x)
     x = Dropout(drop)(x)
+    x = conv2d(32, 3, 2, 2)(x)
+    x = Dropout(drop)(x)
+   
     x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
     x = conv2d(64, 3, l4_stride, 4)(x)
