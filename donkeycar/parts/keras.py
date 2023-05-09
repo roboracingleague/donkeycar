@@ -1016,10 +1016,21 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     x = conv2d(64, 3, 2, 5)(x)
     x = Dropout(drop)(x)
     
-    x = conv2d(64, 3, l4_stride, 6)(x)
+    x = conv2d(128, 3, l4_stride, 6)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 2, 7)(x)
+    x = conv2d(128, 3, 2, 7)(x)
     x = Dropout(drop)(x)
+
+    x = conv2d(64, 3, 2, 8)(x)
+    x = Dropout(drop)(x)
+    x = conv2d(64, 3, 1, 9)(x)
+    x = Dropout(drop)(x)
+
+    x = conv2d(32, 3, 2, 10)(x)
+    x = Dropout(drop)(x)
+    x = conv2d(32, 3, 1, 11)(x)
+    x = Dropout(drop)(x)
+
     x = Flatten(name='flattened')(x)
     return x
 
