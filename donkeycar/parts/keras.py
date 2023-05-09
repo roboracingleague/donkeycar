@@ -1005,7 +1005,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     # x = Dropout(drop)(x)
     x = conv2d(32, 3, 2, 2)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 3, 2, 3)(x)
+    x = conv2d(32, 3, 1, 3)(x)
     x = Dropout(drop)(x)
    
     # 3 on remplace la layer avec des kernels 5x5 par 2 layers avec des kernels 3x3
@@ -1013,7 +1013,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     # x = Dropout(drop)(x)
     x = conv2d(64, 3, 2, 4)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 2, 5)(x)
+    x = conv2d(64, 3, 1, 5)(x)
     x = Dropout(drop)(x)
     
     x = conv2d(64, 3, l4_stride, 6)(x)
