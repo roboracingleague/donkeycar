@@ -45,16 +45,20 @@ python3 -m pip install future mock h5py keras==2.6.0 keras_preprocessing keras_a
 python3 -m pip install grpcio absl-py py-cpuinfo psutil portpicker wrapt six requests 
 python3 -m pip install astor termcolor google-pasta scipy pandas gdown pkgconfig packaging
 python3 -m pip install depthai depthai-sdk
-python3 -m pip install onnx onnxruntime
+python3 -m pip install onnx==1.12.0
 
 
 # upgrade default versions in 
 python3 -m pip install scipy --upgrade
 python3 -m pip install pandas --upgrade
 
+
 python3 -m pip install --extra-index-url https://developer.download.nvidia.com/compute/redist/jp/v502 tensorflow==2.10.1+nv22.12
 
 python3 -m pip install pycuda
+
+python3 -m pip install numpy==1.23 --upgrade
+
 
 # python3 -m pip install Jetson.GPIO
 #cd ~

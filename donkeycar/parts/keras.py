@@ -994,7 +994,8 @@ def core_cnn_layers(img_in, drop, l4_stride=2):
     :return:                stack of CNN layers
     """
     x = img_in
-    x = conv2d(24, 5, 2, 1)(x)
+    # x = conv2d(24, 5, 2, 1)(x)
+    x = conv2d(16, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
