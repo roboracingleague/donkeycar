@@ -995,13 +995,13 @@ def core_cnn_layers(img_in, drop, l4_stride=2):
     """
     x = img_in
     
-    x = conv2d(16, 5, 2, 1)(x)
+    x = conv2d(24, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
     x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 2, 4)(x)
+    x = conv2d(64, 3, 1, 4)(x)
     x = Dropout(drop)(x)
     x = conv2d(64, 3, 1, 5)(x)
     x = Dropout(drop)(x)
