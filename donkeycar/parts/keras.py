@@ -882,7 +882,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu'):
                          name='conv2d_' + str(layer_num))
 
 
-def core_cnn_layers(img_in, drop, l4_stride=1):
+def core_cnn_layers(img_in, drop, l4_stride=1, l1_filters=24):
     """
     Returns the core CNN layers that are shared among the different models,
     like linear, imu, behavioural
@@ -893,7 +893,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     :return:                stack of CNN layers
     """
     x = img_in
-    x = conv2d(24, 5, 2, 1)(x)
+    x = conv2d(l1_filters, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
@@ -910,7 +910,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
 def default_n_linear(num_outputs, input_shape=(120, 160, 3)):
     drop = 0.2
     img_in = Input(shape=input_shape, name='img_in')
-    x = core_cnn_layers(img_in, drop)
+    x = core_cnn_layers(img_in, drop, l4_stride=2, l1_filters=16)
     x = Dense(100, activation='relu', name='dense_1')(x)
     x = Dropout(drop)(x)
     x = Dense(50, activation='relu', name='dense_2')(x)
