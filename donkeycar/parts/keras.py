@@ -335,17 +335,22 @@ class KerasLinear(KerasPilot):
     def __init__(self,
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
-                 num_outputs: int = 2, have_odom=False,have_scen_cat=False, num_scen_cat=0):
+                 num_outputs: int = 2, have_odom=False,have_scen_cat=False, num_scen_cat=0, use_extended=False, l4_stride=2, l1_channels=16):
         self.num_outputs = num_outputs
         self.have_odom=have_odom
         self.have_scen_cat=have_scen_cat
         self.num_scen_cat=num_scen_cat
+        self.use_extended=use_extended
+        self.l4_stride=l4_stride
+        self.l1_channels=l1_channels
         super().__init__(interpreter, input_shape)
         logger.info(f'Created {self} with odom={have_odom}, scene={have_scen_cat}')
 
     def create_model(self):
         if self.have_odom:
             return default_n_linear_odom(self.num_outputs, self.input_shape,num_scen=self.num_scen_cat if self.have_scen_cat else 0)
+        elif self.use_extended:
+            return default_n_linear_extended(self.num_outputs, self.input_shape, self.l4_stride, self.l1_channels)
         else:
             return default_n_linear(self.num_outputs, self.input_shape,num_scen=self.num_scen_cat if self.have_scen_cat else 0)
 
@@ -983,7 +988,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu', prefix=''):
                          name=prefix + 'conv2d_' + str(layer_num))
 
 
-def core_cnn_layers(img_in, drop, l4_stride=2):
+def core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24):
     """
     Returns the core CNN layers that are shared among the different models,
     like linear, imu, behavioural
@@ -995,7 +1000,7 @@ def core_cnn_layers(img_in, drop, l4_stride=2):
     """
     x = img_in
     
-    x = conv2d(16, 5, 2, 1)(x)
+    x = conv2d(l1_channels, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
@@ -1118,6 +1123,24 @@ def default_n_linear_odom(num_outputs, input_shape=(120, 160, 3), num_scen=0):
 
     model = Model(inputs=[img_in, speed_in], outputs=outputs, name='linear')
     return model
+
+def default_n_linear_extended(num_outputs, input_shape=(120, 160, 3), l4_stride=1, l1_channels=24):
+    drop = 0.2
+    img_in = Input(shape=input_shape, name='img_in')
+    x = core_cnn_layers(img_in, drop, l4_stride, l1_channels)
+    x = Dense(100, activation='relu', name='dense_1')(x)
+    x = Dropout(drop)(x)
+    x = Dense(50, activation='relu', name='dense_2')(x)
+    x = Dropout(drop)(x)
+
+    outputs = []
+    for i in range(num_outputs):
+        outputs.append(
+            Dense(1, activation='linear', name='n_outputs' + str(i))(x))
+
+    model = Model(inputs=[img_in], outputs=outputs, name='linear')
+    return model
+
 
 def default_memory(input_shape=(120, 160, 3), mem_length=3, mem_depth=0):
     drop = 0.2
