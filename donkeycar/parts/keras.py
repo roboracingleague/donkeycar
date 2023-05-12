@@ -353,7 +353,6 @@ class KerasLinear(KerasPilot):
             return default_n_linear_extended(self.num_outputs, self.input_shape, self.l4_stride, self.l1_channels)
         else:
             return default_n_linear(self.num_outputs, self.input_shape,num_scen=self.num_scen_cat if self.have_scen_cat else 0)
-
     def compile(self):
         if self.have_scen_cat:
             self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'], loss='mse')
@@ -988,7 +987,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu', prefix=''):
                          name=prefix + 'conv2d_' + str(layer_num))
 
 
-def core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24):
+def core_cnn_layers(img_in, drop, l4_stride=2, l1_channels=16):
     """
     Returns the core CNN layers that are shared among the different models,
     like linear, imu, behavioural
