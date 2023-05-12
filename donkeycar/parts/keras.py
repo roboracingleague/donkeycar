@@ -1005,9 +1005,9 @@ def core_cnn_layers(img_in, drop, l4_stride=2, l1_channels=16):
     x = Dropout(drop)(x)
     x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, l4_stride, 4)(x)
+    x = conv2d(128, 3, l4_stride, 4)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 1, 5)(x)
+    x = conv2d(128, 3, 1, 5)(x)
     x = Dropout(drop)(x)
 
 
