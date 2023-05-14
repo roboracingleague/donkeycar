@@ -1016,9 +1016,13 @@ def core_cnn_layers(img_in, drop, l4_stride=2, l1_channels=16):
     x = Dropout(drop)(x)
     x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 1, 4)(x)
+    x = conv2d(32, 3, 1, 4)(x)
     x = Dropout(drop)(x)
-    x = conv2d(64, 3, 1, 5)(x)
+    x = conv2d(32, 3, 1, 5)(x)
+    x = Dropout(drop)(x)
+    x = conv2d(32, 3, 1, 6)(x)
+    x = Dropout(drop)(x)
+    x = conv2d(32, 3, 1, 7)(x)
     x = Dropout(drop)(x)
 
     # # 1 on remplace les 24 channels par 16
