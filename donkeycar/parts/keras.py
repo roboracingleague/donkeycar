@@ -999,31 +999,28 @@ def core_cnn_layers(img_in, drop, l4_stride=2, l1_channels=16):
     """
     x = img_in
     
-    # x = conv2d(l1_channels, 5, 2, 1)(x)
-    # x = Dropout(drop)(x)
-    # x = conv2d(32, 5, 2, 2)(x)
-    # x = Dropout(drop)(x)
-    # x = conv2d(64, 5, 2, 3)(x)
-    # x = Dropout(drop)(x)
-    # x = conv2d(128, 3, l4_stride, 4)(x)
-    # x = Dropout(drop)(x)
-    # x = conv2d(128, 3, 1, 5)(x)
-    # x = Dropout(drop)(x)
-
-    x = conv2d(16, 5, 2, 1)(x)
+    x = conv2d(l1_channels, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
     x = conv2d(64, 5, 2, 3)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 3, 1, 4)(x)
+    x = conv2d(128, 3, l4_stride, 4)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 3, 1, 5)(x)
+    x = conv2d(128, 3, 1, 5)(x)
     x = Dropout(drop)(x)
-    x = conv2d(32, 3, 1, 6)(x)
-    x = Dropout(drop)(x)
-    x = conv2d(32, 3, 1, 7)(x)
-    x = Dropout(drop)(x)
+
+    # x = conv2d(16, 5, 2, 1)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(32, 5, 2, 2)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(64, 5, 2, 3)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(128, 3, 2, 4)(x)
+    # x = Dropout(drop)(x)
+    # x = conv2d(128, 3, 1, 5)(x)
+    # x = Dropout(drop)(x)
+
 
     # # 1 on remplace les 24 channels par 16
     # # x = conv2d(24, 5, 2, 1)(x)
