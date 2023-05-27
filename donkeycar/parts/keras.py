@@ -344,10 +344,7 @@ class KerasLinear(KerasPilot):
             return default_n_linear(self.num_outputs, self.input_shape)
 
     def compile(self):
-        if (self.steering_loss_weight):
-            self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights=self.training_loss_weight)
-        else:
-            self.interpreter.compile(optimizer=self.optimizer, loss='mse')
+        self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights=self.training_loss_weight)
 
     def interpreter_to_output(self, interpreter_out):
         steering = interpreter_out[0]
