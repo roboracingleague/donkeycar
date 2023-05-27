@@ -330,7 +330,7 @@ class KerasLinear(KerasPilot):
     def __init__(self,
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
-                 num_outputs: int = 2, have_odom=False, steering_loss_weight=0.5):
+                 num_outputs: int = 2, have_odom=False, steering_loss_weight=None):
         self.num_outputs = num_outputs
         self.have_odom=have_odom
         self.steering_loss_weight=steering_loss_weight
@@ -344,8 +344,11 @@ class KerasLinear(KerasPilot):
             return default_n_linear(self.num_outputs)
 
     def compile(self):
-        self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights={'n_outputs0': self.steering_loss_weight, 'n_outputs1': 1-self.steering_loss_weight})
-            
+        if (self.steering_loss_weight):
+            self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights={'n_outputs0': self.steering_loss_weight, 'n_outputs1': 1-self.steering_loss_weight})
+        else:
+            self.interpreter.compile(optimizer=self.optimizer, loss='mse')
+
     def interpreter_to_output(self, interpreter_out):
         steering = interpreter_out[0]
         throttle = interpreter_out[1]
