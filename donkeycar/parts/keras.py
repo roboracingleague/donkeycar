@@ -404,17 +404,17 @@ class KerasSceneDetector(KerasPilot):
             loss_weights={'scene_out': 1.0})
 
     def interpreter_to_output(self, interpreter_out):
-        sl_binned = interpreter_out
-        sl = np.argmax(sl_binned)
-        return sl
+        sscene_binned = interpreter_out
+        scene = np.argmax(sscene_binned)
+        return scene
 
     def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
             -> Dict[str, Union[float, List[float]]]:
         assert isinstance(record, TubRecord), "TubRecord expected"
-        sl: int = record.underlying['user/scene']
-        sl_one_hot = np.zeros(self.num_scene)
-        sk_one_hot[sl] = 1
-        return {'sl': sl_one_hot}
+        scene: int = record.underlying['user/scene']
+        scene_one_hot = np.zeros(self.num_scene)
+        scene_one_hot[scene] = 1
+        return {'scene_out': scene_one_hot}
 
     def output_shapes(self):
         # need to cut off None from [None, 120, 160, 3] tensor shape
