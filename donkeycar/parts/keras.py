@@ -339,9 +339,9 @@ class KerasLinear(KerasPilot):
 
     def create_model(self):
         if self.have_odom:
-            return default_n_linear_odom(self.num_outputs)
+            return default_n_linear_odom(self.num_outputs, self.input_shape)
         else:
-            return default_n_linear(self.num_outputs)
+            return default_n_linear(self.num_outputs, self.input_shape)
 
     def compile(self):
         if (self.steering_loss_weight):
