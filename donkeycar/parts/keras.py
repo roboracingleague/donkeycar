@@ -351,8 +351,10 @@ class KerasLinear(KerasPilot):
 
     def interpreter_to_output(self, interpreter_out):
         steering = interpreter_out[0]
-        throttle = interpreter_out[1]
-        return steering[0], throttle[0]
+        if self.num_outputs > 1:
+            throttle = interpreter_out[1]
+            return steering[0], throttle[0]
+        return steering[0], None
 
     def x_transform(
             self,
@@ -372,8 +374,11 @@ class KerasLinear(KerasPilot):
             -> Dict[str, Union[float, List[float]]]:
         assert isinstance(record, TubRecord), 'TubRecord expected'
         angle: float = record.underlying['user/angle']
-        throttle: float = record.underlying['user/throttle']
-        y_trans = {'n_outputs0': angle, 'n_outputs1': throttle}
+        if self.num_outputs > 1:
+            throttle: float = record.underlying['user/throttle']
+            y_trans = {'n_outputs0': angle, 'n_outputs1': throttle}
+        else:
+            y_trans = {'n_outputs0': angle}
         return y_trans
 
     def output_shapes(self):
@@ -382,8 +387,9 @@ class KerasLinear(KerasPilot):
         shapes_in = {'img_in': tf.TensorShape(img_shape)}
         if self.have_odom:
             shapes_in.update({'speed_in': tf.TensorShape([1])})
-        shapes_out={'n_outputs0': tf.TensorShape([]),
-                    'n_outputs1': tf.TensorShape([])}
+        shapes_out={'n_outputs0': tf.TensorShape([])}
+        if self.num_outputs > 1:
+            shapes_out.append('n_outputs1': tf.TensorShape([])})
         return (shapes_in, shapes_out)
 
 class KerasSceneDetector(KerasPilot):
