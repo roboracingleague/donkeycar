@@ -625,8 +625,12 @@ ROBOCARSHAT_CONTROL_LED_DEDICATED_TTY = None
 ROBOCARSHAT_LED_MODEL = 'Alpine' #Alpine, Duo, 
 ROBOCARSHAT_CONTROL_LED_PILOT_ANIM = None # 1 = sparkle, 2 = strobe
 
+<<<<<<< HEAD
 MODEL_TRAINING_LOSS_WEIGHT = None # [1.0,1.0]
 MODEL_NUM_OUTPUTS = 2
+=======
+MODEL_STEERING_LOSS_WEIGHT = 0.5
+>>>>>>> d28d208 (scene)
 
 # straight line detection model
 ROBOCARS_SL_DETECTION_MODEL=False

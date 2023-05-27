@@ -518,7 +518,11 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     if used_model_type == "lineartrt":
         kl = TensorRTLinear(cfg=cfg)
     elif used_model_type == "linear":
+<<<<<<< HEAD
         kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, num_outputs=cfg.MODEL_NUM_OUTPUTS, training_loss_weight=cfg.MODEL_TRAINING_LOSS_WEIGHT)
+=======
+        kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, steering_loss_weight=cfg.MODEL_STEERING_LOSS_WEIGHT)
+>>>>>>> d28d208 (scene)
 
     elif used_model_type == "categorical":
         kl = KerasCategorical(
@@ -556,8 +560,11 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
                          seq_length=cfg.SEQUENCE_LENGTH)
     elif used_model_type == 'scene_detector':
         kl = KerasSceneDetector(interpreter=interpreter, input_shape=input_shape, num_scene=cfg.ROBOCARS_NUM_SCEN_CAT)
+<<<<<<< HEAD
     elif used_model_type == "scene_detectortrt":
         kl = TensorRTSceneDetector(cfg=cfg)
+=======
+>>>>>>> d28d208 (scene)
     else:
         known = [k + u for k in ('', 'tflite_', 'tensorrt_', 'trt_')
                  for u in used_model_type.mem]

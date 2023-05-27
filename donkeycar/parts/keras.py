@@ -330,6 +330,7 @@ class KerasLinear(KerasPilot):
     def __init__(self,
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
+<<<<<<< HEAD
                  num_outputs: int = 2, have_odom=False, training_loss_weight=None):
         self.num_outputs = num_outputs
         self.have_odom=have_odom
@@ -355,6 +356,28 @@ class KerasLinear(KerasPilot):
             throttle = interpreter_out[1]
             return steering[0], throttle[0]
         return steering, 0.0
+=======
+                 num_outputs: int = 2, have_odom=False, steering_loss_weight=0.5):
+        self.num_outputs = num_outputs
+        self.have_odom=have_odom
+        self.steering_loss_weight=steering_loss_weight
+        super().__init__(interpreter, input_shape)
+        logger.info(f'Created {self} with odom={have_odom}')
+
+    def create_model(self):
+        if self.have_odom:
+            return default_n_linear_odom(self.num_outputs)
+        else:
+            return default_n_linear(self.num_outputs)
+
+    def compile(self):
+        self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights={'n_outputs0': self.steering_loss_weight, 'n_outputs1': 1-self.steering_loss_weight})
+            
+    def interpreter_to_output(self, interpreter_out):
+        steering = interpreter_out[0]
+        throttle = interpreter_out[1]
+        return steering[0], throttle[0]
+>>>>>>> d28d208 (scene)
 
     def x_transform(
             self,
@@ -374,11 +397,16 @@ class KerasLinear(KerasPilot):
             -> Dict[str, Union[float, List[float]]]:
         assert isinstance(record, TubRecord), 'TubRecord expected'
         angle: float = record.underlying['user/angle']
+<<<<<<< HEAD
         if self.num_outputs > 1:
             throttle: float = record.underlying['user/throttle']
             y_trans = {'n_outputs0': angle, 'n_outputs1': throttle}
         else:
             y_trans = {'n_outputs0': angle}
+=======
+        throttle: float = record.underlying['user/throttle']
+        y_trans = {'n_outputs0': angle, 'n_outputs1': throttle}
+>>>>>>> d28d208 (scene)
         return y_trans
 
     def output_shapes(self):
@@ -387,9 +415,14 @@ class KerasLinear(KerasPilot):
         shapes_in = {'img_in': tf.TensorShape(img_shape)}
         if self.have_odom:
             shapes_in.update({'speed_in': tf.TensorShape([1])})
+<<<<<<< HEAD
         shapes_out={'n_outputs0': tf.TensorShape([])}
         if self.num_outputs > 1:
             shapes_out.update({'n_outputs1': tf.TensorShape([])})
+=======
+        shapes_out={'n_outputs0': tf.TensorShape([]),
+                    'n_outputs1': tf.TensorShape([])}
+>>>>>>> d28d208 (scene)
         return (shapes_in, shapes_out)
 
 class KerasSceneDetector(KerasPilot):
@@ -399,8 +432,13 @@ class KerasSceneDetector(KerasPilot):
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
                  num_scene: int = 2):
+<<<<<<< HEAD
         self.num_scene = num_scene
         super().__init__(interpreter, input_shape)
+=======
+        super().__init__(interpreter, input_shape)
+        self.num_scene = num_scene
+>>>>>>> d28d208 (scene)
 
     def create_model(self):
         return default_scen_detector(self.input_shape, self.num_scene)
@@ -413,17 +451,30 @@ class KerasSceneDetector(KerasPilot):
             loss_weights={'scene_out': 1.0})
 
     def interpreter_to_output(self, interpreter_out):
+<<<<<<< HEAD
         sscene_binned = interpreter_out
         scene = np.argmax(sscene_binned)
         return scene
+=======
+        sl_binned = interpreter_out
+        sl = np.argmax(sl_binned)
+        return sl
+>>>>>>> d28d208 (scene)
 
     def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
             -> Dict[str, Union[float, List[float]]]:
         assert isinstance(record, TubRecord), "TubRecord expected"
+<<<<<<< HEAD
         scene: int = record.underlying['user/scene']
         scene_one_hot = np.zeros(self.num_scene)
         scene_one_hot[scene] = 1
         return {'scene_out': scene_one_hot}
+=======
+        sl: int = record.underlying['user/scene']
+        sl_one_hot = np.zeros(self.num_scene)
+        sk_one_hot[sl] = 1
+        return {'sl': sl_one_hot}
+>>>>>>> d28d208 (scene)
 
     def output_shapes(self):
         # need to cut off None from [None, 120, 160, 3] tensor shape
