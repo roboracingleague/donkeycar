@@ -518,7 +518,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     if used_model_type == "lineartrt":
         kl = TensorRTLinear(cfg=cfg)
     elif used_model_type == "linear":
-        kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, steering_loss_weight=cfg.MODEL_TRAINING_LOSS_WEIGHT)
+        kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, training_loss_weight=cfg.MODEL_TRAINING_LOSS_WEIGHT)
 
     elif used_model_type == "categorical":
         kl = KerasCategorical(
