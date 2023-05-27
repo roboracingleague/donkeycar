@@ -346,7 +346,7 @@ class KerasLinear(KerasPilot):
     def compile(self):
         if self.training_loss_weight:
             self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights=self.training_loss_weight)
-        else
+        else:
             self.interpreter.compile(optimizer=self.optimizer, loss='mse')
 
     def interpreter_to_output(self, interpreter_out):
