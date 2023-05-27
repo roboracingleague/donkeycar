@@ -354,7 +354,7 @@ class KerasLinear(KerasPilot):
         if self.num_outputs > 1:
             throttle = interpreter_out[1]
             return steering[0], throttle[0]
-        return steering[0], None
+        return steering[0], 0.0
 
     def x_transform(
             self,
