@@ -390,8 +390,8 @@ class KerasSceneDetector(KerasPilot):
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
                  num_scene: int = 2):
-        super().__init__(interpreter, input_shape)
         self.num_scene = num_scene
+        super().__init__(interpreter, input_shape)
 
     def create_model(self):
         return default_scen_detector(self.input_shape, self.num_scene)
