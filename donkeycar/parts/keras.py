@@ -330,35 +330,26 @@ class KerasLinear(KerasPilot):
     def __init__(self,
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
-                 num_outputs: int = 2, have_odom=False,have_scen_cat=False, num_scen_cat=0):
+                 num_outputs: int = 2, have_odom=False, steering_loss_weight=0.5):
         self.num_outputs = num_outputs
         self.have_odom=have_odom
-        self.have_scen_cat=have_scen_cat
-        self.num_scen_cat=num_scen_cat
+        self.steering_loss_weight=steering_loss_weight
         super().__init__(interpreter, input_shape)
-        logger.info(f'Created {self} with odom={have_odom}, scene={have_scen_cat}')
+        logger.info(f'Created {self} with odom={have_odom}')
 
     def create_model(self):
         if self.have_odom:
-            return default_n_linear_odom(self.num_outputs, self.input_shape,num_scen=self.num_scen_cat if self.have_scen_cat else 0)
+            return default_n_linear_odom(self.num_outputs)
         else:
-            return default_n_linear(self.num_outputs, self.input_shape,num_scen=self.num_scen_cat if self.have_scen_cat else 0)
+            return default_n_linear(self.num_outputs)
 
     def compile(self):
-        if self.have_scen_cat:
-            self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'], loss='mse')
-        else:
-            self.interpreter.compile(optimizer=self.optimizer, loss='mse')
+        self.interpreter.compile(optimizer=self.optimizer, loss='mse', loss_weights={'n_outputs0': self.steering_loss_weight, 'n_outputs1': 1-self.steering_loss_weight})
             
     def interpreter_to_output(self, interpreter_out):
         steering = interpreter_out[0]
         throttle = interpreter_out[1]
-        if self.have_scen_cat:
-            track_scen = interpreter_out[2]
-            scen = np.argmax(track_scen)
-            return steering[0], throttle[0], scen
-        else:
-            return steering[0], throttle[0]
+        return steering[0], throttle[0]
 
     def x_transform(
             self,
@@ -380,11 +371,6 @@ class KerasLinear(KerasPilot):
         angle: float = record.underlying['user/angle']
         throttle: float = record.underlying['user/throttle']
         y_trans = {'n_outputs0': angle, 'n_outputs1': throttle}
-        if self.have_scen_cat:
-            scen: int = int(record.underlying['user/sl'])
-            scen_one_hot = np.zeros(self.num_scen_cat)
-            scen_one_hot[scen] = 1
-            y_trans.update({'n_outputs2': scen_one_hot})
         return y_trans
 
     def output_shapes(self):
@@ -395,10 +381,47 @@ class KerasLinear(KerasPilot):
             shapes_in.update({'speed_in': tf.TensorShape([1])})
         shapes_out={'n_outputs0': tf.TensorShape([]),
                     'n_outputs1': tf.TensorShape([])}
-        if self.have_scen_cat:
-            shapes_out.update({'n_outputs2': tf.TensorShape([self.num_scen_cat])})
         return (shapes_in, shapes_out)
 
+class KerasSceneDetector(KerasPilot):
+    """
+    """
+    def __init__(self,
+                 interpreter: Interpreter = KerasInterpreter(),
+                 input_shape: Tuple[int, ...] = (120, 160, 3),
+                 num_scene: int = 2):
+        super().__init__(interpreter, input_shape)
+        self.num_scene = num_scene
+
+    def create_model(self):
+        return default_scen_detector(self.input_shape, self.num_scene)
+
+    def compile(self):
+        self.interpreter.compile(
+            optimizer=self.optimizer,
+            metrics=['accuracy'],
+            loss={'scene_out': 'categorical_crossentropy'},
+            loss_weights={'scene_out': 1.0})
+
+    def interpreter_to_output(self, interpreter_out):
+        sl_binned = interpreter_out
+        sl = np.argmax(sl_binned)
+        return sl
+
+    def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
+            -> Dict[str, Union[float, List[float]]]:
+        assert isinstance(record, TubRecord), "TubRecord expected"
+        sl: int = record.underlying['user/scene']
+        sl_one_hot = np.zeros(self.num_scene)
+        sk_one_hot[sl] = 1
+        return {'sl': sl_one_hot}
+
+    def output_shapes(self):
+        # need to cut off None from [None, 120, 160, 3] tensor shape
+        img_shape = self.get_input_shapes()[0][1:]
+        shapes = ({'img_in': tf.TensorShape(img_shape)},
+                  {'scene_out': tf.TensorShape([self.num_scene])})
+        return shapes
 
 class KerasMemory(KerasLinear):
     """
@@ -926,7 +949,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     return x
 
 
-def default_n_linear(num_outputs, input_shape=(120, 160, 3), num_scen=0):
+def default_n_linear(num_outputs, input_shape=(120, 160, 3)):
     drop = 0.2
     img_in = Input(shape=input_shape, name='img_in')
     x = core_cnn_layers(img_in, drop)
@@ -940,14 +963,10 @@ def default_n_linear(num_outputs, input_shape=(120, 160, 3), num_scen=0):
         outputs.append(
             Dense(1, activation='linear', name='n_outputs' + str(i))(x))
 
-    if num_scen>0:
-        scen_out = Dense(num_scen, activation='softmax', name='n_outputs' + str(num_outputs))(x)
-        outputs.append(scen_out)
-
     model = Model(inputs=[img_in], outputs=outputs, name='linear')
     return model
 
-def default_n_linear_odom(num_outputs, input_shape=(120, 160, 3), num_scen=0):
+def default_n_linear_odom(num_outputs, input_shape=(120, 160, 3)):
     drop = 0.2
     img_in = Input(shape=input_shape, name='img_in')
     speed_in = Input(shape=(1,), name="speed_in")
@@ -971,10 +990,6 @@ def default_n_linear_odom(num_outputs, input_shape=(120, 160, 3), num_scen=0):
     for i in range(num_outputs):
         outputs.append(
             Dense(1, activation='linear', name='n_outputs' + str(i))(z))
-
-    if num_scen>0:
-        scen_out = Dense(num_scen, activation='softmax', name='n_outputs' + str(num_outputs))(z)
-        outputs.append(scen_out)
 
     model = Model(inputs=[img_in, speed_in], outputs=outputs, name='linear')
     return model
@@ -1020,6 +1035,21 @@ def default_categorical(input_shape=(120, 160, 3)):
     throttle_out = Dense(20, activation='softmax', name='throttle_out')(x)
 
     model = Model(inputs=[img_in], outputs=[angle_out, throttle_out],
+                  name='categorical')
+    return model
+
+def default_scen_detector(input_shape=(120, 160, 3), num_scene=2):
+    drop = 0.2
+    img_in = Input(shape=input_shape, name='img_in')
+    x = core_cnn_layers(img_in, drop, l4_stride=2)
+    x = Dense(100, activation='relu', name="dense_1")(x)
+    x = Dropout(drop)(x)
+    x = Dense(50, activation='relu', name="dense_2")(x)
+    x = Dropout(drop)(x)
+    # Categorical output of the stringht line detector 
+    scen_out = Dense(num_scene, activation='softmax', name='scene_out')(x)
+
+    model = Model(inputs=[img_in], outputs=[scen_out],
                   name='categorical')
     return model
 

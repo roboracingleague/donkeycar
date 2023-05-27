@@ -483,7 +483,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     '''
     from donkeycar.parts.keras import KerasCategorical, KerasLinear, \
         KerasInferred, KerasIMU, KerasMemory, KerasBehavioral, KerasLocalizer, \
-        KerasLSTM, Keras3D_CNN, KerasDetector
+        KerasLSTM, Keras3D_CNN, KerasDetector, KerasSceneDetector
     from donkeycar.parts.interpreter import KerasInterpreter, TfLite, TensorRT, \
         FastAIInterpreter, OnnxInterpreter
 
@@ -518,7 +518,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     if used_model_type == "lineartrt":
         kl = TensorRTLinear(cfg=cfg)
     elif used_model_type == "linear":
-        kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, have_scen_cat=cfg.ROBOCARS_SL_DETECTION_MODEL, num_scen_cat=cfg.ROBOCARS_NUM_SCEN_CAT)
+        kl = KerasLinear(interpreter=interpreter, input_shape=input_shape, have_odom=cfg.HAVE_ODOM, steering_loss_weight=cfg.MODEL_STEERING_LOSS_WEIGHT)
 
     elif used_model_type == "categorical":
         kl = KerasCategorical(
@@ -554,6 +554,8 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     elif used_model_type == '3d':
         kl = Keras3D_CNN(interpreter=interpreter, input_shape=input_shape,
                          seq_length=cfg.SEQUENCE_LENGTH)
+    elif used_model_type == 'scene_detector':
+        kl = KerasSceneDetector(interpreter=interpreter, input_shape=input_shape, num_scene=cfg.ROBOCARS_NUM_SCEN_CAT)
     else:
         known = [k + u for k in ('', 'tflite_', 'tensorrt_', 'trt_')
                  for u in used_model_type.mem]

@@ -625,8 +625,12 @@ ROBOCARSHAT_CONTROL_LED_DEDICATED_TTY = None
 ROBOCARSHAT_LED_MODEL = 'Alpine' #Alpine, Duo, 
 ROBOCARSHAT_CONTROL_LED_PILOT_ANIM = None # 1 = sparkle, 2 = strobe
 
+MODEL_STEERING_LOSS_WEIGHT = 0.5
+
 # straight line detection model
 ROBOCARS_SL_DETECTION_MODEL=False
+ROBOCARS_SL_DETECTION_MODEL_PATH = "models/scene_detector.onnx"
+ROBOCARS_SL_DETECTION_MODEL_TYPE = 'onnx_scene_detector'
 ROBOCARS_NUM_SCEN_CAT=2 #straight line or turn
 
 # 

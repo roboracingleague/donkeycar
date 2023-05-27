@@ -415,9 +415,6 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         if cfg.TRAIN_LOCALIZER:
             outputs.append("pilot/loc")
 
-        if cfg.ROBOCARS_SL_DETECTION_MODEL:
-            outputs.append("pilot/sl")
-
         #
         # Add image transformations like crop or trapezoidal mask
         #
@@ -429,6 +426,15 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
 
         V.add(kl, inputs=inputs, outputs=outputs, run_condition='run_pilot')
 
+    #
+    # Straight line detector
+    #
+
+    if cfg.ROBOCARS_SL_DETECTION_MODEL:
+        kd = dk.utils.get_model_by_type(cfg.ROBOCARS_SL_DETECTION_MODEL_TYPE, cfg)
+        load_model(kd, cfg.ROBOCARS_SL_DETECTION_MODEL_PATH)
+        V.add(kd, inputs=['cam/image_array'], outputs=['detector/scene'], run_condition='run_pilot')
+        
     #
     # Obstacle avoidance based on depth map
     #
@@ -606,9 +612,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         V.add(mon, inputs=[], outputs=perfmon_outputs, threaded=True)
 
     if (cfg.ROBOCARS_SL_DETECTION_MODEL):
-        inputs += ['user/sl']
-        types += ['int']
-        inputs += ['pilot/sl']
+        inputs += ['detector/scene']
         types += ['int']
 
     # do we want to store new records into own dir or append to existing
@@ -984,7 +988,7 @@ def add_drivetrain(V, cfg):
     if cfg.USE_ROBOCARSHAT_POWERTRAIN_CONTROLLER :
         from donkeycar.parts.robocars_hat_ctrl import RobocarsHatDriveCtrl
         drive_controller = RobocarsHatDriveCtrl(cfg)
-        V.add(drive_controller, inputs=['throttle','angle','user/mode', 'pilot/sl'], outputs=['throttle','angle'], threaded=False)
+        V.add(drive_controller, inputs=['throttle','angle','user/mode', 'detector/scene'], outputs=['throttle','angle'], threaded=False)
 
     if (not cfg.DONKEY_GYM) and not cfg.DONKEY_WEBOT and cfg.DRIVE_TRAIN_TYPE != "MOCK":
         from donkeycar.parts import actuator, pins

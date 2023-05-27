@@ -38,11 +38,7 @@ Donkeycar is made of :
 - follow requirements provided in https://github.com/roboracingleague/robocar-gcp-trainer/blob/master/README.md
 - link some scripts to you car directory :
 ```sh
-cd ~/mycar
-ln -s <robocar-gcp-trainer direcrory>/make_tub_archive.sh .
-ln -s <robocar-gcp-trainer direcrory>/deflate_tub_archive.sh .
-ln -s <robocar-gcp-trainer direcrory>/upload_tub_archive.sh .
-ln -s <robocar-gcp-trainer direcrory>/download_model.sh .
+~/<path to robocar-gcp-trainer>/install.sh
 ```
 
 # review donckeycar configuration
