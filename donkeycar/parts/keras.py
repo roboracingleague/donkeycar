@@ -335,7 +335,7 @@ class KerasLinear(KerasPilot):
         self.have_odom=have_odom
         self.training_loss_weight=training_loss_weight
         super().__init__(interpreter, input_shape)
-        logger.info(f'Created {self} with odom={have_odom}, training_loss_weight={training_loss_weight}')
+        logger.info(f'Created {self} with odom={have_odom}, training_loss_weight={training_loss_weight}, num_output={self.num_outputs}')
 
     def create_model(self):
         if self.have_odom:
@@ -354,7 +354,7 @@ class KerasLinear(KerasPilot):
         if self.num_outputs > 1:
             throttle = interpreter_out[1]
             return steering[0], throttle[0]
-        return steering[0], 0.0
+        return steering, 0.0
 
     def x_transform(
             self,
