@@ -495,7 +495,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
         interpreter = TfLite()
         used_model_type = model_type.replace('tflite_', '')
     elif 'trt_' in model_type:
-        from donkeycar.parts.tensorrt import TensorRTLinear
+        from donkeycar.parts.tensorrt import TensorRTLinear, TensorRTSceneDetector
         used_model_type = model_type.replace('trt_', '')
     elif 'tensorrt_' in model_type:
         interpreter = TensorRT()
@@ -556,6 +556,8 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
                          seq_length=cfg.SEQUENCE_LENGTH)
     elif used_model_type == 'scene_detector':
         kl = KerasSceneDetector(interpreter=interpreter, input_shape=input_shape, num_scene=cfg.ROBOCARS_NUM_SCEN_CAT)
+    elif used_model_type == "scene_detectortrt":
+        kl = TensorRTSceneDetector(cfg=cfg)
     else:
         known = [k + u for k in ('', 'tflite_', 'tensorrt_', 'trt_')
                  for u in used_model_type.mem]
