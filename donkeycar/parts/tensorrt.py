@@ -409,8 +409,9 @@ class TensorRTSceneDetector(KerasPilot):
         
 
     def interpreter_to_output(self, interpreter_out):
-        [scene] = interpreter_out
-        return scene[0]
+        [scene_binned] = interpreter_out
+        scene = np.argmax(scene_binned)
+        return scene
 
     @classmethod
     def allocate_buffers(cls, engine):
