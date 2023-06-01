@@ -621,6 +621,7 @@ class RobocarsHatLedCtrl():
             self.setLed(self.LED_INDEX_REAR_STOP_LEFT, 0, 0, 0, 0x0);
 
         #first, find if car is turning 
+        steering_state = 0
         if (abs(steering)>self.STEERING_HIGH and steering<0 and self.last_steering_state != self.STEERING_RIGHT):
             steering_state = self.STEERING_RIGHT
         if (abs(steering)>self.STEERING_HIGH and steering>0 and self.last_steering_state != self.STEERING_LEFT):
