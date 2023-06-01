@@ -389,7 +389,7 @@ class KerasLinear(KerasPilot):
             shapes_in.update({'speed_in': tf.TensorShape([1])})
         shapes_out={'n_outputs0': tf.TensorShape([])}
         if self.num_outputs > 1:
-            shapes_out.append({'n_outputs1': tf.TensorShape([])})
+            shapes_out.update({'n_outputs1': tf.TensorShape([])})
         return (shapes_in, shapes_out)
 
 class KerasSceneDetector(KerasPilot):
