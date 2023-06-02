@@ -631,6 +631,8 @@ class RobocarsHatLedCtrl():
         if (mode != self.last_mode or refresh):
             if mode=='user' :
                 # regular lighting in user mode 
+                if self.cfg.ROBOCARSHAT_CONTROL_LED_PILOT_ANIM:
+                    self.setAnim(0)
                 self.setLed(self.LED_INDEX_FRONT_LIGHT_RIGHT, *self.USER_FRONT_LIGH_COLOR, 0xffff);
                 self.setLed(self.LED_INDEX_FRONT_LIGHT_LEFT, *self.USER_FRONT_LIGH_COLOR, 0xffff);
                 self.setLed(self.LED_INDEX_REAR_STOP_RIGHT, *self.USER_REAR_STOP_COLOR, 0xffff);
