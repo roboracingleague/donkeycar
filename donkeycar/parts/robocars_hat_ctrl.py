@@ -206,7 +206,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         return self.adaptativeSteeringExtraScalar
 
     def getProfile(self):
-        return self.profile
+        return int(self.profile)
 
     def getCommand(self):
         self.processRxCh()
