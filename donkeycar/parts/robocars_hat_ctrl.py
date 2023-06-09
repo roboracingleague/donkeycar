@@ -77,6 +77,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
     AUX_FEATURE_OUTPUT_STEERING_EXP=7
     AUX_FEATURE_THROTTLE_SCALAR_EXP=8
     AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP = 9
+    AUX_FEATURE_SWITCH_PROFILE = 10
 
     def _map_aux_feature (self, feature):
         if feature == 'record/pilot':
@@ -97,6 +98,8 @@ class RobocarsHatInCtrl(metaclass=Singleton):
             return self.AUX_FEATURE_THROTTLE_SCALAR_EXP
         elif feature == 'adaptative_steering_scalar_exp':
             return self.AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP
+        elif feature == 'switch_profile':
+            return self.AUX_FEATURE_SWITCH_PROFILE
         elif feature != 'none':
             mylogger.info(f"CtrlIn : Unkown requested feature : {feature}")
 
@@ -112,6 +115,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         self.fixOutputSteering = None
         self.fixThrottleExtraScalar = 0.0
         self.adaptativeSteeringExtraScalar = 0.0
+        self.profile = 0.0
         self.inAux1 = 0.0
         self.inAux2 = 0.0
         self.lastAux1 = -1.0
@@ -200,6 +204,9 @@ class RobocarsHatInCtrl(metaclass=Singleton):
 
     def getAdaptativeSteeringExtraScalar(self):
         return self.adaptativeSteeringExtraScalar
+
+    def getProfile(self):
+        return self.profile
 
     def getCommand(self):
         self.processRxCh()
@@ -311,6 +318,16 @@ class RobocarsHatInCtrl(metaclass=Singleton):
             if (abs(newScalar - self.adaptativeSteeringExtraScalar)>0.01) :
                  mylogger.info("CtrlIn adaptative steering scalar set to {}".format(newScalar))
             self.adaptativeSteeringExtraScalar = newScalar
+
+        command, has_changed = self.getAuxValuePerFeat(self.AUX_FEATURE_SWITCH_PROFILE)
+        if command != None :
+            if has_changed :
+                newProfile =  round(dk.utils.map_range_float(command,
+                        -1.0, 1.0,
+                        0.0, 2.0, enforce_input_in_range=True))
+                if (newProfile != self.profile) :
+                     mylogger.info("CtrlIn aprofile set to {}".format(newProfile))
+                self.profile = newProfile
 
         # Process other features 
         if self.cfg.ROBOCARSHAT_STEERING_FIX != None:
@@ -766,16 +783,26 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.throttle_out = self.throttle_from_pilot
         self.angle_out = self.angle_from_pilot
 
-        # apply static scalar on throttle :
-        self.throttle_out = self.throttle_from_pilot * (1.0 + self.cfg.ROBOCARS_THROTTLE_SCALER)
+        throttle_scalar = self.cfg.ROBOCARS_THROTTLE_SCALER
+        if self.cfg.ROBOCARS_PROFILES:
+            throttle_scalar = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][0]
+
+        # apply static scalar on throttle... :
+        self.throttle_out = self.throttle_from_pilot * (1.0 + throttle_scalar)
+
+        # ... except if we are using feature to explore scalar from remote controler 
         if self.hatInCtrl.isFeatActive(self.hatInCtrl.AUX_FEATURE_THROTTLE_SCALAR_EXP) or self.cfg.ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL :
             # if feature to explore throttle scalar is enabled, override scalar with current value beeing tested
-            self.throttle_out = self.throttle_from_pilot * (1.0 + self.cfg.ROBOCARS_THROTTLE_SCALER + self.hatInCtrl.getFixThrottleExtraScalar())
+            self.throttle_out = self.throttle_from_pilot * (1.0 + self.hatInCtrl.getFixThrottleExtraScalar())
 
-        # apply steering compensation based on targeted throttle
+        # apply steering compensation ...
         # compute the scalar to apply, proportionnaly to the targeted throttle comparted to throttle from model or from local_angle mode
         # dyn_steering_factor = dk.utils.map_range_float(self.throttle_out, self.throttle_from_pilot, 1.0, 0.0, self.cfg.ROBOCARS_CTRL_ADAPTATIVE_STEERING_SCALER)
         dyn_steering_factor = self.cfg.ROBOCARS_CTRL_ADAPTATIVE_STEERING_SCALER
+        if self.cfg.ROBOCARS_PROFILES:
+            dyn_steering_factor = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][1]
+        
+        # ... except if we are using feature to explore scalar from remote controler 
         if self.hatInCtrl.isFeatActive(self.hatInCtrl.AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP):
             # if feature to explore adaptative steering scalar is enabled, override scalar with current value beeing tested
             dyn_steering_factor = self.hatInCtrl.getAdaptativeSteeringExtraScalar()
