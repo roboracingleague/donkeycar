@@ -321,12 +321,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
 
         command, has_changed = self.getAuxValuePerFeat(self.AUX_FEATURE_SWITCH_PROFILE)
         if command != None :
-            if has_changed :
-                newProfile =  round(dk.utils.map_range_float(command,
-                        -1.0, 1.0,
-                        0.0, 2.0, enforce_input_in_range=True))
-                if (newProfile != self.profile) :
-                     mylogger.info("CtrlIn aprofile set to {}".format(newProfile))
+            newProfile =  round(dk.utils.map_range_float(command,
+                    -1.0, 1.0,
+                    0.0, 2.0, enforce_input_in_range=True))
+            if (newProfile != self.profile) :
+                mylogger.info("CtrlIn aprofile set to {}".format(newProfile))
                 self.profile = newProfile
 
         # Process other features 
