@@ -77,7 +77,7 @@ try:
             return augmentation
 
         @classmethod
-        def hood_mask(cls, lower_x, upper_x, left_y, right_y, min_y,max_y):
+        def hood_mask(cls, lower_x, upper_x, left_y, right_y, min_x, min_y, max_y):
             """
             Uses a binary mask to generate a trapezoidal region of interest.
             Especially useful in filtering out uninteresting features from an
@@ -97,8 +97,8 @@ try:
                         #
                         #    ll             lr     max_y
                         points = [
-                            [0, min_y],
-                            [0, max_y],
+                            [min_x, min_y],
+                            [min_x, max_y],
                             [lower_x, max_y],
                             [upper_x, right_y],
                             [upper_x, left_y],
@@ -166,6 +166,7 @@ try:
                             upper_x=config.ROI_HOOD_UX,
                             left_y=config.ROI_HOOD_LY,
                             right_y=config.ROI_HOOD_RY,
+                            min_x=config.ROI_HOOD_MIN_X,
                             min_y=config.ROI_HOOD_MIN_Y,
                             max_y=config.ROI_HOOD_MAX_Y)
 
