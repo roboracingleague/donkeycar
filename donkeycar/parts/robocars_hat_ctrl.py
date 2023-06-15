@@ -516,10 +516,15 @@ class RobocarsHatLedCtrl():
         self.cfg = cfg
         self.reconnect=True
         self.reconnectDelay=500
+        self.hatInCtrl = None
+        self.cmdinterface = None
         if self.cfg.ROBOCARSHAT_CONTROL_LED_DEDICATED_TTY :
             self.connectPort()
         else:
             self.cmdinterface = RobocarsHat(self.cfg)
+
+        if (self.cfg.USE_ROBOCARSHAT_AS_CONTROLLER):
+            self.hatInCtrl = RobocarsHatInCtrl(self.cfg)
 
         if cfg.ROBOCARSHAT_LED_MODEL == 'Alpine':
             self.LED_INDEX_FRONT_TURN_RIGHT = 3

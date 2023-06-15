@@ -104,8 +104,8 @@ try:
                             [left_x, upper_y],
                             [min_x, lower_y]
                         ]
-                        cv2.fillConvexPoly(mask,
-                                           np.array(points, dtype=np.int32),
+                        cv2.fillPoly(mask,
+                                           [np.array(points, dtype=np.int32)],
                                            [255, 255, 255])
                         mask = np.asarray(mask, dtype='bool')
 

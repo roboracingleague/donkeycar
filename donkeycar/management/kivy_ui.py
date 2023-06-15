@@ -386,15 +386,18 @@ class FullImage(Image):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.core_image = None
+        self.aug = None
 
     def update(self, record):
         """ This method is called ever time a record gets updated. """
         try:
             img_arr = self.get_image(record)
-            cfg = tub_screen().ids.config_manager.config
-            if 'HOOD' in cfg.TRANSFORMATIONS:
-                aug = ImageAugmentation(cfg, 'TRANSFORMATIONS')
-                img_arr = aug.run(img_arr)
+            if not self.aug :
+                cfg = tub_screen().ids.config_manager.config
+                if 'HOOD' in cfg.TRANSFORMATIONS:
+                    self.aug = ImageAugmentation(cfg, 'TRANSFORMATIONS')
+            if self.aug:
+                img_arr = self.aug.run(img_arr)
             pil_image = PilImage.fromarray(img_arr)
             bytes_io = io.BytesIO()
             pil_image.save(bytes_io, format='png')
