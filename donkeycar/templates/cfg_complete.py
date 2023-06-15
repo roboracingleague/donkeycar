@@ -475,13 +475,14 @@ ROI_TRAPEZE_MAX_Y = 120
 
 # For hood exclusion see explanation in augmentations.py. Requires 'HOOD' in
 # TRANSFORMATIONS to be set
-ROI_HOOD_LX=130
-ROI_HOOD_UX=96
-ROI_HOOD_LY=100
-ROI_HOOD_RY=230
-ROI_HOOD_MIN_X=35
+ROI_HOOD_LY=130
+ROI_HOOD_UY=96
+ROI_HOOD_LX=100
+ROI_HOOD_RX=240
+ROI_HOOD_MIN_X=0
+ROI_HOOD_MAX_X=320
 ROI_HOOD_MIN_Y=0
-ROI_HOOD_MAX_Y=320
+ROI_HOOD_MAX_Y=165
 
 #Model transfer options
 #When copying weights during a model transfer operation, should we freeze a certain number of layers

@@ -77,7 +77,7 @@ try:
             return augmentation
 
         @classmethod
-        def hood_mask(cls, lower_x, upper_x, left_y, right_y, min_x, min_y, max_y):
+        def hood_mask(cls, lower_y, upper_y, left_x, right_x, min_x, max_x, min_y, max_y):
             """
             Uses a binary mask to generate a trapezoidal region of interest.
             Especially useful in filtering out uninteresting features from an
@@ -98,12 +98,11 @@ try:
                         #    ll             lr     max_y
                         points = [
                             [min_x, min_y],
-                            [min_x, max_y],
-                            [lower_x, max_y],
-                            [upper_x, right_y],
-                            [upper_x, left_y],
-                            [lower_x, min_y],
-                            [lower_x, min_y]
+                            [max_x, min_y],
+                            [max_x, lower_y],
+                            [right_x, upper_y],
+                            [left_x, upper_y],
+                            [min_x, lower_y]
                         ]
                         cv2.fillConvexPoly(mask,
                                            np.array(points, dtype=np.int32),
@@ -162,11 +161,12 @@ try:
             elif aug_type == 'HOOD':
                 logger.info(f'Creating augmentation {aug_type}')
                 return Augmentations.hood_mask(
-                            lower_x=config.ROI_HOOD_LX,
-                            upper_x=config.ROI_HOOD_UX,
-                            left_y=config.ROI_HOOD_LY,
-                            right_y=config.ROI_HOOD_RY,
+                            lower_y=config.ROI_HOOD_LY,
+                            upper_y=config.ROI_HOOD_UY,
+                            left_x=config.ROI_HOOD_LX,
+                            right_x=config.ROI_HOOD_RX,
                             min_x=config.ROI_HOOD_MIN_X,
+                            max_x=config.ROI_HOOD_MAX_X,
                             min_y=config.ROI_HOOD_MIN_Y,
                             max_y=config.ROI_HOOD_MAX_Y)
 
