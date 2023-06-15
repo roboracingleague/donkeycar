@@ -76,6 +76,54 @@ try:
                                       func_keypoints=_transform_keypoints)
             return augmentation
 
+        @classmethod
+        def hood_mask(cls, lower_x, upper_x, left_y, right_y, min_y,max_y):
+            """
+            Uses a binary mask to generate a trapezoidal region of interest.
+            Especially useful in filtering out uninteresting features from an
+            input image.
+            """
+            def _transform_images(images, random_state, parents, hooks):
+                # Transform a batch of images
+                transformed = []
+                mask = None
+                for image in images:
+                    if mask is None:
+                        mask = np.zeros(image.shape, dtype=np.int32)
+                        # # # # # # # # # # # # #
+                        #       ul     ur          min_y
+                        #
+                        #
+                        #
+                        #    ll             lr     max_y
+                        points = [
+                            [0, min_y],
+                            [0, max_y],
+                            [lower_x, max_y],
+                            [upper_x, right_y],
+                            [upper_x, left_y],
+                            [lower_x, min_y],
+                            [lower_x, min_y]
+                        ]
+                        cv2.fillConvexPoly(mask,
+                                           np.array(points, dtype=np.int32),
+                                           [255, 255, 255])
+                        mask = np.asarray(mask, dtype='bool')
+
+                    masked = np.multiply(image, mask)
+                    transformed.append(masked)
+
+                return transformed
+
+            def _transform_keypoints(keypoints_on_images, random_state,
+                                     parents, hooks):
+                # No-op
+                return keypoints_on_images
+
+            augmentation = iaa.Lambda(func_images=_transform_images,
+                                      func_keypoints=_transform_keypoints)
+            return augmentation
+
     class ImageAugmentation:
         def __init__(self, cfg, key):
             aug_list = getattr(cfg, key, [])
@@ -111,6 +159,15 @@ try:
                             upper_right=config.ROI_TRAPEZE_UR,
                             min_y=config.ROI_TRAPEZE_MIN_Y,
                             max_y=config.ROI_TRAPEZE_MAX_Y)
+            elif aug_type == 'HOOD':
+                logger.info(f'Creating augmentation {aug_type}')
+                return Augmentations.hood_mask(
+                            lower_x=config.ROI_HOOD_LX,
+                            upper_x=config.ROI_HOOD_UX,
+                            left_y=config.ROI_HOOD_LY,
+                            right_y=config.ROI_HOOD_RY,
+                            min_y=config.ROI_HOOD_MIN_Y,
+                            max_y=config.ROI_HOOD_MAX_Y)
 
             elif aug_type == 'MULTIPLY':
                 interval = getattr(config, 'AUG_MULTIPLY_RANGE', (0.5, 1.5))
