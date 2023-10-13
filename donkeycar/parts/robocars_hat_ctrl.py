@@ -352,6 +352,13 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                 mode = 'user'
                 user_throttle = 0
 
+        if self.cfg.ROBOCARSHAT_CIRCUIT_24_CONTROL and mode != 'user':
+            user_throttle = user_throttle * (1.0+self.inThrottle)
+            # Full Reverse trigger will stop the car as long as maintained 
+            if self.inThrottle < -0.9:
+                mode = 'user'
+                self.throttle_out = 0
+
         # Discret throttle mode
         if mode=='user':
             # Discret mode, apply profile
@@ -804,13 +811,6 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         if self.hatInCtrl.isFeatActive(self.hatInCtrl.AUX_FEATURE_THROTTLE_SCALAR_EXP) or self.cfg.ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL :
             # if feature to explore throttle scalar is enabled, override scalar with current value beeing tested
             self.throttle_out = self.throttle_from_pilot * (1.0 + self.hatInCtrl.getFixThrottleExtraScalar())
-
-        if self.cfg.ROBOCARSHAT_CIRCUT_24_CONTROL and mode != 'user':
-            self.throttle_out = self.throttle_out * (1.0+user_throttle)
-            # Full Reverse trigger will stop the car as long as maintained 
-            if user_throttle < -0.9:
-                mode = 'user'
-                self.throttle_out = 0
 
         # apply steering compensation ...
         # compute the scalar to apply, proportionnaly to the targeted throttle comparted to throttle from model or from local_angle mode
