@@ -784,7 +784,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             return False
         return None
 
-    def processState(self, throttle, angle, mode, sl):
+    def processState(self, throttle, angle, mode, sl, user_throttle):
             
         self.throttle_from_pilot = throttle
         self.angle_from_pilot = angle
@@ -804,6 +804,13 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         if self.hatInCtrl.isFeatActive(self.hatInCtrl.AUX_FEATURE_THROTTLE_SCALAR_EXP) or self.cfg.ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL :
             # if feature to explore throttle scalar is enabled, override scalar with current value beeing tested
             self.throttle_out = self.throttle_from_pilot * (1.0 + self.hatInCtrl.getFixThrottleExtraScalar())
+
+        if self.cfg.ROBOCARSHAT_CIRCUT_24_CONTROL and mode != 'user':
+            self.throttle_out = self.throttle_out * (1.0+user_throttle)
+            # Full Reverse trigger will stop the car as long as maintained 
+            if user_throttle < -0.9:
+                mode = 'user'
+                self.throttle_out = 0
 
         # apply steering compensation ...
         # compute the scalar to apply, proportionnaly to the targeted throttle comparted to throttle from model or from local_angle mode
@@ -834,7 +841,6 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             if (self.is_sl_confition()==True) :
                 self.accelerate() #sl detected and confirmed 
                 
-
         if self.is_driving_fullspeed(allow_substates=True):
             # apply extra scalar factor on throttle when in straight line
             self.throttle_out = self.throttle_out * (1+self.cfg.ROBOCARS_THROTTLE_SCALER_ON_SL)
@@ -856,12 +862,12 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         # not implemented
         pass
 
-    def run_threaded(self, throttle, angle, mode, sl):
+    def run_threaded(self, throttle, angle, mode, sl, user_throttle):
         # not implemented
         pass
 
-    def run (self,throttle, angle, mode, sl,):
-        throttle, angle = self.processState (throttle, angle, mode, sl)
+    def run (self,throttle, angle, mode, sl,user_throttle):
+        throttle, angle = self.processState (throttle, angle, mode, sl, user_throttle)
         return throttle, angle
     
 

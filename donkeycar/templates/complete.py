@@ -988,7 +988,7 @@ def add_drivetrain(V, cfg):
     if cfg.USE_ROBOCARSHAT_POWERTRAIN_CONTROLLER :
         from donkeycar.parts.robocars_hat_ctrl import RobocarsHatDriveCtrl
         drive_controller = RobocarsHatDriveCtrl(cfg)
-        V.add(drive_controller, inputs=['throttle','angle','user/mode', 'detector/scene'], outputs=['throttle','angle'], threaded=False)
+        V.add(drive_controller, inputs=['throttle','angle','user/mode', 'detector/scene', 'user/throttle'], outputs=['throttle','angle'], threaded=False)
 
     if (not cfg.DONKEY_GYM) and not cfg.DONKEY_WEBOT and cfg.DRIVE_TRAIN_TYPE != "MOCK":
         from donkeycar.parts import actuator, pins
