@@ -109,6 +109,22 @@ BEHAVIOR_LIST = ['left', 'middle', 'right']
 OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = True # To free drive using behavior model, Si True, active l'autopilote du steering avec avoidance
 OBSTACLE_DETECTOR_MANUAL_LANE = False # si True, active le mode copilot pour le steering depuis la radio 
 
+# PATH_PILOT
+PATH_PILOT_ENABLED = False
+BINARIZE_THRESHOLD = 240
+BIRDEYE_VANISHING_POINT = 0.3
+BIRDEYE_CROP_TOP = 0.5
+BIRDEYE_CROP_CORNER = 0.7
+WIDTH_M_PER_PIX = 1.0
+HEIGHT_M_PER_PIX = 1.0
+CAMERA_ORIGIN_X_M = 0.0
+CAMERA_ORIGIN_Y_M = 0.0
+
+# SEGMENTATION SETTINGS
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
+# OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
+# ALSO NEEDS: CAMERA_FRAMERATE = 4 CAMERA_ISP_SCALE = (9, 19) IMAGE_W = 896 IMAGE_H = 512 IMAGE_DEPTH = 3
+
 #CAMERA Settings Vivatech 2022 (nano)
 #CAMERA_TYPE = "CSIC"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
 #IMAGE_W = 160

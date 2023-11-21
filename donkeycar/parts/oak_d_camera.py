@@ -511,7 +511,7 @@ class OakDCamera:
         if self.enable_undistort_rgb == True: ret_list.append(self.frame_undistorted_rgb)
         if self.enable_obstacle_dist == True: ret_list.append(np.array(self.roi_distances))
         
-        return ret_list
+        return ret_list, self.frame_time
         # if self.enable_depth:
         #     return self.frame_xout, self.frame_xout_depth
         # elif self.enable_obstacle_dist:
