@@ -16,7 +16,7 @@
 # MODELS_PATH = os.path.join(CAR_PATH, 'models')
 # 
 # #VEHICLE
-DRIVE_LOOP_HZ = 35      # the vehicle loop will pause if faster than this speed.
+DRIVE_LOOP_HZ = 30      # the vehicle loop will pause if faster than this speed.
 # MAX_LOOPS = None        # the vehicle loop can abort after this many iterations, when given a positive integer.
 # 
 # #CAMERA
@@ -93,6 +93,22 @@ CAMERA_FRAMERATE = DRIVE_LOOP_HZ # 35hz
 # #CAMERA_INDEX = 0  # used for 'WEBCAM' and 'CVCAM' when there is more than one camera connected 
 # # For CSIC camera - If the camera is mounted in a rotated position, changing the below parameter will correct the output frame orientation
 # #CSIC_CAM_GSTREAMER_FLIP_PARM = 2 # (0 => none , 4 => Flip horizontally, 6 => Flip vertically)
+# 
+# PATH_PILOT
+PATH_PILOT_ENABLED = True
+BINARIZE_THRESHOLD = 240
+BIRDEYE_VANISHING_POINT = 0.46
+BIRDEYE_CROP_TOP = 0.5
+BIRDEYE_CROP_CORNER = 0.7
+WIDTH_M_PER_PIX = 1.0
+HEIGHT_M_PER_PIX = 1.0
+CAMERA_ORIGIN_X_M = 0.0
+CAMERA_ORIGIN_Y_M = 0.0
+# 
+# SEGMENTATION SETTINGS
+OAK_ENABLE_SEGMENTATION = False # enable image segmentation output
+# # OAK_SEGMENTATION_MODEL_BLOB_PATH = '~/car/models/road-segmentation-adas-0001_openvino_2021.4_6shave.blob'
+# # ALSO NEEDS: CAMERA_FRAMERATE = 4 CAMERA_ISP_SCALE = (9, 19) IMAGE_W = 896 IMAGE_H = 512 IMAGE_DEPTH = 3
 # 
 # # For IMAGE_LIST camera
 # # PATH_MASK = "~/mycar/data/tub_1_20-03-12/*.jpg"
@@ -397,12 +413,19 @@ CAMERA_FRAMERATE = DRIVE_LOOP_HZ # 35hz
 # }
 # 
 # #ODOMETRY
-# HAVE_ODOM = False                   # Do you have an odometer/encoder 
-# ENCODER_TYPE = 'GPIO'            # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT
-# MM_PER_TICK = 12.7625               # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
-# ODOM_PIN = 13                        # if using GPIO, which GPIO board mode pin to use as input
-# ODOM_DEBUG = False                  # Write out values on vel and distance as it runs
-# 
+HAVE_ODOM = True                     # Do you have an odometer/encoder 
+ENCODER_TYPE = 'FF_LS7366R'          # What kind of encoder? GPIO|Arduino|Astar|ROBOCARSHAT|LS7366R|FF_LS7366R
+MM_PER_TICK = 0.0278                 # How much travel with a single tick, in mm. Roll you car a meter and divide total ticks measured by 1,000
+# ODOM_PIN = 13                      # if using GPIO, which GPIO board mode pin to use as input
+ODOM_DEBUG = False                   # Write out values on vel and distance as it runs
+ODOM_FREQUENCY = DRIVE_LOOP_HZ * 3   # if odometer needs it, at what frequency should it poll measurements
+ODOM_SPI_FREQUENCY = 1000000         # SPI frequency, if using a SPI odometer 
+ODOM_SPI_CS_LINE = 0                 # SPI chip select line, if using a SPI odometer
+ODOM_REVERSE = False                 # reverse counter direction, if used by your odometer
+ODOM_VEHICLE_LENGTH = 0.273          # vehicle length from rear axle center to front axle center in meters
+ODOM_MAX_VELOCITY = 1.5              # max vehicle linear velocity at full throttle in m/s, used by feed forward localization (FF_LS7366R)
+ODOM_MAX_STEERING_ANGLE = 22.89      # max steering angle in degree, used by feed forward localization (FF_LS7366R)
+#
 # # #LIDAR
 # USE_LIDAR = False
 # LIDAR_TYPE = 'RP' #(RP|YD)
@@ -439,7 +462,7 @@ CAMERA_FRAMERATE = DRIVE_LOOP_HZ # 35hz
 # SEND_BEST_MODEL_TO_PI = False   #change to true to automatically send best model during training
 # CREATE_TF_LITE = False           # automatically create tflite model in training
 # CREATE_TENSOR_RT = False        # automatically create tensorrt model in training
-# CREATE_ONNX_MODEL = True       # automatically create onnx model in training
+CREATE_ONNX_MODEL = True       # automatically create onnx model in training
 # 
 # PRUNE_CNN = False               #This will remove weights from your model. The primary goal is to increase performance.
 # PRUNE_PERCENT_TARGET = 75       # The desired percentage of pruning.
@@ -574,7 +597,7 @@ ROBOCARSHAT_SERIAL_SPEED = 250000
 ROBOCARSHAT_PILOT_MODE = 'local_angle' # Which autonomous mode is triggered by Hat : local_angle or local
 ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE = 0.09 # For pilot_angle autonomous mode (aka constant throttle), this is the default throttle to apply
 # # ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE = None # if set to None, throttle is the one provided by remote control
-# ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.2
+ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE = -0.3
 # 
 THROTTLE_BRAKE_REV_FILTER = False # ESC is configured in Fw/Rv mode (no braking)
 # 
