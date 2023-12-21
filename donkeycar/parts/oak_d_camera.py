@@ -174,9 +174,6 @@ class OakDCamera:
         
         self.on = False
         self.device = None
-        self.queue_xout = None
-        self.queue_xout_depth = None
-        self.queue_xout_spatial_data = None
         self.frame_xout = None
         self.frame_time = None
         self.frame_xout_depth = None
@@ -209,11 +206,11 @@ class OakDCamera:
             self.device = dai.Device(self.pipeline)
 
             # Create queues
-            self.queue_xout = self.device.getOutputQueue("xout", maxSize=1, blocking=False)
-            if enable_depth:
-                self.queue_xout_depth = self.device.getOutputQueue("xout_depth", maxSize=1, blocking=False)
-            elif enable_obstacle_dist:
-                self.queue_xout_spatial_data = self.device.getOutputQueue("spatialData", maxSize=1, blocking=False)
+            # self.queue_xout = self.device.getOutputQueue("xout", maxSize=1, blocking=False)
+            # if enable_depth:
+            #     self.queue_xout_depth = self.device.getOutputQueue("xout_depth", maxSize=1, blocking=False)
+            # elif enable_obstacle_dist:
+            #     self.queue_xout_spatial_data = self.device.getOutputQueue("xout_spatial_data", maxSize=1, blocking=False)
             
             # Get the first frame or timeout
             warming_time = time.time() + 5  # seconds
@@ -391,7 +388,7 @@ class OakDCamera:
         xinSpatialCalcConfig = self.pipeline.create(dai.node.XLinkIn)
 
         # xoutDepth.setStreamName("depth")
-        xoutSpatialData.setStreamName("spatialData")
+        xoutSpatialData.setStreamName("xout_spatial_data")
         xinSpatialCalcConfig.setStreamName("spatialCalcConfig")
 
         # Properties
@@ -430,15 +427,28 @@ class OakDCamera:
         xinSpatialCalcConfig.out.link(spatialLocationCalculator.inputConfig)
 
     def run(self):
-        # Grab the frame from the stream 
-        if self.queue_xout is not None:
-            data_xout = self.queue_xout.get() # blocking
-            image_data_xout = data_xout.getFrame()
-            if self.depth == 3:
-                image_data_xout = np.moveaxis(image_data_xout,0,-1)
-            self.frame_xout = image_data_xout
+        latest_packet = {'xout': None, 'xout_depth': None, 'xout_spatial_data': None}
 
-            latency = (dai.Clock.now() - data_xout.getTimestamp()).total_seconds()
+        queue_names = ('xout',)
+        if self.enable_depth:
+            queue_names += ('xout_depth',)
+        elif self.enable_obstacle_dist:
+            queue_names += ('xout_spatial_data',)
+
+        queue_events = self.device.getQueueEvents(queue_names)
+        for queue_name in queue_events:
+            packets = self.device.getOutputQueue(queue_name).tryGetAll()
+            if len(packets) > 0:
+                latest_packet[queue_name] = packets[-1]
+
+        if latest_packet['xout'] is not None:
+            packet_xout = latest_packet['xout']
+            frame_xout = packet_xout.getFrame()
+            if self.depth == 3:
+                frame_xout = np.moveaxis(frame_xout, 0, -1)
+            self.frame_xout = frame_xout
+
+            latency = (dai.Clock.now() - packet_xout.getTimestamp()).total_seconds()
             self.frame_time = time.time() - latency
 
             if logger.isEnabledFor(logging.DEBUG):
@@ -449,12 +459,11 @@ class OakDCamera:
                         .format(self.latencies[-1], np.average(self.latencies), np.std(self.latencies)))
                     self.latencies.clear()
 
-        if self.queue_xout_depth is not None:
-            data_xout_depth = self.queue_xout_depth.get()
-            self.frame_xout_depth = data_xout_depth.getFrame()
+        if latest_packet['xout_depth'] is not None:
+            self.frame_xout_depth = latest_packet['xout_depth'].getFrame()
 
-        if self.queue_xout_spatial_data is not None:
-            xout_spatial_data = self.queue_xout_spatial_data.get().getSpatialLocations()
+        if latest_packet['xout_spatial_data'] is not None:
+            xout_spatial_data = latest_packet['xout_spatial_data'].getSpatialLocations()
             self.roi_distances = []
             for depthData in xout_spatial_data:
                 roi = depthData.config.roi
@@ -491,6 +500,5 @@ class OakDCamera:
         if self.device is not None:
             self.device.close()
         self.device = None
-        self.queue = None
         self.pipeline = None
         

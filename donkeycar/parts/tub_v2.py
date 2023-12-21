@@ -105,10 +105,17 @@ class Tub(object):
 
                 elif input_type == 'gray16_array':
                     # Handle image array
-                    name = Tub._image_file_name(self.manifest.current_index, key).replace("image","depth")
-                    image_path = os.path.join(self.depths_base_path, name)
-                    np.savez_compressed(image_path, img=np.uint16(value))
-                    contents[key] = name
+                    #name = Tub._image_file_name(self.manifest.current_index, key)
+                    #image_path = os.path.join(self.depths_base_path, name)
+                    #np.savez_compressed(image_path, img=np.uint16(value))
+                    #contents[key] = name
+
+                    # save np.uint16 as a 16bit png
+                    image = Image.fromarray(np.uint16(value))
+                    name = Tub._image_file_name(self.manifest.current_index, key, extension='.png')
+                    image.save(os.path.join(self.depths_base_path, name))
+                    del image
+                    contents[key]=name
 
         # Private properties
         contents['_timestamp_ms'] = int(round(time.time() * 1000))
