@@ -239,6 +239,7 @@ class KerasPilot(ABC):
         must be matched by dictionary keys."""
         assert isinstance(record, TubRecord), "TubRecord required"
         img_arr = record.image(processor=img_processor)
+        print("IGLOOOOOOOOOOOOOOOOOOOOOOOOO")
         return {'img_in': img_arr}
 
     def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
@@ -712,6 +713,78 @@ class KerasDetector(KerasPilot):
                   {'zloc': tf.TensorShape([self.num_locations])})
         return shapes
 
+class KerasDetectorDualInput(KerasPilot):
+    """
+    A Keras part that takes two inputs, an image and a depth_map,
+    outputs localisation category
+    """
+    def __init__(self,
+                 interpreter: Interpreter = KerasInterpreter(),
+                 input_shape: Tuple[int, ...] = (120, 160, 3),
+                 input_depth_shape: Tuple[int, ...] = (120, 160, 3),
+                 num_locations: int = 4):
+        self.num_locations = num_locations
+        self.input_depth_shape = input_depth_shape
+        super().__init__(interpreter, input_shape)
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+    def create_model(self):
+        # return default_loc(num_locations=self.num_locations,
+        #                    input_shape=self.input_shape)
+        return default_detector_dual_input(num_locations=self.num_locations,
+                                           input_shape=self.input_shape,
+                                           input_depth_shape=self.input_depth_shape)
+
+    def compile(self):
+        self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'],
+                                 loss='categorical_crossentropy')
+
+    def interpreter_to_output(self, interpreter_out) \
+            -> Tuple[Union[float, np.ndarray], ...]:
+        track_loc = interpreter_out
+        loc = np.argmax(track_loc)
+        return loc
+
+    def x_transform(self,
+            record: Union[TubRecord, List[TubRecord]],
+            img_processor: Callable[[np.ndarray], np.ndarray]) \
+            -> Dict[str, Union[float, np.ndarray]]:
+        assert isinstance(record, TubRecord), 'TubRecord expected'
+        print("RRRRRRRRRRRRRRRRRRRRRRR")
+        # this transforms the record into x for training the model to x,y
+        img_arr = record.image(processor=img_processor)
+        depth_arr = record.depth_map()
+        # bhv_arr = ['left','right']
+        # bhv_one_hot = np.zeros(self.num_behavior_inputs)
+        # if 'car_position' in record.underlying:
+        #     bhv = bhv_arr.index(record.underlying['car_position'])
+        #     bhv_one_hot[bhv] = 1
+        # bhv_arr = np.array(record.underlying['behavior/one_hot_state_array'])
+        
+        return {'img_in': img_arr, 'depth_in': depth_arr}
+
+
+    def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
+            -> Dict[str, Union[float, List[float]]]:
+        assert isinstance(record, TubRecord), "TubRecord expected"
+        # angle: float = record.underlying['user/angle']
+        # throttle: float = record.underlying['user/throttle']
+        # loc = record.underlying['localizer/location']
+        loc_arr = ['NA','left','middle','right']
+        loc = loc_arr.index(record.underlying['labeled_indexes'])
+        loc_one_hot = np.zeros(self.num_locations)
+        loc_one_hot[loc] = 1
+        return {'zloc': loc_one_hot}
+
+    def output_shapes(self):
+        # need to cut off None from [None, 120, 160, 3] tensor shape
+        img_shape = self.get_input_shapes()[0][1:]
+        depth_shape = self.get_input_shapes()[1][1:]
+        # the keys need to match the models input/output layers
+        shapes = ({'img_in': tf.TensorShape(img_shape)},
+                  {'depth_in': tf.TensorShape(depth_shape)},
+                  {'zloc': tf.TensorShape([self.num_locations])})
+        return shapes
+
 
 class KerasLSTM(KerasPilot):
     def __init__(self,
@@ -887,7 +960,7 @@ class KerasLatent(KerasPilot):
         return steering[0][0], throttle[0][0]
 
 
-def conv2d(filters, kernel, strides, layer_num, activation='relu'):
+def conv2d(filters, kernel, strides, layer_num, activation='relu', prefix=''):
     """
     Helper function to create a standard valid-padded convolutional layer
     with square kernel and strides and unified naming convention
@@ -903,7 +976,7 @@ def conv2d(filters, kernel, strides, layer_num, activation='relu'):
                          kernel_size=(kernel, kernel),
                          strides=(strides, strides),
                          activation=activation,
-                         name='conv2d_' + str(layer_num))
+                         name=prefix + 'conv2d_' + str(layer_num))
 
 
 def core_cnn_layers(img_in, drop, l4_stride=1):
@@ -929,6 +1002,30 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     x = Dropout(drop)(x)
     x = Flatten(name='flattened')(x)
     return x
+
+def core_cnn_mono_layers(depth_in, drop, l4_stride=1):
+    """
+    Returns the core CNN mono layers for depth image processing
+
+    :param img_in:          input layer of network
+    :param drop:            dropout rate
+    :param l4_stride:       4-th layer stride, default 1
+    :return:                stack of CNN layers
+    """
+    x = depth_in
+    x = conv2d(8, 5, 2, 1,prefix='d')(x)
+    x = Dropout(drop)(x)
+    x = conv2d(12, 5, 2, 2,prefix='d')(x)
+    x = Dropout(drop)(x)
+    x = conv2d(24, 5, 2, 3,prefix='d')(x)
+    x = Dropout(drop)(x)
+    x = conv2d(24, 3, l4_stride, 4,prefix='d')(x)
+    x = Dropout(drop)(x)
+    x = conv2d(24, 3, 1, 5,prefix='d')(x)
+    x = Dropout(drop)(x)
+    x = Flatten(name='dflattened')(x)
+    return x
+
 
 
 def default_n_linear(num_outputs, input_shape=(120, 160, 3), num_scen=0):
@@ -1114,7 +1211,6 @@ def default_loc(num_locations, input_shape):
                   name='localizer')
     return model
 
-
 def default_detector(num_locations, input_shape):
     drop = 0.2
     img_in = Input(shape=input_shape, name='img_in')
@@ -1139,6 +1235,43 @@ def default_detector(num_locations, input_shape):
     model = Model(inputs=[img_in], outputs=[loc_out],
                   name='localizer')
     return model
+
+
+def default_detector_dual_input(num_locations, input_shape, input_depth_shape):
+    drop = 0.2
+    img_in = Input(shape=input_shape, name='img_in')
+
+    x = core_cnn_layers(img_in, drop)
+    x = Dense(100, activation='relu')(x)
+    x = Dropout(drop)(x)
+
+    depth_in = Input(shape=input_depth_shape, name='depth_in')
+
+    y = core_cnn_mono_layers(depth_in, drop)
+    y = Dense(100, activation='relu')(y)
+    y = Dropout(drop)(y)
+
+    z = concatenate([x, y])
+    z = Dense(100, activation='relu')(z)
+    z = Dropout(drop)(z)
+    z = Dense(50, activation='relu')(z)
+    z = Dropout(drop)(z)
+    
+
+    # linear output of the angle
+    # angle_out = Dense(1, activation='linear', name='angle')(z)
+    # linear output of throttle
+    # throttle_out = Dense(1, activation='linear', name='throttle')(z)
+    # Categorical output of location
+    # Here is a crazy detail b/c TF Lite has a bug and returns the outputs
+    # in the alphabetical order of the name of the layers, so make sure
+    # this output comes last
+    loc_out = Dense(num_locations, activation='softmax', name='zloc')(z)
+
+    model = Model(inputs=[img_in,depth_in], outputs=[loc_out],
+                  name='dual_localizer')
+    return model
+
 
 
 def rnn_lstm(seq_length=3, num_outputs=2, input_shape=(120, 160, 3)):
