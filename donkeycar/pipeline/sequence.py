@@ -126,7 +126,6 @@ class BaseTfmIterator_(Generic[XOut, YOut],  SizedIterator[Tuple[XOut, YOut]]):
 class TubSequence(Iterable[TubRecord]):
     def __init__(self, records: List[TubRecord]) -> None:
         self.records = records
-        # print(records)
     def __iter__(self) -> SizedIterator[TubRecord]:
         return TubSeqIterator(self.records)
 
