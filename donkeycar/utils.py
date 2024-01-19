@@ -643,7 +643,6 @@ def train_test_split(data_list: List[Any],
         while i_sample < target_train_size and len(data_list) > 1:
             i_choice = random.randint(0, len(data_list) - 1)
             chosen_data = data_list.pop(i_choice)
-            # print(chosen_data)
             train_data.append(chosen_data)
             i_sample += 1
 

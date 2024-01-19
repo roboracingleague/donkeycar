@@ -38,9 +38,7 @@ class BatchSequence(object):
         self.augmentation = ImageAugmentation(config, 'AUGMENTATIONS')
         self.transformation = ImageAugmentation(config, 'TRANSFORMATIONS')
         self.pipeline = self._create_pipeline()
-        # print(records[0])
-        # print(self.model.x_transform(records[0], self.image_processor))
-        
+
     def __len__(self) -> int:
         return math.ceil(len(self.pipeline) / self.batch_size)
 
@@ -60,13 +58,11 @@ class BatchSequence(object):
     def _create_pipeline(self) -> TfmIterator:
         """ This can be overridden if more complicated pipelines are
             required """
-        # print("increatepipelinePPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPUUUUUUUUU")
         # 1. Initialise TubRecord -> x, y transformations
         def get_x(record: TubRecord) -> Dict[str, Union[float, np.ndarray]]:
             """ Extracting x from record for training"""
             out_dict = self.model.x_transform(record, self.image_processor)
-            # print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
-           
+
             # apply the normalisation here on the fly to go from uint8 -> float
             out_dict['img_in'] = normalize_image(out_dict['img_in'])
 
@@ -149,7 +145,6 @@ def train(cfg: Config, tub_paths: str, model: str = None,
         validation_pipe = BatchSequence(kl, cfg, validation_records, is_train=False)
         tune = tf.data.experimental.AUTOTUNE
         dataset_train = training_pipe.create_tf_data().prefetch(tune)
-        # print(dataset_train)
         dataset_validate = validation_pipe.create_tf_data().prefetch(tune)
 
         train_size = len(training_pipe)

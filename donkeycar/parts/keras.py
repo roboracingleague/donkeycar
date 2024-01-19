@@ -239,7 +239,6 @@ class KerasPilot(ABC):
         must be matched by dictionary keys."""
         assert isinstance(record, TubRecord), "TubRecord required"
         img_arr = record.image(processor=img_processor)
-        print("IGLOOOOOOOOOOOOOOOOOOOOOOOOO")
         return {'img_in': img_arr}
 
     def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
@@ -995,7 +994,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     :return:                stack of CNN layers
     """
     x = img_in
-    x = conv2d(24, 5, 2, 1)(x) # 24
+    x = conv2d(24, 5, 2, 1)(x)
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)

@@ -200,8 +200,7 @@ class OakDCamera:
         if self.use_camera_tuning_blob == True:
             self.pipeline.setCameraTuningBlobPath('/home/donkey/tuning_exp_limit_8300us.bin')
         
-        # self.pipeline.setXLinkChunkSize(0) # default = 64*1024  This might improve reducing the latency on some systems
-        
+        # self.pipeline.setXLinkChunkSize(0) # default = 64*1024  To adjust latency on some systems if needed RRL
         if self.depth == 3:
             self.create_color_pipeline()
         elif self.depth == 1:
@@ -213,7 +212,6 @@ class OakDCamera:
             self.create_depth_pipeline()
         elif self.enable_obstacle_dist:
             self.create_obstacle_dist_pipeline()
-        
         try:
             # Connect to device and start pipeline
             logger.info('Starting OAK-D camera')
