@@ -54,6 +54,15 @@ class Config():
             if attr.isupper():
                 print(attr, ":", getattr(self, attr))
 
+    def process_profile(self):
+        if getattr (self, 'ROBOCARS_CONFIG_PROFILE', None):
+            print (f"Config : Profile {self.ROBOCARS_CONFIG_PROFILE['ROBOCARS_PROFILE_NAME']} found")
+            for k,v in self.ROBOCARS_CONFIG_PROFILE.items() :
+                setattr(self, k, v)
+        else:
+            print (f"Config : no ROBOCARS_CONFIG_PROFILE profile found")
+        return True
+
 
 class PersonnalCfgMonitor(PatternMatchingEventHandler):
 
@@ -66,6 +75,7 @@ class PersonnalCfgMonitor(PatternMatchingEventHandler):
         personal_cfg = Config()
         personal_cfg.from_pyfile(self.personal_cfg_path)
         self.cfg.update_from_object(personal_cfg)
+        self.cfg.process_profile()
 
 
     
@@ -92,6 +102,7 @@ def load_config(config_path=None, myconfig="myconfig.py"):
         logger.info(f"loading personal config over-rides from {myconfig}")
         personal_cfg = Config()
         personal_cfg.from_pyfile(personal_cfg_path)
+        personal_cfg.process_profile()
         cfg.from_object(personal_cfg)
 
         personal_cfg_monitor = PersonnalCfgMonitor(patterns=[myconfig], cfg=cfg, personal_cfg_path=personal_cfg_path)
