@@ -726,7 +726,8 @@ class KerasDetectorDualInput(KerasPilot):
         self.num_locations = num_locations
         self.input_depth_shape = input_depth_shape
         super().__init__(interpreter, input_shape)
-        print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
+
     def create_model(self):
         # return default_loc(num_locations=self.num_locations,
         #                    input_shape=self.input_shape)
@@ -735,21 +736,25 @@ class KerasDetectorDualInput(KerasPilot):
                                            input_depth_shape=self.input_depth_shape)
 
     def compile(self):
-        self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'],
-                                 loss='categorical_crossentropy')
-
+        self.interpreter.compile(optimizer=self.optimizer, 
+                                 metrics=['acc'],
+                                 loss={'zloc':'categorical_crossentropy',
+                                       'zdist': 'mse'},
+                                 loss_weights={'zloc': 0.5, 'zdist': 0.5})
+        
     def interpreter_to_output(self, interpreter_out) \
             -> Tuple[Union[float, np.ndarray], ...]:
-        track_loc = interpreter_out
+        track_loc, dist = interpreter_out
         loc = np.argmax(track_loc)
-        return loc
+        dist = dist * 1500
+        return loc, dist
 
     def x_transform(self,
             record: Union[TubRecord, List[TubRecord]],
             img_processor: Callable[[np.ndarray], np.ndarray]) \
             -> Dict[str, Union[float, np.ndarray]]:
         assert isinstance(record, TubRecord), 'TubRecord expected'
-        print("RRRRRRRRRRRRRRRRRRRRRRR")
+
         # this transforms the record into x for training the model to x,y
         img_arr = record.image(processor=img_processor)
         depth_arr = record.depth_map()
@@ -773,16 +778,16 @@ class KerasDetectorDualInput(KerasPilot):
         loc = loc_arr.index(record.underlying['labeled_indexes'])
         loc_one_hot = np.zeros(self.num_locations)
         loc_one_hot[loc] = 1
-        return {'zloc': loc_one_hot}
+        dist = record.underlying['obstacle_dist'] / 1500.0
+        return {'zloc': loc_one_hot,'zdist': dist}
 
     def output_shapes(self):
         # need to cut off None from [None, 120, 160, 3] tensor shape
         img_shape = self.get_input_shapes()[0][1:]
         depth_shape = self.get_input_shapes()[1][1:]
         # the keys need to match the models input/output layers
-        shapes = ({'img_in': tf.TensorShape(img_shape)},
-                  {'depth_in': tf.TensorShape(depth_shape)},
-                  {'zloc': tf.TensorShape([self.num_locations])})
+        shapes = ({'img_in': tf.TensorShape(img_shape), 'depth_in': tf.TensorShape(depth_shape)},
+                  {'zloc': tf.TensorShape([self.num_locations]), 'zdist': tf.TensorShape([])})
         return shapes
 
 
@@ -990,7 +995,7 @@ def core_cnn_layers(img_in, drop, l4_stride=1):
     :return:                stack of CNN layers
     """
     x = img_in
-    x = conv2d(24, 5, 2, 1)(x)
+    x = conv2d(24, 5, 2, 1)(x) # 24
     x = Dropout(drop)(x)
     x = conv2d(32, 5, 2, 2)(x)
     x = Dropout(drop)(x)
@@ -1013,15 +1018,15 @@ def core_cnn_mono_layers(depth_in, drop, l4_stride=1):
     :return:                stack of CNN layers
     """
     x = depth_in
-    x = conv2d(8, 5, 2, 1,prefix='d')(x)
+    x = conv2d(6, 5, 2, 1,prefix='d')(x) # 8
     x = Dropout(drop)(x)
-    x = conv2d(12, 5, 2, 2,prefix='d')(x)
+    x = conv2d(12, 5, 2, 2,prefix='d')(x) # 12
     x = Dropout(drop)(x)
-    x = conv2d(24, 5, 2, 3,prefix='d')(x)
+    x = conv2d(24, 5, 2, 3,prefix='d')(x) # 24
     x = Dropout(drop)(x)
-    x = conv2d(24, 3, l4_stride, 4,prefix='d')(x)
+    x = conv2d(24, 3, l4_stride, 4,prefix='d')(x) # 24
     x = Dropout(drop)(x)
-    x = conv2d(24, 3, 1, 5,prefix='d')(x)
+    x = conv2d(24, 3, 1, 5,prefix='d')(x) # 24
     x = Dropout(drop)(x)
     x = Flatten(name='dflattened')(x)
     return x
@@ -1253,11 +1258,10 @@ def default_detector_dual_input(num_locations, input_shape, input_depth_shape):
 
     z = concatenate([x, y])
     z = Dense(100, activation='relu')(z)
-    z = Dropout(drop)(z)
+    z = Dropout(0.1)(z)
     z = Dense(50, activation='relu')(z)
-    z = Dropout(drop)(z)
+    z = Dropout(0.1)(z)
     
-
     # linear output of the angle
     # angle_out = Dense(1, activation='linear', name='angle')(z)
     # linear output of throttle
@@ -1267,8 +1271,8 @@ def default_detector_dual_input(num_locations, input_shape, input_depth_shape):
     # in the alphabetical order of the name of the layers, so make sure
     # this output comes last
     loc_out = Dense(num_locations, activation='softmax', name='zloc')(z)
-
-    model = Model(inputs=[img_in,depth_in], outputs=[loc_out],
+    dist_out = Dense(1, activation='linear', name='zdist')(z)
+    model = Model(inputs=[img_in,depth_in], outputs=[loc_out, dist_out],
                   name='dual_localizer')
     return model
 

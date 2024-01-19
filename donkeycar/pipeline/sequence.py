@@ -34,7 +34,7 @@ class TubSeqIterator(SizedIterator[TubRecord]):
     def __next__(self):
         if self.current_index >= len(self.records):
             raise StopIteration('No more records')
-        print("FFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
         record = self.records[self.current_index]
         self.current_index += 1
         return record
@@ -53,7 +53,7 @@ class TfmIterator(Generic[R, XOut, YOut],  SizedIterator[Tuple[XOut, YOut]]):
         self.y_transform = y_transform
         self.iterator = BaseTfmIterator_(
             iterable=self.iterable, x_transform=self.x_transform, y_transform=self.y_transform)
-        print("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG")
+
 
     def __len__(self):
         return len(self.iterator)
@@ -105,7 +105,7 @@ class BaseTfmIterator_(Generic[XOut, YOut],  SizedIterator[Tuple[XOut, YOut]]):
         self.x_transform = x_transform
         self.y_transform = y_transform
         self.iterator = iter(self.iterable)
-        print("LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL")
+
 
     def __len__(self):
         return len(self.iterator)
@@ -115,7 +115,7 @@ class BaseTfmIterator_(Generic[XOut, YOut],  SizedIterator[Tuple[XOut, YOut]]):
 
     def __next__(self):
         record = next(self.iterator)
-        print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
+
         if isinstance(record, tuple) and len(record) == 2:
             x, y = record
             return self.x_transform(x), self.y_transform(y)
@@ -137,7 +137,7 @@ class TubSequence(Iterable[TubRecord]):
                        x_transform: Callable[[TubRecord], X],
                        y_transform: Callable[[TubRecord], Y]) \
             -> TfmIterator:
-        print("JJJJJJJJJJJJJJJJJJJJJJJJJJJJ")
+
         # print(x_transform)
         return TfmIterator(self, x_transform=x_transform, y_transform=y_transform)
 

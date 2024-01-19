@@ -29,7 +29,7 @@ TubRecordDict = TypedDict(
         'imu/gyr_z': Optional[float],
         'behavior/one_hot_state_array': Optional[List[float]],
         'localizer/location': Optional[int],
-        'cam/depth_array': str,
+        'cam/depth_array': Optional[str]
     }
 )
 
@@ -56,7 +56,7 @@ class TubRecord(object):
                             Image.open()
         :return:            Image
         """
-        print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
+
         if self._image is None:
             image_path = self.underlying['cam/image_array']
             full_path = os.path.join(self.base_path, 'images', image_path)
@@ -75,9 +75,6 @@ class TubRecord(object):
             _image = self._image
         return _image
 
-    def __repr__(self) -> str:
-        return repr(self.underlying)
-
     def depth_map(self, processor=None, as_nparray=True) -> np.ndarray:
         """
         Loads the image.
@@ -89,14 +86,14 @@ class TubRecord(object):
                             Image.open()
         :return:            Image
         """
-        print("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIITTTTTTTTTTTTTTTTTTTT")
+
         if self._depth_map is None:
             depth_map_path = self.underlying['cam/depth_array']
             depth_map_path = depth_map_path + ".npz"
             full_path = os.path.join(self.base_path, 'depths', depth_map_path)
             if as_nparray:
                 _depth_map = load_depth_map(full_path, cfg=self.config)
-                print(_depth_map)
+
             else:
                 # If you just want the raw Image
                 _depth_map = np.asarray(load_depth_map(full_path, cfg=self.config))

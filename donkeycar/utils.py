@@ -150,6 +150,17 @@ def normalize_image(img_arr_uint):
     """
     return img_arr_uint.astype(np.float64) * ONE_BYTE_SCALE
 
+def normalize_depth_map(depth_map_arr_uint16):
+    """
+    Convert uint16 numpy image array into [0,1] float image array
+    :param img_arr_uint:    [0,255]uint8 numpy image array
+    :return:                [0,1] float32 numpy image array
+    """
+    depth_map_arr_uint16[depth_map_arr_uint16 > 1200] = 1200
+
+    depth_map_arr_uint16[depth_map_arr_uint16 == 0] = 1500
+
+    return depth_map_arr_uint16.astype(np.float64) / 1500.0 
 
 def denormalize_image(img_arr_float):
     """
