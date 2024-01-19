@@ -512,36 +512,7 @@ class TensorRTDetector(KerasPilot):
         print("should not create TensorRTDetector model, it is created using post processing")
 
     def load(self, model_path):
-        # uff_model = Path(model_path)
-        # metadata_path = Path('%s/%s.metadata'
-        #                      % (uff_model.parent.as_posix(), uff_model.stem))
-        # with open(metadata_path.as_posix(), 'r') as metadata, \
-        #         trt.Builder(self.logger) as builder, \
-        #         builder.create_network() as network, \
-        #         trt.UffParser() as parser:
-
-        #     builder.max_workspace_size = 1 << 20
-        #     builder.max_batch_size = 1
-        #     builder.fp16_mode = True
-
-        #     metadata = json.loads(metadata.read())
-        #     # Configure inputs and outputs
-        #     print('Configuring I/O')
-        #     input_names = metadata['input_names']
-        #     output_names = metadata['output_names']
-        #     for name in input_names:
-        #         parser.register_input(name, (self.cfg.TARGET_D,
-        #                                      self.cfg.TARGET_H,
-        #                                      self.cfg.TARGET_W))
-
-        #     for name in output_names:
-        #         parser.register_output(name)
-        #     # Parse network
-        #     print('Parsing TensorRT Network')
-        #     parser.parse(uff_model.as_posix(), network)
-        #     print('Building CUDA Engine')
-        #     self.engine = builder.build_cuda_engine(network)
-        # Allocate buffers
+       
         print("load tensorrt engine")
         self.engine = eng.load_engine(self.trt_runtime, model_path)
         

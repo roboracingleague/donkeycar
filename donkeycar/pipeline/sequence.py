@@ -137,8 +137,6 @@ class TubSequence(Iterable[TubRecord]):
                        x_transform: Callable[[TubRecord], X],
                        y_transform: Callable[[TubRecord], Y]) \
             -> TfmIterator:
-
-        # print(x_transform)
         return TfmIterator(self, x_transform=x_transform, y_transform=y_transform)
 
     @classmethod
