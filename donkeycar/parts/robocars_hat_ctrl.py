@@ -587,7 +587,6 @@ class RobocarsHatLedCtrl():
             self.LED_INDEX_REAR_STOP_LEFT = 7
             self.NUM_LED = 8
 
-
         self.idx = 0
         self.last_mode = None
         self.last_steering_state = 0
@@ -738,7 +737,7 @@ class RobocarsHatLedCtrl():
         self.setLed(6, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
         self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
 
-    def update_ai_feedbck(self, throttle, steering, mode, obstacle) :
+    def update_ai_feedback(self, throttle, steering, mode, obstacle) :
         if self.latestObstacle.full() :
             self.self.latestObstacle.get();
         self.latestObstacle.put (obstacle)
