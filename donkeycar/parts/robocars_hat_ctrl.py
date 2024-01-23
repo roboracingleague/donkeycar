@@ -590,7 +590,7 @@ class RobocarsHatLedCtrl():
         self.last_mode = None
         self.last_steering_state = 0
         self.last_refresh = 0
-        self.latestObstacle = deque.Queue()
+        self.latestObstacle = deque()
 
     def connectPort(self):
         import serial
