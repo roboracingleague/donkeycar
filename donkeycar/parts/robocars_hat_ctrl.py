@@ -738,7 +738,7 @@ class RobocarsHatLedCtrl():
 
     def update_ai_feedback(self, throttle, steering, mode, obstacle) :
         if len(self.latestObstacle)>20:
-            self.self.latestObstacle.popleft(0);
+            self.latestObstacle.popleft(0);
         self.latestObstacle.append (obstacle)
 
         RobocarsHatLedCtrl.count_obstacle_event +=1
