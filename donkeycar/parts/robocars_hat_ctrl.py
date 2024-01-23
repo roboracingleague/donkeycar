@@ -727,14 +727,14 @@ class RobocarsHatLedCtrl():
         #self.updateAnim()
 
     def show_obstacle (self, obs):
-        self.setLed(0, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
-        self.setLed(1, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
+        self.setLed(0, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
+        self.setLed(1, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
         self.setLed(2, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
         self.setLed(3, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
         self.setLed(4, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
         self.setLed(5, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
-        self.setLed(6, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
-        self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
+        self.setLed(6, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
+        self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
 
     def update_ai_feedback(self, throttle, steering, mode, obstacle) :
         if len(self.latestObstacle)>20:
