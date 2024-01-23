@@ -514,7 +514,7 @@ class RobocarsHatLedCtrl():
     AUTO_FRONT_LIGH_COLOR=(75,0,130)
     AUTO_REAR_STOP_COLOR=(255,0,0)
 
-    OBSTACLE_COLOR=(255,0,0)
+    OBSTACLE_COLOR=(0,32,0)
 
     MODE_OPTICAL_BLOCK = 0
     MODE_AI_FEEDBACK = 1
@@ -743,8 +743,12 @@ class RobocarsHatLedCtrl():
 
         RobocarsHatLedCtrl.count_obstacle_event +=1
         if RobocarsHatLedCtrl.count_obstacle_event%10 == 0:
-            li = list(self.latestObstacle)             
-            self.show_obstacle (most_frequent(li))
+            if mode == 'user' and self.last_mode != mode:
+                self.show_obstacle (-1)
+            if (mode != 'user'):
+                li = list(self.latestObstacle)             
+                self.show_obstacle (most_frequent(li))
+            self.last_mode = mode
 
     def run (self, steering, throttle, mode, obstacle=None):
 
