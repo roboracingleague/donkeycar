@@ -13,7 +13,6 @@ import sys
 import fcntl,os
 from transitions.extensions import HierarchicalMachine
 from collections import deque
-import queue
 
 mylogger = init_special_logger("Rx")
 mylogger.setLevel(logging.INFO)
@@ -591,7 +590,7 @@ class RobocarsHatLedCtrl():
         self.last_mode = None
         self.last_steering_state = 0
         self.last_refresh = 0
-        self.latestObstacle = queue.Queue(20)
+        self.latestObstacle = deque.Queue(20)
 
     def connectPort(self):
         import serial
@@ -738,9 +737,9 @@ class RobocarsHatLedCtrl():
         self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
 
     def update_ai_feedback(self, throttle, steering, mode, obstacle) :
-        if self.latestObstacle.full() :
-            self.self.latestObstacle.get();
-        self.latestObstacle.put (obstacle)
+        if len(self.latestObstacle)>20() :
+            self.self.latestObstacle.popleft(0);
+        self.latestObstacle.append (obstacle)
 
         RobocarsHatLedCtrl.count_obstacle_event +=1
         if RobocarsHatLedCtrl.count_obstacle_event%10 == 0:
