@@ -737,7 +737,7 @@ class RobocarsHatLedCtrl():
         self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
 
     def update_ai_feedback(self, throttle, steering, mode, obstacle) :
-        if len(self.latestObstacle)>20() :
+        if len(self.latestObstacle)>20:
             self.self.latestObstacle.popleft(0);
         self.latestObstacle.append (obstacle)
 
