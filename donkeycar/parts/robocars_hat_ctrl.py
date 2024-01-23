@@ -13,9 +13,13 @@ import sys
 import fcntl,os
 from transitions.extensions import HierarchicalMachine
 from collections import deque
+import queue
 
 mylogger = init_special_logger("Rx")
 mylogger.setLevel(logging.INFO)
+
+def most_frequent(List):
+    return max(set(List), key = List.count)
 
 def dualMap (input, input_min, input_idle, input_max, output_min, output_idle, output_max, enforce_input_in_range=False) :
     if (input < input_idle) :
@@ -511,12 +515,19 @@ class RobocarsHatLedCtrl():
     AUTO_FRONT_LIGH_COLOR=(75,0,130)
     AUTO_REAR_STOP_COLOR=(255,0,0)
 
+    OBSTACLE_COLOR=(255,0,0)
+
+    MODE_OPTICAL_BLOCK = 0
+    MODE_AI_FEEDBACK = 1
+
+    count_obstacle_event = 0
 
     def __init__(self, cfg):
         self.cfg = cfg
         self.reconnect=True
         self.reconnectDelay=500
         self.cmdinterface=None
+        self.mode = RobocarsHatLedCtrl.MODE_OPTICAL_BLOCK
         if self.cfg.ROBOCARSHAT_CONTROL_LED_DEDICATED_TTY :
             self.connectPort()
         else:
@@ -562,6 +573,9 @@ class RobocarsHatLedCtrl():
             self.LED_INDEX_FRONT_LIGHT_RIGHT = 2
             self.LED_INDEX_FRONT_LIGHT_LEFT = 1
             self.NUM_LED = 8
+        elif cfg.ROBOCARSHAT_LED_MODEL == 'Feedback':
+            self.NUM_LED = 8
+            self.mode = RobocarsHatLedCtrl.MODE_AI_FEEDBACK
         else: #default
             self.LED_INDEX_FRONT_TURN_RIGHT = 0
             self.LED_INDEX_FRONT_TURN_LEFT = 1
@@ -578,6 +592,7 @@ class RobocarsHatLedCtrl():
         self.last_mode = None
         self.last_steering_state = 0
         self.last_refresh = 0
+        self.latestObstacle = queue.Queue(20)
 
     def connectPort(self):
         import serial
@@ -628,17 +643,12 @@ class RobocarsHatLedCtrl():
             if s > 0:
                 time.sleep(s)
 
-    def run_threaded(self, steering, throttle, mode):
+    def run_threaded(self, steering, throttle, mode, obstacle=None):
         #self.updateAnim()
         return None
 
-    def run (self, steering, throttle, mode):
+    def update_optical_block(self, steering, mode) :
 
-        if (self.reconnect):
-            if self.reconnectDelay==0:
-                self.connectPort()
-            else:
-                self.reconnectDelay-=1
         refresh = (time.perf_counter()-self.last_refresh) >= 2.0
         if refresh:
             self.last_refresh = time.perf_counter()
@@ -717,6 +727,41 @@ class RobocarsHatLedCtrl():
 
             self.last_steering_state = steering_state
         #self.updateAnim()
+
+    def show_obstacle (self, obs):
+        self.setLed(0, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
+        self.setLed(1, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
+        self.setLed(2, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
+        self.setLed(3, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
+        self.setLed(4, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
+        self.setLed(5, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
+        self.setLed(6, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
+        self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
+
+    def update_ai_feedbck(self, throttle, steering, mode, obstacle) :
+        if self.latestObstacle.full() :
+            self.self.latestObstacle.get();
+        self.latestObstacle.put (obstacle)
+
+        RobocarsHatLedCtrl.count_obstacle_event +=1
+        if RobocarsHatLedCtrl.count_obstacle_event%10 == 0:
+            li = list(self.latestObstacle)             
+            self.show_obstacle (most_frequent(li))
+
+    def run (self, steering, throttle, mode, obstacle=None):
+
+        if (self.reconnect):
+            if self.reconnectDelay==0:
+                self.connectPort()
+            else:
+                self.reconnectDelay-=1
+
+        if self.mode == RobocarsHatLedCtrl.MODE_OPTICAL_BLOCK :
+            self.update_optical_block(steering, mode)
+        
+        if self.mode == RobocarsHatLedCtrl.MODE_AI_FEEDBACK:
+            self.update_ai_feedback (throttle, steering, mode, obstacle)
+            
         return None
     
 
