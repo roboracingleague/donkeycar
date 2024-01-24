@@ -34,10 +34,10 @@ def dualMap (input, input_min, input_idle, input_max, output_min, output_idle, o
 
 def num_to_rgb(val, rmax, gmax, bmax, max_val=3):
     i = (val * 255 / max_val);
-    r = round(math.sin(0.024 * i + 0) * ((rmax/2)-1) + (rmax/2));
-    g = round(math.sin(0.024 * i + 2) * ((gmax/2)-1) + (gmax/2));
-    b = round(math.sin(0.024 * i + 4) * ((bmax/2)-1) + (bmax/2));
-    return (b,g,r)
+    r = max(0,round(math.sin(0.024 * i + 0) * ((rmax/2)-1) + (rmax/2)));
+    g = max(0,round(math.sin(0.024 * i + 2) * ((gmax/2)-1) + (gmax/2)));
+    b = max(0,round(math.sin(0.024 * i + 4) * ((bmax/2)-1) + (bmax/2)));
+    return (g,r,b)
 
 class RobocarsHatIn(metaclass=Singleton):
 
