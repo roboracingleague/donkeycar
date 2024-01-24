@@ -736,7 +736,7 @@ class RobocarsHatLedCtrl():
         #self.updateAnim()
 
     def show_obstacle (self, obs, intensity):
-        col = num_to_rgb(intensity, 255, 255, 0, RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION)
+        col = num_to_rgb(intensity, 255, 255, 1, RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION)
         self.setLed(0, *col, 0xffff if obs==1 else 0x0000)
         self.setLed(1, *col, 0xffff if obs==1 else 0x0000)
         self.setLed(2, *col, 0xffff if obs==0 else 0x0000)
