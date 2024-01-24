@@ -13,12 +13,15 @@ import sys
 import fcntl,os
 from transitions.extensions import HierarchicalMachine
 from collections import deque
+import math
 
 mylogger = init_special_logger("Rx")
 mylogger.setLevel(logging.INFO)
 
 def most_frequent(List):
-    return max(set(List), key = List.count)
+    val = max(set(List), key = List.count)
+    freq = List.count(val)
+    return val, freq
 
 def dualMap (input, input_min, input_idle, input_max, output_min, output_idle, output_max, enforce_input_in_range=False) :
     if (input < input_idle) :
@@ -28,6 +31,13 @@ def dualMap (input, input_min, input_idle, input_max, output_min, output_idle, o
     else:
         output = output_idle
     return output
+
+def num_to_rgb(val, rmax, gmax, bmax, max_val=3):
+    i = (val * 255 / max_val);
+    r = round(math.sin(0.024 * i + 0) * ((rmax/2)-1) + (rmax/2));
+    g = round(math.sin(0.024 * i + 2) * ((gmax/2)-1) + (gmax/2));
+    b = round(math.sin(0.024 * i + 4) * ((bmax/2)-1) + (bmax/2));
+    return (r,g,b)
 
 class RobocarsHatIn(metaclass=Singleton):
 
@@ -514,12 +524,11 @@ class RobocarsHatLedCtrl():
     AUTO_FRONT_LIGH_COLOR=(75,0,130)
     AUTO_REAR_STOP_COLOR=(255,0,0)
 
-    OBSTACLE_COLOR=(0,32,0)
-
     MODE_OPTICAL_BLOCK = 0
     MODE_AI_FEEDBACK = 1
 
     count_obstacle_event = 0
+    OBSTACLE_NBEVENT_INTEGRATION = 20
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -726,18 +735,19 @@ class RobocarsHatLedCtrl():
             self.last_steering_state = steering_state
         #self.updateAnim()
 
-    def show_obstacle (self, obs):
-        self.setLed(0, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
-        self.setLed(1, *self.OBSTACLE_COLOR, 0xffff if obs==1 else 0x0000)
-        self.setLed(2, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
-        self.setLed(3, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
-        self.setLed(4, *self.OBSTACLE_COLOR, 0xffff if obs==2 else 0x0000)
-        self.setLed(5, *self.OBSTACLE_COLOR, 0xffff if obs==0 else 0x0000)
-        self.setLed(6, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
-        self.setLed(7, *self.OBSTACLE_COLOR, 0xffff if obs==3 else 0x0000)
+    def show_obstacle (self, obs, intensity):
+        col = num_to_rgb(intensity, 255, 255, 0, RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION)
+        self.setLed(0, *col, 0xffff if obs==1 else 0x0000)
+        self.setLed(1, *col, 0xffff if obs==1 else 0x0000)
+        self.setLed(2, *col, 0xffff if obs==0 else 0x0000)
+        self.setLed(3, *col, 0xffff if obs==2 else 0x0000)
+        self.setLed(4, *col, 0xffff if obs==2 else 0x0000)
+        self.setLed(5, *col, 0xffff if obs==0 else 0x0000)
+        self.setLed(6, *col, 0xffff if obs==3 else 0x0000)
+        self.setLed(7, *col, 0xffff if obs==3 else 0x0000)
 
     def update_ai_feedback(self, throttle, steering, mode, obstacle) :
-        if len(self.latestObstacle)>20:
+        if len(self.latestObstacle)>RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION:
             self.latestObstacle.popleft();
         self.latestObstacle.append (obstacle)
 
@@ -746,8 +756,7 @@ class RobocarsHatLedCtrl():
             if mode == 'user' and self.last_mode != mode:
                 self.show_obstacle (-1)
             if (mode != 'user'):
-                li = list(self.latestObstacle)             
-                self.show_obstacle (most_frequent(li))
+                self.show_obstacle (most_frequent(list(self.latestObstacle)))
             self.last_mode = mode
 
     def run (self, steering, throttle, mode, obstacle=None):
