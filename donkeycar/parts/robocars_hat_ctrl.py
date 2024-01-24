@@ -754,7 +754,7 @@ class RobocarsHatLedCtrl():
         RobocarsHatLedCtrl.count_obstacle_event +=1
         if RobocarsHatLedCtrl.count_obstacle_event%10 == 0:
             if mode == 'user' and self.last_mode != mode:
-                self.show_obstacle (-1)
+                self.show_obstacle (-1, 0)
             if (mode != 'user'):
                 self.show_obstacle (*most_frequent(list(self.latestObstacle)))
             self.last_mode = mode
