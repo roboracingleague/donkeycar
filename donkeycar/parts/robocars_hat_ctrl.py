@@ -756,7 +756,7 @@ class RobocarsHatLedCtrl():
             if mode == 'user' and self.last_mode != mode:
                 self.show_obstacle (-1)
             if (mode != 'user'):
-                self.show_obstacle (most_frequent(list(self.latestObstacle)))
+                self.show_obstacle (*most_frequent(list(self.latestObstacle)))
             self.last_mode = mode
 
     def run (self, steering, throttle, mode, obstacle=None):
