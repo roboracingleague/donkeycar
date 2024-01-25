@@ -736,7 +736,7 @@ class RobocarsHatLedCtrl():
         #self.updateAnim()
 
     def show_obstacle (self, obs, intensity):
-        col = num_to_rgb(intensity, 255, 255, 0, RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION)
+        col = num_to_rgb(intensity, 16, 16, 0, RobocarsHatLedCtrl.OBSTACLE_NBEVENT_INTEGRATION)
         self.setLed(0, *col, 0xffff if obs==1 else 0x0000)
         self.setLed(1, *col, 0xffff if obs==1 else 0x0000)
         self.setLed(2, *col, 0xffff if obs==0 else 0x0000)
@@ -869,6 +869,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         # compute the scalar to apply, proportionnaly to the targeted throttle comparted to throttle from model or from local_angle mode
         # dyn_steering_factor = dk.utils.map_range_float(self.throttle_out, self.throttle_from_pilot, 1.0, 0.0, self.cfg.ROBOCARS_CTRL_ADAPTATIVE_STEERING_SCALER)
         dyn_steering_factor = self.cfg.ROBOCARS_CTRL_ADAPTATIVE_STEERING_SCALER
+        dyn_steering_offset = self.cfg.ROBOCARS_CTRL_STEERING_OFFSET
         if self.hatInCtrl.isFeatActive(self.hatInCtrl.AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP):
             # if feature to explore adaptative steering scalar is enabled, override scalar with current value beeing tested
             dyn_steering_factor = self.hatInCtrl.getAdaptativeSteeringExtraScalar()
@@ -886,6 +887,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         if self.is_driving_regularspeed(allow_substates=True):
             if not self.cfg.ROBOCARS_CTRL_ADAPTATIVE_STEERING_IN_TURN_ONLY:
                 # apply steering scaler even at low speed (turn)
+                self.angle_out = self.angle_from_pilot + dyn_steering_offset
                 self.angle_out = max(min(self.angle_from_pilot * (1.0+dyn_steering_factor),1.0),-1.0)
             if (self.is_sl_confition()==True) :
                 self.accelerate() #sl detected and confirmed 
