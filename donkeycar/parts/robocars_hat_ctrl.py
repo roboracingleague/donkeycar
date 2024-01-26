@@ -842,12 +842,11 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             self.last_sl.append(sl)
 
     def is_sl_confition(self):
-        sl_arr = list(self.last_sl)
-        sl_count = sum(sl_arr)
-        if sl_count >= self.cfg.ROBOCARS_SL_FILTER_TRESH_HIGH:
-            return True
-        if sl_count <= self.cfg.ROBOCARS_SL_FILTER_TRESH_LOW:
-            return False
+        if self.cfg.ROBOCARS_THROTTLE_DUAL_THROTTLE_MODEL:
+            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_LOW :
+                return False
+            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_HIGH:
+                return True            
         return None
 
     def processState(self, throttle, angle, mode, sl):
