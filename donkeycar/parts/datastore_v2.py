@@ -361,8 +361,14 @@ class Manifest(object):
                     self.labeled_indexes[aLabel].add(idx)
 
     def _write_contents(self):
-        self.seekeable.truncate_until_end(0)
-        self.seekeable.writeline(json.dumps(self.inputs))
+        self.seekeable.truncate_until_end(0)    
+        labels=[]
+        for item in self.inputs:
+            if callable(item)
+                labels.append(item('key'))
+            else:
+                labels.append(item)
+        self.seekeable.writeline(json.dumps(self.labels))
         self.seekeable.writeline(json.dumps(self.types))
         self.seekeable.writeline(json.dumps(self.metadata))
         self.seekeable.writeline(json.dumps(self.manifest_metadata))
