@@ -838,15 +838,22 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         drivetrainlogger.info('starting RobocarsHatLaneCtrl Hat Controller')
 
     def update_sl_filter (self,sl):
+        if self.cfg.ROBOCARS_THROTTLE_DUAL_THROTTLE_MODEL:
+            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_LOW :
+                self.last_sl.append(0)   
+            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_HIGH:
+                self.last_sl.append(1)   
+            return
         if (sl != None) :
             self.last_sl.append(sl)
 
     def is_sl_confition(self):
-        if self.cfg.ROBOCARS_THROTTLE_DUAL_THROTTLE_MODEL:
-            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_LOW :
-                return False
-            if self.throttle_from_pilot == self.cfg.ROBOCARS_THROTTLE_HIGH:
-                return True            
+        sl_arr = list(self.last_sl)
+        sl_count = sum(sl_arr)
+        if sl_count >= self.cfg.ROBOCARS_SL_FILTER_TRESH_HIGH:
+            return True
+        if sl_count <= self.cfg.ROBOCARS_SL_FILTER_TRESH_LOW:
+            return False
         return None
 
     def processState(self, throttle, angle, mode, sl):
