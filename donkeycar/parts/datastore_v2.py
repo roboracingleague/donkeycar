@@ -364,7 +364,7 @@ class Manifest(object):
         self.seekeable.truncate_until_end(0)    
         labels=[]
         for item in self.inputs:
-            if callable(item)
+            if callable(item):
                 labels.append(item('key'))
             else:
                 labels.append(item)
