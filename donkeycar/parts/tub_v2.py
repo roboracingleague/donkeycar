@@ -50,15 +50,15 @@ class Tub(object):
         """
         contents = dict()
         for key, value in record.items():
-            if value is None:
+            if value is None and not callable(key):
                 continue
             elif key not in self.input_types:
                 continue
             else:
                 input_type = self.input_types[key]
                 if input_type == 'callback':
-                    key=value('key')
-                    contents[key] = value('data')
+                    key=key('key')
+                    contents[key] = key('data')
                 if input_type == 'float':
                     # Handle np.float() types gracefully
                     contents[key] = float(value)
