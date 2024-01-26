@@ -30,6 +30,7 @@ import donkeycar as dk
 from donkeycar.parts.transform import TriggeredCallback, DelayedTrigger
 from donkeycar.parts.tub_v2 import TubWriter
 from donkeycar.parts.datastore import TubHandler
+from donkeycar.parts.extensible_record import RobocarsExtensibleRecord
 from donkeycar.parts.controller import LocalWebController, WebFpv, JoystickController
 from donkeycar.parts.throttle_filter import ThrottleFilter
 from donkeycar.parts.behavior import BehaviorPart
@@ -626,6 +627,11 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types += ['int']
         inputs += ['pilot/sl']
         types += ['int']
+
+    if (cfg.ROBOCARS_USE_EXTENSIBLE_DATA_RECORD) :
+        recorder = RobocarsExtensibleRecord (cfg)
+        inputs += [recorder.get_data]
+        types += ['callback']
 
     # do we want to store new records into own dir or append to existing
     tub_path = TubHandler(path=cfg.DATA_PATH).create_tub_path() if \
