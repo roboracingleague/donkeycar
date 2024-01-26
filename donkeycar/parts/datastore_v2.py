@@ -368,7 +368,7 @@ class Manifest(object):
                 labels.append(item('key'))
             else:
                 labels.append(item)
-        self.seekeable.writeline(json.dumps(self.labels))
+        self.seekeable.writeline(json.dumps(labels))
         self.seekeable.writeline(json.dumps(self.types))
         self.seekeable.writeline(json.dumps(self.metadata))
         self.seekeable.writeline(json.dumps(self.manifest_metadata))
