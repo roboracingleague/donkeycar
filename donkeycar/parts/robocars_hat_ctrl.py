@@ -801,7 +801,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             ]
 
     def set_brakespeed(self):
-        if self.cfg.ROBOCARS_THROTTLE_SCALER_ON_SL>0.0:
+        if self.cfg.ROBOCARS_THROTTLE_SCALER_ON_SL>0.0 or self.cfg.ROBOCARS_THROTTLE_DUAL_THROTTLE_MODEL:
             self.brake_cycle = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_DURATION
         else:
             # no active brake
