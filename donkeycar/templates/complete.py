@@ -84,7 +84,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         tel = MqttTelemetry(cfg)
 
     if (cfg.ROBOCARS_USE_EXTENSIBLE_DATA_RECORD) :
-        recorder = RobocarsExtensibleRecord (cfg)
+        recorder = RobocarsExtensibleRecord ()
         V.add(recorder, inputs=[], outputs=[], threaded=False)
 
     #
