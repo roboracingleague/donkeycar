@@ -909,8 +909,8 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
                 self.throttle_out  = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_SPEED
                 self.brake_cycle -=1
 
-        self.recorder.add_data('drivectrl_throttle_out', self.throttle_out)
-        self.recorder.add_data('drivectrl_angle_out', self.angle_out)
+        self.recorder.add_data('drivectrl_throttle_out', self.throttle_out, 'float')
+        self.recorder.add_data('drivectrl_angle_out', self.angle_out, 'float')
         return self.throttle_out, self.angle_out
  
     def update(self):

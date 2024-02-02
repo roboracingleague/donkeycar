@@ -439,8 +439,8 @@ class TensorRTBehavior(KerasPilot):
                     out_throttle = min_throttle
             else:
                 out_throttle = throttle
-            self.recorder.add_data('rtbehavior_throttle_out', out_throttle)
-            self.recorder.add_data('rtbehavior_angle_out', angle)
+            self.recorder.add_data('rtbehavior_throttle_out', out_throttle, 'float')
+            self.recorder.add_data('rtbehavior_angle_out', angle, 'float')
 
             return angle, out_throttle
         else:
@@ -553,7 +553,7 @@ class TensorRTDetector(KerasPilot):
 
         [track_loc] = interpreter_out
         loc = np.argmax(track_loc)
-        self.recorder.add_data('rtdetector_loc', loc)
+        self.recorder.add_data('rtdetector_loc', loc, 'int')
         return loc
 
     @classmethod
