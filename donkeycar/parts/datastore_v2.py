@@ -363,15 +363,17 @@ class Manifest(object):
     def _write_contents(self):
         self.seekeable.truncate_until_end(0)    
         labels=[]
+        types=[]
+        callback = None
         for item in self.inputs:
             if callable(item):
+                callback = item
                 item('labels',labels)
             else:
                 labels.append(item)
-        types=[]
         for item in self.types:
             if item=='callback':
-                item('types',types)
+                callback('types',types)
             else:
                 types.append(item)
         self.seekeable.writeline(json.dumps(labels))
