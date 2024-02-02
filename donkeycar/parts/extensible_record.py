@@ -7,7 +7,8 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         self.reset_data()
 
     def reset_data (self):
-        self.data={}
+        for key in self.data.keys() :
+            self.data[key]['data']={}
 
     def register_data (self, key, type):
         if key in self.data.keys() :
