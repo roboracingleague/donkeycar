@@ -4,7 +4,6 @@ import time
 class RobocarsExtensibleRecord(metaclass=Singleton):
 
     def __init__(self, cfg):
-        self.key = 'Ext'
         self.reset_data()
 
     def reset_data (self):
