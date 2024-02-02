@@ -13,6 +13,7 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         if key in self.data.keys() :
             print(f"RobocarsExtensibleRecord : Key {key} already registered !")
             return None
+        self.data[key]={}
         self.data[key]['type']=type
         return key
     
