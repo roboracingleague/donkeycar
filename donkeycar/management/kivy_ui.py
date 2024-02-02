@@ -640,7 +640,7 @@ class DataPlot(PaddedBoxLayout):
         # Use selected fields or all fields if nothing is slected
         all_cols = tub_screen().ids.data_panel.labels.keys() or self.df.columns
         cols = [c for c in all_cols if decompose(c)[0] in field_map
-                and field_map[decompose(c)[0]] not in ('image_array', 'str', 'callback']
+                and field_map[decompose(c)[0]] not in ['image_array', 'str', 'callback']]
 
         df = self.df[cols]
         if df is None:

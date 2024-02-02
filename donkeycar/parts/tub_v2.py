@@ -57,8 +57,7 @@ class Tub(object):
             else:
                 input_type = self.input_types[key]
                 if input_type == 'callback':
-                    label=key('key')
-                    contents[label] = key('data')
+                    label=key(contents)
                 if input_type == 'float':
                     # Handle np.float() types gracefully
                     contents[key] = float(value)

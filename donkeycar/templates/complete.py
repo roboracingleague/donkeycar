@@ -633,7 +633,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types += ['int']
 
     if (cfg.ROBOCARS_USE_EXTENSIBLE_DATA_RECORD) :
-        inputs += [recorder.get_data]
+        inputs += [recorder.flatten_data]
         types += ['callback']
 
     # do we want to store new records into own dir or append to existing
