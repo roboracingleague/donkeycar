@@ -3,36 +3,44 @@ import time
 
 class RobocarsExtensibleRecord(metaclass=Singleton):
 
-    def __init__(self, cfg):
+    def __init__(self):
         self.reset_data()
 
     def reset_data (self):
-        self.record={}
-        self.add_data('ts',time.time_ns() / (10 ** 9), 'float')
+        self.data={}
 
-    def add_data (self, key, data, input_type):
-        if input_type == 'float':
+    def register_data (self, key, type):
+        if key in self.data.keys() :
+            print(f"RobocarsExtensibleRecord : Key {key} already registered !")
+            return None
+        self.data[key]['type']=type
+        return key
+    
+    def record_data (self, key, data):
+        if (key == None):
+            return
+        if self.data[key]['type'] == 'float':
             # Handle np.float() types gracefully
-            self.record[key] = float(data)
-        elif input_type == 'str':
-            self.record[key] = data
-        elif input_type == 'int':
-            self.record[key] = int(data)
-        elif input_type == 'boolean':
-            self.record[key] = bool(data)
-        elif input_type == 'nparray':
-            self.record[key] = data.tolist()
-        elif input_type == 'list' or input_type == 'vector':
-            self.record[key] = list(data)
+            self.data[key]['data'] = float(data)
+        elif self.data[key]['type'] == 'str':
+            self.data[key]['data'] = data
+        elif self.data[key]['type'] == 'int':
+            self.data[key]['data'] = int(data)
+        elif self.data[key]['type'] == 'boolean':
+            self.data[key]['data'] = bool(data)
+        elif self.data[key]['type'] == 'nparray':
+            self.data[key]['data'] = data.tolist()
+        elif self.data[key]['type'] == 'list' or input_type == 'vector':
+            self.data[key]['data'] = list(data)
         else:
-            self.record[key] = 'type error'
+            self.data[key]['data'] = 'type error'
 
     def flatten_data (self, kind, contents):
         if (kind=='contents'):
-            for k,v in self.record:
-                contents[k] = v
+            for k in self.data.keys():
+                contents[k] = self.data[k]['data']
         if (kind=='labels'):
-            for k,v in self.record:
+            for k in self.data.keys():
                 contents.append(k)
 
     
@@ -40,7 +48,7 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         # not implemented
         pass
 
-    def run_threaded(self, throttle, angle, mode, sl):
+    def run_threaded(self):
         # not implemented
         pass
 
