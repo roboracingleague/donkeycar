@@ -45,6 +45,9 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         if (kind=='labels'):
             for k in self.data.keys():
                 contents.append(k)
+        if (kind=='types'):
+            for k in self.data.keys():
+                contents.append(self.data[k]['type'])
 
     
     def update(self):

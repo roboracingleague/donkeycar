@@ -368,8 +368,14 @@ class Manifest(object):
                 item('labels',labels)
             else:
                 labels.append(item)
+        types=[]
+        for item in self.types:
+            if item=='callback':
+                item('types',types)
+            else:
+                types.append(item)
         self.seekeable.writeline(json.dumps(labels))
-        self.seekeable.writeline(json.dumps(self.types))
+        self.seekeable.writeline(json.dumps(types))
         self.seekeable.writeline(json.dumps(self.metadata))
         self.seekeable.writeline(json.dumps(self.manifest_metadata))
         self._update_catalog_metadata(update=False)
