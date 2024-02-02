@@ -9,7 +9,7 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
 
     def reset_data (self):
         self.record={}
-        self.add_data('ts',time.time_ns() / (10 ** 9))
+        self.add_data('ts',time.time_ns() / (10 ** 9), 'float')
 
     def add_data (self, key, data, input_type):
         if input_type == 'float':
