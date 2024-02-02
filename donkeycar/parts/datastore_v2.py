@@ -365,7 +365,7 @@ class Manifest(object):
         labels=[]
         for item in self.inputs:
             if callable(item):
-                labels.append(item('key'))
+                item('labels',labels)
             else:
                 labels.append(item)
         self.seekeable.writeline(json.dumps(labels))

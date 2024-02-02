@@ -27,9 +27,14 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         else:
             self.record[key] = 'type error'
 
-    def flatten_data (self, contents):
-        for k,v in self.record:
-            contents[k] = v
+    def flatten_data (self, kind, contents):
+        if (kind=='contents'):
+            for k,v in self.record:
+                contents[k] = v
+        if (kind=='labels'):
+            for k,v in self.record:
+                contents.append(k)
+
     
     def update(self):
         # not implemented
