@@ -82,7 +82,11 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
     if cfg.HAVE_MQTT_TELEMETRY:
         from donkeycar.parts.telemetry import MqttTelemetry
         tel = MqttTelemetry(cfg)
-        
+
+    if (cfg.ROBOCARS_USE_EXTENSIBLE_DATA_RECORD) :
+        recorder = RobocarsExtensibleRecord (cfg)
+        V.add(recorder, inputs=[], outputs=[], threaded=False)
+
     #
     # if we are using the simulator, set it up
     #
@@ -629,7 +633,6 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types += ['int']
 
     if (cfg.ROBOCARS_USE_EXTENSIBLE_DATA_RECORD) :
-        recorder = RobocarsExtensibleRecord (cfg)
         inputs += [recorder.get_data]
         types += ['callback']
 

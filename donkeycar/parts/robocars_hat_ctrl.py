@@ -7,6 +7,7 @@ from donkeycar.utils import Singleton
 import numpy as np
 from donkeycar.parts.actuator import RobocarsHat
 from donkeycar.utilities.logger import init_special_logger
+from donkeycar.parts.extensible_record import RobocarsExtensibleRecord
 import socket
 import errno
 import sys
@@ -827,7 +828,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.last_sl=deque(maxlen=self.cfg.ROBOCARS_THROTTLE_SCALER_ON_SL_FILTER_SIZE)
         self.lane = 0
         self.on = True
-
+        self.recorder = RobocarsExtensibleRecord (cfg)
         self.machine = HierarchicalMachine(self, states=self.states, initial='stopped', ignore_invalid_triggers=True)
         self.machine.add_transition (trigger='drive', source='stopped', dest='driving')
         self.machine.add_transition (trigger='stop', source='driving', dest='stopped')
@@ -908,6 +909,8 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
                 self.throttle_out  = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_SPEED
                 self.brake_cycle -=1
 
+        self.recorder.add_data('drivectrl_throttle_out', self.throttle_out)
+        self.recorder.add_data('drivectrl_angle_out', self.angle_out)
         return self.throttle_out, self.angle_out
  
     def update(self):

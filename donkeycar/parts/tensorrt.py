@@ -1,6 +1,7 @@
 from collections import namedtuple
 from donkeycar.parts.keras import KerasPilot
 from donkeycar.utils import throttle as calculate_throttle
+from donkeycar.parts.extensible_record import RobocarsExtensibleRecord
 import json
 import numpy as np
 import pycuda.driver as cuda
@@ -331,6 +332,7 @@ class TensorRTBehavior(KerasPilot):
         self.stream = None
         self.context = None
         self.throttle_range = 0.5
+        self.recorder = RobocarsExtensibleRecord (cfg)
         print(f'inside TensorRTBehavior')
 
     def compile(self):
@@ -437,6 +439,8 @@ class TensorRTBehavior(KerasPilot):
                     out_throttle = min_throttle
             else:
                 out_throttle = throttle
+            self.recorder.add_data('rtbehavior_throttle_out', out_throttle)
+            self.recorder.add_data('rtbehavior_angle_out', angle)
 
             return angle, out_throttle
         else:
@@ -507,7 +511,8 @@ class TensorRTDetector(KerasPilot):
         self.bindings = None
         self.stream = None
         self.context = None
-        self.throttle_range = 0.5
+        self.throttle_range = 0.5        
+        self.recorder = RobocarsExtensibleRecord (cfg)
         print(f'inside TensorRTDetector')
 
     def compile(self):
@@ -548,6 +553,7 @@ class TensorRTDetector(KerasPilot):
 
         [track_loc] = interpreter_out
         loc = np.argmax(track_loc)
+        self.recorder.add_data('rtdetector_loc', loc)
         return loc
 
     @classmethod
