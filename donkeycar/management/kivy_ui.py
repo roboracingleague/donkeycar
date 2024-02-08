@@ -39,6 +39,7 @@ from donkeycar.pipeline.database import PilotDatabase
 from donkeycar.pipeline.types import TubRecord
 from donkeycar.utils import get_model_by_type
 from donkeycar.pipeline.training import train
+from donkeycar.pipeline.sam import Segmentation
 
 Logger.propagate = False
 
@@ -61,6 +62,9 @@ def get_norm_value(value, cfg, field_property, normalised=True):
 
 def tub_screen():
     return App.get_running_app().tub_screen if App.get_running_app() else None
+
+def annotate_screen():
+    return App.get_running_app().annotate_screen if App.get_running_app() else None
 
 
 def pilot_screen():
@@ -530,6 +534,25 @@ class ControlPanel(BoxLayout):
         elif scancode == 46:
             self.update_speed(up=True)
 
+class AnnotatePanel(BoxLayout):
+    """ Class for control panel navigation. """
+    screen = ObjectProperty()
+    record_display = StringProperty()
+    labels_display = StringProperty()
+
+    def instanciate_sam(self, event):
+        cfg = tub_screen().ids.config_manager.config
+        self.segment = Segmentation(cfg)
+        annotate_screen().status("SAM Loaded")
+        
+    def load_sam(self) :
+        annotate_screen().status("Loading SAM, please wait...")
+        Clock.schedule_once(self.instanciate_sam)
+
+    def on_keyboard(self, key, scancode):
+        """ Method to chack with keystroke has ben sent. """
+        pass
+
 
 class PaddedBoxLayout(BoxLayout):
     pass
@@ -694,7 +717,7 @@ class TubScreen(Screen):
     """ First screen of the app managing the tub data. """
     index = NumericProperty(None, force_dispatch=True)
     current_record = ObjectProperty(None)
-    keys_enabled = BooleanProperty(True)
+    keys_enabled = BooleanProperty(False)
 
     def initialise(self, e):
         self.ids.config_manager.load_action()
@@ -721,7 +744,6 @@ class TubScreen(Screen):
         self.ids.control_panel.record_display = f"Record {i:06} [{t:06} kept]"
         self.ids.control_panel.labels_display = f"{self._get_label(i)}"
 
-
     def status(self, msg):
         self.ids.status.text = msg
 
@@ -729,6 +751,40 @@ class TubScreen(Screen):
         if self.keys_enabled:
             self.ids.control_panel.on_keyboard(key, scancode)
 
+class AnnotateScreen(Screen):
+    index = NumericProperty(None, force_dispatch=True)
+    current_record = ObjectProperty(None)
+    keys_enabled = BooleanProperty(False)
+    config = ObjectProperty()
+
+    def initialise(self):
+        tub_screen().ids.config_manager.load_action()
+        tub_screen().ids.tub_loader.update_tub()
+        self.index = tub_screen().index
+        self.cfg = tub_screen().ids.config_manager.config
+
+    def on_index(self, obj, index):
+        """ Kivy method that is called if self.index changes. Here we update
+            self.current_record and the slider value. """
+        if tub_screen().ids.tub_loader.records:
+            self.current_record = tub_screen().ids.tub_loader.records[index]
+            self.ids.annotate_slider.value = index
+
+    def on_current_record(self, obj, record):
+        """ Kivy method that is called when self.current_index changes. Here
+            we update the images and the control panel entry."""
+        if not record:
+            return
+        i = record.underlying['_index']
+        self.ids.annotate_img.update(record)
+    
+    def status(self, msg):
+        self.ids.annotate_status.text = msg
+
+    def on_keyboard(self, instance, keycode, scancode, key, modifiers):
+        if self.keys_enabled:
+            self.ids.control_panel.on_keyboard(key, scancode)
+            self.ids.annotate_panel.on_keyboard(key, scancode)
 
 class PilotLoader(BoxLayout, FileChooserBase):
     """ Class to mange loading of the config file from the car directory"""
@@ -774,6 +830,7 @@ class PilotLoader(BoxLayout, FileChooserBase):
 
 class OverlayImage(FullImage):
     """ Widget to display the image and the user/pilot data for the tub. """
+    index = NumericProperty(None, force_dispatch=True)
     pilot = ObjectProperty()
     pilot_record = ObjectProperty()
     throttle_field = StringProperty('user/throttle')
@@ -781,6 +838,13 @@ class OverlayImage(FullImage):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.is_left = True
+
+    def on_index(self, obj, index):
+        """ Kivy method that is called if self.index changes. Here we update
+            self.current_record and the slider value. """
+        if tub_screen().ids.tub_loader.records:
+            self.current_record = tub_screen().ids.tub_loader.records[index]
+            self.ids.slider.value = index
 
     def augment(self, img_arr):
         if pilot_screen().trans_list:
@@ -827,6 +891,53 @@ class OverlayImage(FullImage):
                              normalised=False)
         self.pilot_record = out_record
         return img_arr
+
+class DrawableImage(FullImage):
+        
+        def on_touch_down(self, touch):
+            if not self.collide_point(*touch.pos):
+                return super(DrawableImage, self).on_touch_down(touch)
+            win = self.get_parent_window()
+            screen_x, screen_y = self.to_window(*self.size)
+            print (f"screen_x, screen_y {screen_x} {screen_y}")
+            print (f"win.width, win.height {win.width} {win.height}")
+            print(f"touch.x/y {touch.x} {touch.y}")
+            print(f"touch.pos {touch.pos}")
+            print(f"size {self.size[0]} {self.size[1]}")
+            print(f"x0,y0 {self.x} {self.y}")
+            print(f"x1,y1 {self.x+self.size[0]} {self.y+self.size[1]}")
+            print(f"right,top {self.right} {self.top}")
+            print(f"norm_image_size {self.norm_image_size[0]} {self.norm_image_size[1]}")
+            print(f"texture_size {self.texture_size[0]} {self.texture_size[1]}")
+
+            return 
+        
+            lr_space = 0  # empty space in Image widget left and right of actual image
+            tb_space = 0  # empty space in Image widget above and below actual image
+            print('lr_space =', lr_space, ', tb_space =', tb_space)
+            print("Touch Cords", touch.x, touch.y)
+            print('Size of image within ImageView widget:', self.norm_image_size)
+            print('ImageView widget:, pos:', self.pos, ', size:', self.size)
+            print('image extents in x:', self.x + lr_space, self.right - lr_space)
+            print('image extents in y:', self.y + tb_space, self.top - tb_space)
+            pixel_x = touch.x - lr_space - self.x  # x coordinate of touch measured from lower left of actual image
+            pixel_y = touch.y - tb_space - self.y  # y coordinate of touch measured from lower left of actual image
+            if pixel_x < 0 or pixel_y < 0:
+                print('clicked outside of image\n')
+                return True
+            elif pixel_x > self.right or \
+                    pixel_y > self.top:
+                print('clicked outside of image\n')
+                return True
+            else:
+                print('clicked inside image, coords:', pixel_x, pixel_y)
+
+                # scale coordinates to actual pixels of the Image source
+                print('actual pixel coords:',
+                    pixel_x * self.norm_image_size[0] / self.size[0],
+                    pixel_y * self.norm_image_size[1] / self.size[1], '\n')
+        def on_touch_move(self, touch):
+            pass
 
 
 class PilotScreen(Screen):
@@ -1241,6 +1352,7 @@ class StartScreen(Screen):
 class DonkeyApp(App):
     start_screen = None
     tub_screen = None
+    annotate_screen = None
     train_screen = None
     pilot_screen = None
     car_screen = None
@@ -1248,6 +1360,7 @@ class DonkeyApp(App):
 
     def initialise(self, event):
         self.tub_screen.ids.config_manager.load_action()
+        self.annotate_screen.initialise()
         self.pilot_screen.initialise(event)
         self.car_screen.initialise()
         # This builds the graph which can only happen after everything else
@@ -1258,15 +1371,18 @@ class DonkeyApp(App):
         Window.bind(on_request_close=self.on_request_close)
         self.start_screen = StartScreen(name='donkey')
         self.tub_screen = TubScreen(name='tub')
+        self.annotate_screen = AnnotateScreen(name='annotate')
         self.train_screen = TrainScreen(name='train')
         self.pilot_screen = PilotScreen(name='pilot')
         self.car_screen = CarScreen(name='car')
         Window.bind(on_keyboard=self.tub_screen.on_keyboard)
+        Window.bind(on_keyboard=self.annotate_screen.on_keyboard)
         Window.bind(on_keyboard=self.pilot_screen.on_keyboard)
         Clock.schedule_once(self.initialise)
         sm = ScreenManager()
         sm.add_widget(self.start_screen)
         sm.add_widget(self.tub_screen)
+        sm.add_widget(self.annotate_screen)
         sm.add_widget(self.train_screen)
         sm.add_widget(self.pilot_screen)
         sm.add_widget(self.car_screen)

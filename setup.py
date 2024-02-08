@@ -77,12 +77,17 @@ setup(name='donkeycar',
           'pc': [
               'matplotlib',
               'kivy',
-            #   'protobuf==3.20.3',
-              'protobuf==3.19.6',
+              'protobuf==3.20.3',
+              #'protobuf==3.19.6',
               'pandas',
               'pyyaml',
               'plotly',
-              'imgaug'
+              'imgaug',
+              'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main',
+              'torch',
+              'torchvision',
+              'torchaudio' 
+
           ],
           'macm2': [
             'tensorflow-macos==2.9.2',
@@ -90,7 +95,8 @@ setup(name='donkeycar',
             'kivy==2.1',
             'pandas',
             'plotly',
-            'albumentations'
+            'albumentations',
+            'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main#egg=sam'
 
           ],
           'dev': [
@@ -127,8 +133,10 @@ setup(name='donkeycar',
           # Specify the Python versions you support here. In particular, ensure
           # that you indicate whether you support Python 2, Python 3 or both.
           'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.7'
       ],
       keywords='selfdriving cars donkeycar diyrobocars',
       packages=find_packages(exclude=(['tests', 'docs', 'site', 'env'])),
+      dependency_links=[
+          'https://download.pytorch.org/whl/cpu']
     )

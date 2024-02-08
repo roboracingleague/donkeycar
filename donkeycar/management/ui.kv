@@ -145,6 +145,24 @@
             on_text: root.add_remove()
             on_values: root.clear()
 
+<AnnotatePanel>
+    orientation: 'vertical'
+    spacing: 2
+    GridLayout:
+        cols: 2
+        Label:
+            id: record_num
+            text: root.record_display
+        Label:
+            id: labels
+            text: root.labels_display
+        Button:
+            id: sam_btn
+            text: 'Load SAM'
+            on_press:
+                self.disabled = True
+                root.load_sam()
+
 <ControlPanel>
     orientation: 'vertical'
     GridLayout:
@@ -314,6 +332,14 @@
             root.manager.current_screen.keys_enabled = True
             root.manager.current_screen.ids.tab_bar.disable_only(root.manager.current_screen.name)
     Button:
+        id: annotate_btn
+        text: 'Annotation Manager'
+        on_press:
+            root.manager.current_screen.keys_enabled = False
+            root.manager.current = 'annotate'
+            root.manager.current_screen.keys_enabled = True
+            root.manager.current_screen.ids.tab_bar.disable_only(root.manager.current_screen.name)
+    Button:
         id: train_btn
         text: 'Trainer'
         on_press:
@@ -382,6 +408,37 @@
         StatusLabel:
             id: status
 
+<AnnotateScreen>:
+    config: app.tub_screen.ids.config_manager.config
+    BoxLayout:
+        orientation: 'vertical'
+        TabBar:
+            id: tab_bar
+            manager: root.manager
+        PaddedBoxLayout:
+            size_hint_y: 1.0
+            AnnotatePanel
+                id: annotate_panel
+                screen: root
+                record: root.current_record
+            DrawableImage:
+                size_hint_x: 4.0
+                size_hint_y: 1.0
+                id: annotate_img
+
+            ControlPanel
+                id: control_panel
+                screen: root
+        Slider:
+            id: annotate_slider
+            min: 0
+            max: app.tub_screen.ids.tub_loader.len - 1
+            value: 0
+            size_hint_y: None
+            height: common_height
+            on_value: root.index = int(self.value)
+        StatusLabel:
+            id: annotate_status
 
 <PilotLoader>:
     title: 'Choose the pilot'
