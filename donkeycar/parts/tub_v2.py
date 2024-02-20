@@ -44,7 +44,7 @@ class Tub(object):
         # self.socket = self.context.socket(zmq.PUB)
         # self.socket.bind("tcp://*:5555")
 
-    def write_record(self, record=None):
+    def write_record(self, record=None, index=None):
         """
         Can handle various data types including images.
         """
@@ -74,7 +74,7 @@ class Tub(object):
                 elif input_type == 'image_array':
                     # Handle image array
                     # original version
-                    name = Tub._image_file_name(self.manifest.current_index, key)
+                    name = Tub._image_file_name(index if index else self.manifest.current_index, key)
                     image_path = os.path.join(self.images_base_path, name)
                     image = Image.fromarray(np.uint8(value))
                     image.save(image_path)
@@ -110,12 +110,12 @@ class Tub(object):
 
                 elif input_type == 'gray16_array':
                     # Handle image array
-                    name = Tub._image_file_name(self.manifest.current_index, key).replace("image","depth")
+                    name = Tub._image_file_name(index if index else self.manifest.current_index, key).replace("image","depth")
                     image_path = os.path.join(self.depths_base_path, name)
                     np.savez_compressed(image_path, img=np.uint16(value))
                     contents[key] = name
                 elif input_type == 'undistorted_image':
-                    name = Tub._image_file_name(self.manifest.current_index, key).replace("image","undistort")
+                    name = Tub._image_file_name(index if index else self.manifest.current_index, key).replace("image","undistort")
                     image_path = os.path.join(self.undistorted_images_base_path, name)
                     image = Image.fromarray(np.uint8(value))
                     image.save(image_path)
@@ -126,7 +126,7 @@ class Tub(object):
 
         # Private properties
         contents['_timestamp_ms'] = int(round(time.time() * 1000))
-        contents['_index'] = self.manifest.current_index
+        contents['_index'] = index if index else self.manifest.current_index
         contents['_session_id'] = self.manifest.session_id
 
         self.manifest.write_record(contents)

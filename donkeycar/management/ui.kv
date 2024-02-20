@@ -157,6 +157,31 @@
             id: labels
             text: root.labels_display
         Button:
+            id: left_box
+            text: 'Left Box'
+            on_press:
+                root.box(left=True)
+        Button:
+            id: right_box
+            text: 'Right Box'
+            on_press:
+                root.box(left=False)
+        Button:
+            id: left_point
+            text: 'Left Point'
+            on_press:
+                root.point(left=True)
+        Button:
+            id: right_point
+            text: 'Right Point'
+            on_press:
+                root.point(left=False)
+        Button:
+            id: reset_point
+            text: 'Reset Point'
+            on_press:
+                root.reset_points()
+        Button:
             id: sam_btn
             text: 'Load SAM'
             on_press:
@@ -285,6 +310,17 @@
         multiline: False
         on_focus: app.tub_screen.keys_enabled = not app.tub_screen.keys_enabled
 
+<-FullAnnotateImage>:
+    size_hint_x: 4
+    size_hint_y: 1
+    canvas:
+        Color:
+            rgb: (1, 1, 1)
+        Rectangle:
+            texture: self.texture
+            size: self.width, self.height
+            pos: self.x, self.y
+
 <-FullImage>:
     size_hint_x: 1.2
     size_hint_y: 1.2
@@ -410,6 +446,11 @@
 
 <AnnotateScreen>:
     config: app.tub_screen.ids.config_manager.config
+    canvas:
+        Color:
+            rgb: 0, 0, 0
+        Rectangle:
+            size: self.size
     BoxLayout:
         orientation: 'vertical'
         TabBar:
@@ -421,11 +462,8 @@
                 id: annotate_panel
                 screen: root
                 record: root.current_record
-            DrawableImage:
-                size_hint_x: 4.0
-                size_hint_y: 1.0
+            FullAnnotateImage:
                 id: annotate_img
-
             ControlPanel
                 id: control_panel
                 screen: root
