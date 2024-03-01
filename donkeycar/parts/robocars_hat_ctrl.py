@@ -369,13 +369,15 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                 user_throttle = 0
 
         # Discret throttle mode
-        if mode=='user':
+        if mode=='user' and self.cfg.ROBOCARSHAT_THROTTLE_DISCRET != None:
             # Discret mode, apply profile
-            if self.cfg.ROBOCARSHAT_THROTTLE_DISCRET != None :
-                inds = np.digitize(user_throttle, self.discretesThrottle)
-                inds = min(max(inds,1), len(self.cfg.ROBOCARSHAT_THROTTLE_DISCRET))
-                user_throttle = self.cfg.ROBOCARSHAT_THROTTLE_DISCRET[inds-1]
-            else:
+            inds = np.digitize(user_throttle, self.discretesThrottle)
+            inds = min(max(inds,1), len(self.cfg.ROBOCARSHAT_THROTTLE_DISCRET))
+            user_throttle = self.cfg.ROBOCARSHAT_THROTTLE_DISCRET[inds-1]
+        else:
+            # Do we apply flanger
+            if ((mode=='user') or 
+                (mode=='local_angle' and self.cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE == None)):
                 # direct throttle from remote control, Keep throttle in authorized range
                 if self.cfg.ROBOCARSHAT_THROTTLE_FLANGER != None :
                     user_throttle = dualMap(user_throttle,
