@@ -158,12 +158,17 @@ class Catalog(object):
     def _exit_handler(self):
         self.close()
 
-    def write_record(self, record):
+    def write_record(self, record, index=None):
         # Add record and update manifest
         contents = json.dumps(record, allow_nan=False, sort_keys=True)
-        self.seekable.writeline(contents)
-        line_lengths = self.seekable.line_lengths
-        self.manifest.update_line_lengths(line_lengths)
+        if index != None:
+            self.seekable.update_line(index+1, contents)
+            line_lengths = self.seekable.line_lengths
+            self.manifest.update_line_lengths(line_lengths)
+        else:
+            self.seekable.writeline(contents)
+            line_lengths = self.seekable.line_lengths
+            self.manifest.update_line_lengths(line_lengths)
 
     def close(self):
         self.manifest.close()
@@ -275,16 +280,32 @@ class Manifest(object):
         # tub, when Tub.write_record() is called.
         self.session_id = self.create_new_session()
 
-    def write_record(self, record):
-        new_catalog = self.current_index > 0 \
-                      and (self.current_index % self.max_len) == 0
+    def write_record(self, record, index=None):
+        new_catalog = False
+        if index and index>self.current_index:
+            print (f"Invalid index {index} {self.current_index}")
+            index=None
+        if index == None and self.current_index > 0 and (self.current_index % self.max_len) == 0:
+            new_catalog = True
+
         if new_catalog:
             self._add_catalog()
 
-        self.current_catalog.write_record(record)
-        self.current_index += 1
-        # Update metadata to keep track of the last index
-        self._update_catalog_metadata(update=True)
+        if index != None:
+            #get the catalog
+            catalog_index = index // self.max_len
+            catalog_path = os.path.join(self.base_path, self.catalog_paths[catalog_index])
+            print(f"Update catalog {catalog_index} - {catalog_path}")
+
+            catalog_to_update = Catalog(catalog_path,
+                                read_only=self.read_only,
+                                start_index=0)
+            catalog_to_update.write_record(record, index)
+        else:
+            self.current_catalog.write_record(record, index)
+            self.current_index += 1
+            # Update metadata to keep track of the last index
+            self._update_catalog_metadata(update=True)
         # Set session_id update status to True if this method is called at
         # least once. Then session id metadata  will be updated when the
         # session gets closed

@@ -8,6 +8,8 @@ from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
 from collections import namedtuple
 from kivy.logger import Logger
+import platform
+import traceback 
 
 import io
 import os
@@ -263,6 +265,7 @@ class TubLoader(BoxLayout, FileChooserBase):
         if self.update_tub():
             # If update successful, store into app config
             rc_handler.data['last_tub'] = self.file_path
+            annotate_screen().load_action()
 
     def update_tub(self, event=None):
         if not self.file_path:
@@ -448,9 +451,34 @@ class FullAnnotateImage(Image):
             self.core_image = CoreImage(bytes_io, ext='png')
             self.texture = self.core_image.texture
         except KeyError as e:
-            Logger.error(f'Record: Missing key: {e}')
+            Logger.error(f'Record: FullAnnotateImage : Missing key: {e}')
         except Exception as e:
-            Logger.error(f'Record: Bad record: {e}')
+            Logger.error(f'Record: FullAnnotateImage : Bad record: {e}')
+
+    def update_with_mask(self, record, mask_left, mask_right):
+        try:
+            color_left = np.array([255/255, 30/255, 30/255, 0.6])
+            color_right = np.array([30/255, 255/255, 30/255, 0.6])
+            #h, w = mask_left.shape if mask_left!=None else mask_right.shape
+            h, w = mask_left.shape 
+            mask_left_image = mask_left.reshape(h, w, 1) * color_left.reshape(1, 1, -1)
+            mask_right_image = mask_right.reshape(h, w, 1) * color_right.reshape(1, 1, -1)
+            pil_mask_left_image = PilImage.fromarray((mask_left_image * 255).astype(np.uint8))
+            pil_mask_right_image = PilImage.fromarray((mask_right_image * 255).astype(np.uint8))
+            img_arr = self.get_image(record)
+            pil_image = PilImage.fromarray(img_arr)
+            pil_image.paste (pil_mask_left_image,(0, 0), pil_mask_left_image)
+            pil_image.paste (pil_mask_right_image,(0, 0), pil_mask_right_image)
+            bytes_io = io.BytesIO()
+            pil_image.save(bytes_io, format='png')
+            bytes_io.seek(0)
+            self.core_image = CoreImage(bytes_io, ext='png')
+            self.texture = self.core_image.texture
+        except KeyError as e:
+            Logger.error(f'Record: update_with_mask : Missing key: {e}')
+        except Exception as e:
+            Logger.error(f'Record: update_with_mask : Bad record: {e}')
+            traceback.print_exc() 
 
     def get_image(self, record):
         return record.image()
@@ -459,6 +487,8 @@ class FullAnnotateImage(Image):
 class ControlPanel(BoxLayout):
     """ Class for control panel navigation. """
     screen = ObjectProperty()
+    nextThrottleFallingEdge = BooleanProperty(False)
+    nextEmptyMask = BooleanProperty(False)
     speed = NumericProperty(1.0)
     record_display = StringProperty()
     labels_display = StringProperty()
@@ -466,13 +496,13 @@ class ControlPanel(BoxLayout):
     clock = None
     fwd = None
 
-    def start(self, fwd=True, continuous=False, nextThrottleFallingEdge=False):
+    def start(self, fwd=True, continuous=False, skip=False):
         """
         Method to cycle through records if either single <,> or continuous
         <<, >> buttons are pressed
         :param fwd:         If we go forward or backward
         :param continuous:  If we do <<, >> or <, >
-        :param nextThrottleFallingEdge: search for throttle falling edge
+        :param skip:        If skip function must be used
         :return:            None
         """
         # this widget it used in two screens, so reference the original location
@@ -480,8 +510,11 @@ class ControlPanel(BoxLayout):
         cfg = tub_screen().ids.config_manager.config
         hz = cfg.DRIVE_LOOP_HZ if cfg else 20
         time.sleep(0.1)
-        if (nextThrottleFallingEdge) :
-            call = partial (self.skip_next_throttle_down)
+        if (skip):
+            if (self.nextThrottleFallingEdge) :
+                call = partial (self.skip_next_throttle_down)
+            elif (self.nextEmptyMask):
+                call = partial (self.skip_next_unmask)
         else:
             call = partial(self.step, fwd, continuous)
         if continuous:
@@ -537,6 +570,9 @@ class ControlPanel(BoxLayout):
         msg += ' - Low Throttle detected'
         self.screen.status(msg)
 
+    def skip_next_unmask(self, *largs):
+        annotate_screen().skip_next_unmask(largs)
+
     def stop(self):
         if self.clock:
             self.clock.cancel()
@@ -587,25 +623,32 @@ class AnnotatePanel(BoxLayout):
     labels_display = StringProperty()
 
     def instanciate_sam(self, event):
-        cfg = tub_screen().ids.config_manager.config
-        self.segment = Segmentation(cfg)
-        annotate_screen().status("SAM Loaded")
+        annotate_screen().instanciate_sam()
+        self.ids.left_box.disabled = False
+        self.ids.right_box.disabled = False
+        self.ids.left_foreground_point.disabled = False
+        self.ids.left_background_point.disabled = False
+        self.ids.right_foreground_point.disabled = False
+        self.ids.right_background_point.disabled = False
 
     def box(self,left=False):
         annotate_screen().box(left)
         pass
 
-    def point (self, left=False):
-        annotate_screen().point(left)
+    def point (self, left=False, fg=True):
+        annotate_screen().point(left, fg)
         pass
 
-    def reset_points (self):
-        annotate_screen().reset_points()
+    def reset_poi (self):
+        annotate_screen().reset_poi()
 
     def load_sam(self) :
         annotate_screen().status("Loading SAM, please wait...")
         Clock.schedule_once(self.instanciate_sam)
 
+    def reset_mask(self, left=False):
+        annotate_screen().reset_mask(left)
+        
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
         pass
@@ -820,52 +863,115 @@ class AnnotateScreen(Screen):
     drawing = StringProperty()
 
     def initialise(self):
+        self.point_size = 20
+        if 'linux' in platform.system().lower():
+            self.point_size = 5
         self.drawing = ""
+        self.poi={}
+        self.segment = None
         self.touch_down_pos = [0, 0]
         tub_screen().ids.config_manager.load_action()
         tub_screen().ids.tub_loader.update_tub()
+        self.init_mask_tub()
         self.update_mask_tub()
         self.index = tub_screen().index
         self.config = tub_screen().ids.config_manager.config
         if tub_screen().ids.tub_loader.records:
             self.current_record = tub_screen().ids.tub_loader.records[0]
-            self.ids.annotate_img.update(self.current_record)
+            if self.mask_records:
+                self.current_mask_record=self.mask_records[0]
+            self.update_image_with_mask(self.current_record)
 
-    def update_mask_tub(self):
+    def get_empty_mask(self):
+        pil_image_ref = PilImage.fromarray(tub_screen().ids.tub_loader.records[0].image())
+        default_mask = np.array(PilImage.new('RGB', pil_image_ref.size, color='black'))[:, :, 0]
+        return default_mask
+    
+    def init_mask_tub(self):
 
         if not tub_screen().ids.tub_loader.file_path:
             return False
 
         if not os.path.exists(os.path.join(tub_screen().ids.tub_loader.file_path, 'manifest.json')):
-            annotate_screen().status(f'Path {tub_screen().ids.tub_loader.file_path} is not a valid tub.')
+            self.status(f'Path {tub_screen().ids.tub_loader.file_path} is not a valid tub.')
             return False
 
         self.binary_mask_file_path = os.path.join(tub_screen().ids.tub_loader.file_path,'binary_mask')
 
         if not os.path.exists(self.binary_mask_file_path):
-            annotate_screen().status(f'Path {self.binary_mask_file_path} : No directory for binary mask found, creating it.')
+            self.status(f'Path {self.binary_mask_file_path} : No directory for binary mask found, creating it.')
             os.makedirs(self.binary_mask_file_path, exist_ok=True)
 
         if not os.path.exists(os.path.join(self.binary_mask_file_path, 'manifest.json')):
-            annotate_screen().status(f'Path {self.binary_mask_file_path} : No manifest for binary mask found.')
+            self.status(f'Path {self.binary_mask_file_path} : No manifest for binary mask found.')
 
         try:
             if self.mask_tub:
                 self.mask_tub.close()
-            self.mask_tub = Tub(self.binary_mask_file_path)
+            inputs = ['left_mask', 'right_mask', 'left_poi', 'right_poi']
+            types = ['left_mask', 'right_mask','dict', 'dict']
+            self.mask_tub = Tub(self.binary_mask_file_path, inputs=inputs, types=types)
         except Exception as e:
-            annotate_screen().status(f'Failed loading binary mask tub: {str(e)}')
+            self.status(f'Failed loading binary mask tub: {str(e)}')
             return False
 
         self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
                         for record in self.mask_tub]
         self.mask_len = len(self.mask_records)
+
+        if tub_screen().ids.tub_loader.records:
+            default_mask = self.get_empty_mask()
+            to_create = len(tub_screen().ids.tub_loader.records)-self.mask_len
+            if (to_create>0):
+                print("Init/Complete default mask tub") 
+                for idx in range(to_create):
+                    mask_record={'left_mask':default_mask, 'right_mask':default_mask, 'left_poi':[], 'right_poi':[]}
+                    self.mask_tub.write_record(mask_record)
+        else:
+            self.status(f'Unale to create default mask, no records in tub')
+
+    def instanciate_sam(self):
+        self.segment = Segmentation(self.config)
+        self.status("SAM Loaded")
+
+    def load_action(self):
+        """ Update tub from the file path"""
+        self.update_mask_tub()
+
+    def update_mask_tub(self):
+
+        self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
+                        for record in self.mask_tub]
+        self.mask_len = len(self.mask_records)
+
         if self.mask_len > 0:
             msg = f'Loaded tub {self.binary_mask_file_path} with {self.mask_len} records'
         else:
             msg = f'No records in tub {self.binary_mask_file_path}'
-        annotate_screen().status(msg)
+        self.status(msg)
         return True
+
+    def reset_mask(self, left=False):
+        default_mask = self.get_empty_mask()
+        if self.mask_records:
+            mask_record = self.mask_records[self.index]
+            if left:
+                mask_record={'left_mask':default_mask, 'right_mask':mask_record.underlying['right_mask'], 'left_poi':[], 'right_poi':mask_record.underlying['right_poi']}
+            else:
+                mask_record={'left_mask':mask_record.underlying['left_mask'], 'right_mask':default_mask, 'left_poi':mask_record.underlying['left_poi'], 'right_poi':[]}
+            self.mask_tub.write_record(mask_record, index=self.index)
+            self.status(f'Mask tub record index {self.index} reinitialized')
+            self.update_image_with_mask(self.current_record)
+
+    def update_image_with_mask (self, record, index=None):
+        if self.mask_records:
+            if (index != None):
+                self.current_mask_record = self.mask_records[index]
+            mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPZ', reload=True)
+            mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPZ', reload=True)
+            self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
+        else:
+            self.ids.annotate_img.update(record)
 
     def on_index(self, obj, index):
         """ Kivy method that is called if self.index changes. Here we update
@@ -873,8 +979,11 @@ class AnnotateScreen(Screen):
         if tub_screen().ids.tub_loader.records:
             self.current_record = tub_screen().ids.tub_loader.records[index]
             self.ids.annotate_slider.value = index
+            if self.mask_records:
+                self.current_mask_record = self.mask_records[index]
 #        if self.ids.mask_records:
 #            current_mask_record
+        self.reset_poi()
 
     def on_current_record(self, obj, record):
         """ Kivy method that is called when self.current_index changes. Here
@@ -882,49 +991,97 @@ class AnnotateScreen(Screen):
         if not record:
             return
         i = record.underlying['_index']
-        self.ids.annotate_img.update(record)
+        self.ids.annotate_panel.record_display = f"Record {i:06}"
+        self.update_image_with_mask(record, i)
     
+    def skip_next_unmask(self, *largs):
+        if self.index is None:
+            self.status("No tub loaded")
+            return
+        starting_index = self.index + 1
+        if starting_index >= tub_screen().ids.tub_loader.len:
+            starting_index = 0
+        elif starting_index < 0:
+            starting_index = tub_screen().ids.tub_loader.len - 1
+
+        for index, rec in enumerate (self.mask_records[starting_index:]): 
+            if (len(rec.underlying['left_poi']) == 0) and (len(rec.underlying['right_poi']) == 0):
+                new_index = index+starting_index
+                break
+        self.index = new_index
+
     def status(self, msg):
         self.ids.annotate_status.text = msg
 
     def clear_left_markers(self):
         self.canvas.remove_group(u"left_box")
-        self.canvas.remove_group(u"left_point")
+        self.canvas.remove_group(u"left_point_foreground")
+        self.canvas.remove_group(u"left_point_background")
+        if 'left_point_foreground' in self.poi:
+            del self.poi['left_point_foreground']
+        if 'left_point_background' in self.poi:
+            del self.poi['left_point_background']
+
 
     def clear_right_markers(self):
         self.canvas.remove_group(u"right_box")
-        self.canvas.remove_group(u"right_point")
+        self.canvas.remove_group(u"right_point_foreground")
+        self.canvas.remove_group(u"right_point_background")
+        if 'right_point_foreground' in self.poi:
+            del self.poi['right_point_foreground']
+        if 'right_point_background' in self.poi:
+            del self.poi['right_point_background']
 
     def clear_box_markers(self):
         self.canvas.remove_group(u"right_box")
         self.canvas.remove_group(u"left_box")
+        if 'box' in self.poi:
+            del self.poi['box']
 
     def clear_points_markers(self):
-        self.canvas.remove_group(u"right_point")
-        self.canvas.remove_group(u"left_point")
+        self.canvas.remove_group(u"right_point_foreground")
+        self.canvas.remove_group(u"right_point_background")
+        self.canvas.remove_group(u"left_point_foreground")
+        self.canvas.remove_group(u"left_point_background")
+        if 'left_point_foreground' in self.poi:
+            del self.poi['left_point_foreground']
+        if 'left_point_background' in self.poi:
+            del self.poi['left_point_background']
+        if 'right_point_foreground' in self.poi:
+            del self.poi['right_point_foreground']
+        if 'right_point_background' in self.poi:
+            del self.poi['right_point_background']
 
     def clear_markers(self):
         self.clear_left_markers()
         self.clear_right_markers()
 
+    def raz_poi_record(self):
+        self.poi = {}
+
     def box(self, left=False):
         self.status(f"Draw {'right' if left==False else 'left'} box")
-        if left:
-            self.drawing = "left_box"
-        else:
-            self.drawing = "right_box"
-
-    def point(self, left=False):
-        self.status(f"Draw {'right' if left==False else 'left'} point")
-        if left and "left_point" not in self.drawing:
-            self.clear_left_markers()
-            self.drawing = "left_point"
-        if not left and "right_point" not in self.drawing:
+        if left and 'left' not in self.drawing:
             self.clear_right_markers()
-            self.drawing = "right_point"
+            self.clear_box_markers()
+        if not left and 'right' not in self.drawing:
+            self.clear_left_markers()
+            self.clear_box_markers()
+        self.drawing = f"{'left' if left==True else 'right'}_box"
 
-    def reset_points(self):
-        self.clear_points_markers()
+    def point(self, left=False, fg=True):
+        self.status(f"Draw {'right' if left==False else 'left'} {'background' if fg==False else 'foreground'} point")
+        if left and "left_point" not in self.drawing:
+            self.clear_right_markers()
+            self.clear_box_markers()
+        if not left and "right_point" not in self.drawing:
+            self.clear_left_markers()
+            self.clear_box_markers()
+        self.drawing = f"{'left' if left==True else 'right'}_point_{'background' if fg==False else 'foreground'}"
+
+    def reset_poi(self):
+        self.clear_markers()
+        self.raz_poi_record()
 
     def on_keyboard(self, instance, keycode, scancode, key, modifiers):
         if self.keys_enabled:
@@ -936,9 +1093,109 @@ class AnnotateScreen(Screen):
         oy=map_range(y,self.ids.annotate_img.y,self.ids.annotate_img.y+self.ids.annotate_img.size[1],0,self.ids.annotate_img.norm_image_size[1], True)
         return ox, oy
 
+    def update_poi_record(self):
+        self.poi_left_foreground_points=[]                
+        self.poi_left_background_points=[]                
+        self.poi_right_foreground_points=[]                
+        self.poi_right_background_points=[]                
+        self.poi_left_box=[]
+        self.poi_right_box=[]
+        for key in self.poi:
+            if 'point_foreground' in key:
+                for point in self.poi[key]:
+                    x,y = self.get_original_coordinates (point.pos[0],point.pos[1] )
+                    if 'left' in key:
+                        self.poi_left_foreground_points.append({'x':x, 'y':y})
+                    else:
+                        self.poi_right_foreground_points.append({'x':x, 'y':y})
+
+            if 'point_background' in key:
+                for point in self.poi[key]:
+                    x,y = self.get_original_coordinates (point.pos[0],point.pos[1] )
+                    if 'left' in key:
+                        self.poi_left_background_points.append({'x':x, 'y':y})
+                    else:
+                        self.poi_right_background_points.append({'x':x, 'y':y})
+
+            if 'box' in key:
+                x0,y0 = self.get_original_coordinates (self.poi[key].pos[0],self.poi[key].pos[1] )
+                x1,y1 = self.get_original_coordinates (self.poi[key].pos[0]+self.poi[key].size[0],self.poi[key].pos[1]+self.poi[key].size[1] )
+                if 'left' in self.drawing:
+                    self.poi_left_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
+                else:
+                    self.poi_right_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
+               
     def segment_image(self):
-        print("segment")
-        pass
+        self.update_poi_record()
+        left = True if 'left' in self.drawing else False
+        input_points = np.empty((0,2), int)
+        input_labels = np.empty((0,2), int)
+        input_box = np.array([])
+        if left :
+            for pts in self.poi_left_foreground_points:
+                input_points=np.append(input_points, np.array([[pts['x'],pts['y']]]), axis=0)
+                input_labels=np.append(input_labels, np.array([[1]]))
+            for pts in self.poi_left_background_points:
+                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_labels=np.append(input_labels, np.array([[0]]))
+            if len(self.poi_left_box)>0:
+                input_box=np.array([min(self.poi_left_box['x0'],self.poi_left_box['x1']), 
+                                    min(self.poi_left_box['y0'],self.poi_left_box['y1']),
+                                    max(self.poi_left_box['x0'],self.poi_left_box['x1']),
+                                    max(self.poi_left_box['y0'],self.poi_left_box['y1'])])
+        else :
+            for pts in self.poi_right_foreground_points:
+                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_labels=np.append(input_labels, np.array([[1]]))
+            for pts in self.poi_right_background_points:
+                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_labels=np.append(input_labels, np.array([[0]]))
+            if len(self.poi_right_box)>0:
+                input_box=np.array([min(self.poi_right_box['x0'],  self.poi_right_box['x1']),
+                                    min(self.poi_right_box['y0'], self.poi_right_box['y1']),
+                                    max(self.poi_right_box['x0'],  self.poi_right_box['x1']),
+                                    max(self.poi_right_box['y0'], self.poi_right_box['y1'])])
+
+        print (f"NP Array input_points : {input_points}")
+        print (f"NP Array input_labels : {input_labels}")
+        print (f"NP Array input_box : {input_box}")
+        if self.segment and input_box.size >0:
+            self.segment.set_image(self.current_record.image())
+            masks, scores, logits = self.segment.predict(
+                input_points=input_points if input_points.size>0 else None,
+                input_labels=input_labels if input_labels.size>0 else None,
+                input_box=input_box)
+            idx = self.current_record.underlying['_index']
+
+            mask_record={}
+            mask_record['left_poi']=self.current_mask_record.underlying['left_poi']
+            mask_record['right_poi']=self.current_mask_record.underlying['right_poi']
+            mask_record['left_mask']=self.current_mask_record.underlying['left_mask']
+            mask_record['right_mask']=self.current_mask_record.underlying['right_mask']
+            if left: #'left_mask', 'right_mask', 'left_poi', 'right_poi'
+                mask_record['left_mask'] = masks[0]
+                mask_record['left_poi']={'fg_pts':self.poi_left_foreground_points, 'bg_pts':self.poi_left_background_points, 'box':self.poi_left_box}
+            else:        
+                mask_record['right_mask'] = masks[0]
+                mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
+            self.mask_tub.write_record(mask_record, index=idx)
+            self.status(f'Mask tub record index {idx} written')
+            self.update_image_with_mask(self.current_record)
+            self.reset_poi()
+        else:
+            self.status(f'SAM not loaded')
+
+        # if 'right_point' in self.drawing:
+        #     print (self.canvas.get_group(u"right_point_foreground"))
+        #     print (self.canvas.get_group(u"right_point_backgroun"))
+        # if 'left_point' in self.drawing:
+        #     print (self.canvas.get_group(u"left_point_foreground"))
+        #     print (self.canvas.get_group(u"left_point_background"))
+        # if 'right_box' in self.drawing:
+        #     print (self.canvas.get_group(u"right_box"))
+        # if 'left_box' in self.drawing:
+        #     print (self.canvas.get_group(u"left_box"))
+                #self.mask_tub.write_record(self.current_record)
 
     def on_touch_down(self, touch):
         if not self.ids.annotate_img.collide_point(*touch.pos):
@@ -947,20 +1204,27 @@ class AnnotateScreen(Screen):
         px, py = self.get_original_coordinates(touch.x, touch.y)
         if len(self.drawing)>0:
             with self.canvas:
+                opacity=1.0
+                if 'box' in self.drawing:
+                    opacity = 0.2
                 if 'left' in self.drawing :
-                    Color(1,0,0,0.2,mode='rgba')
+                    if 'background' in  self.drawing:
+                        Color(0.5,0,0,opacity,mode='rgba')
+                    else:
+                        Color(1,0,0,opacity,mode='rgba')
                 else:
-                    Color(0,1,0,0.2,mode='rgba')
-                ud = touch.ud
+                    if 'background' in  self.drawing:
+                        Color(0,0.5,0,opacity,mode='rgba')
+                    else:
+                        Color(0,1,0,opacity,mode='rgba')
                 if "point" in self.drawing:
-                    if not self.drawing in ud:
-                        ud[self.drawing]=[]
-                    ud[self.drawing].append(Ellipse(pos=(touch.x, touch.y),size=(5,5), group = self.drawing))
+                    if self.drawing not in self.poi:
+                        self.poi[self.drawing]=[]
+                    self.poi[self.drawing].append(Ellipse(pos=(touch.x-self.point_size/2, touch.y-self.point_size/2),size=(self.point_size,self.point_size), group = self.drawing))
                 if "box" in self.drawing:
                     self.touch_down_pos = (touch.x, touch.y)
                     #ud['box']=Line(rectangle=(touch.x, touch.y,5,5), width=2, group = self.drawing)
-                    ud['box']=Rectangle(pos=(touch.x, touch.y),size=(5,5),group = self.drawing)
-
+                    self.poi['box']=Rectangle(pos=(touch.x, touch.y),size=(5,5),group = self.drawing)
         return True
     
     def on_touch_up(self, touch):
@@ -968,13 +1232,9 @@ class AnnotateScreen(Screen):
             # I receive my grabbed touch, I must ungrab it!
             touch.ungrab(self)
             self.segment_image()
-            if 'box' in self.drawing:
-                self.clear_box_markers()
-                self.drawing = ''
-        else:
-            # it's a normal touch
-            pass
-        return True
+            # if 'box' in self.drawing:
+            #     self.clear_box_markers()
+            #     self.drawing = ''
     
     def on_touch_move(self, touch):
         if touch.grab_current is self:
@@ -982,8 +1242,7 @@ class AnnotateScreen(Screen):
                 with self.canvas:
                     ud = touch.ud
                     if "box" in self.drawing:
-                        ud['box'].size = (touch.x - self.touch_down_pos[0], touch.y - self.touch_down_pos[1])
-        return True
+                        self.poi['box'].size = (touch.x - self.touch_down_pos[0], touch.y - self.touch_down_pos[1])
     
 class PilotLoader(BoxLayout, FileChooserBase):
     """ Class to mange loading of the config file from the car directory"""

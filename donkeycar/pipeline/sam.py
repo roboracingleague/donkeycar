@@ -9,3 +9,13 @@ class Segmentation:
         self.sam = sam_model_registry[self.model_type](checkpoint=self.sam_checkpoint)
         self.sam.to(device=self.device)
         self.predictor = SamPredictor(self.sam)
+
+    def set_image (self, image):
+        return self.predictor.set_image(image)
+    
+    def predict (self, input_points, input_labels, input_box):
+        return self.predictor.predict(
+            point_coords=input_points,
+            point_labels=input_labels,
+            box=input_box[None, :],
+            multimask_output=True)

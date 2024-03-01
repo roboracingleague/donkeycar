@@ -157,36 +157,62 @@
             id: labels
             text: root.labels_display
         Button:
+            id: left_foreground_point
+            text: 'Left Fg Point'
+            disabled: True
+            on_press:
+                root.point(left=True, fg=True)
+        Button:
+            id: right_foreground_point
+            text: 'Right Fg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=True)
+        Button:
+            id: left_background_point
+            text: 'Left Bg Point'
+            disabled: True
+            on_press:
+                root.point(left=True, fg=False)
+        Button:
+            id: right_background_point
+            text: 'Right Bg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=False)
+        Button:
             id: left_box
             text: 'Left Box'
+            disabled: True
             on_press:
                 root.box(left=True)
         Button:
             id: right_box
             text: 'Right Box'
+            disabled: True
             on_press:
                 root.box(left=False)
         Button:
-            id: left_point
-            text: 'Left Point'
+            id: reset_poi
+            text: 'Reset POI'
             on_press:
-                root.point(left=True)
-        Button:
-            id: right_point
-            text: 'Right Point'
-            on_press:
-                root.point(left=False)
-        Button:
-            id: reset_point
-            text: 'Reset Point'
-            on_press:
-                root.reset_points()
+                root.reset_poi()
         Button:
             id: sam_btn
             text: 'Load SAM'
             on_press:
                 self.disabled = True
                 root.load_sam()
+        Button:
+            id: sam_btn
+            text: 'Reset Left Mask'
+            on_press:
+                root.reset_mask(left=True)
+        Button:
+            id: sam_btn
+            text: 'Reset Right Mask'
+            on_press:
+                root.reset_mask(left=False)
 
 <ControlPanel>
     orientation: 'vertical'
@@ -237,7 +263,7 @@
             id: next_throttle_falling_edge
             text: 'T  ¯¯\\__'
             on_press:
-                root.start(fwd=True, continuous=False, nextThrottleFallingEdge=True)
+                root.start(fwd=True, continuous=False, skip=True)
             on_release:
                 root.stop()
     Button:
@@ -425,6 +451,7 @@
             ControlPanel
                 id: control_panel
                 screen: root
+                nextThrottleFallingEdge: True
         Slider:
             id: slider
             min: 0
@@ -467,6 +494,7 @@
             ControlPanel
                 id: control_panel
                 screen: root
+                nextEmptyMask: True
         Slider:
             id: annotate_slider
             min: 0

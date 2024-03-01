@@ -14,10 +14,11 @@ def package_files(directory, strip_leading):
 
 
 car_templates = ['templates/*']
+kivy_ui = ['management/*']
 web_controller_html = package_files('donkeycar/parts/controllers/templates',
                                     'donkeycar/')
 
-extra_files = car_templates + web_controller_html
+extra_files = car_templates + web_controller_html + kivy_ui
 print('extra_files', extra_files)
 
 with open("README.md", "r") as fh:
@@ -90,13 +91,17 @@ setup(name='donkeycar',
 
           ],
           'macm2': [
+              #'protobuf==3.19.6',
             'tensorflow-macos==2.9.2',
             'tensorflow-metal==0.5.1',
             'kivy==2.1',
             'pandas',
             'plotly',
             'albumentations',
-            'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main#egg=sam'
+            'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main#egg=sam',
+            'torch',
+            'torchvision',
+            'torchaudio' 
 
           ],
           'dev': [
