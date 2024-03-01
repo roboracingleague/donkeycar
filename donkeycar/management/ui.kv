@@ -145,17 +145,14 @@
             on_text: root.add_remove()
             on_values: root.clear()
 
-<AnnotatePanel>
+<AnnotateLeftPanel>
     orientation: 'vertical'
     spacing: 2
     GridLayout:
-        cols: 2
+        cols: 1
         Label:
             id: record_num
             text: root.record_display
-        Label:
-            id: labels
-            text: root.labels_display
         Button:
             id: left_foreground_point
             text: 'Left Fg Point'
@@ -163,23 +160,11 @@
             on_press:
                 root.point(left=True, fg=True)
         Button:
-            id: right_foreground_point
-            text: 'Right Fg Point'
-            disabled: True
-            on_press:
-                root.point(left=False, fg=True)
-        Button:
             id: left_background_point
             text: 'Left Bg Point'
             disabled: True
             on_press:
                 root.point(left=True, fg=False)
-        Button:
-            id: right_background_point
-            text: 'Right Bg Point'
-            disabled: True
-            on_press:
-                root.point(left=False, fg=False)
         Button:
             id: left_box
             text: 'Left Box'
@@ -187,16 +172,41 @@
             on_press:
                 root.box(left=True)
         Button:
+            id: reset_poi
+            text: 'Reset POI'
+            on_press:
+                root.reset_poi()
+        Button:
+            id: reset_left_mask
+            text: 'Reset Left Mask'
+            on_press:
+                root.reset_mask(left=True)
+
+<AnnotateRightPanel>
+    orientation: 'vertical'
+    spacing: 2
+    GridLayout:
+        cols: 1
+        Label:
+            id: unused_1
+        Button:
+            id: right_foreground_point
+            text: 'Right Fg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=True)
+        Button:
+            id: right_background_point
+            text: 'Right Bg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=False)
+        Button:
             id: right_box
             text: 'Right Box'
             disabled: True
             on_press:
                 root.box(left=False)
-        Button:
-            id: reset_poi
-            text: 'Reset POI'
-            on_press:
-                root.reset_poi()
         Button:
             id: sam_btn
             text: 'Load SAM'
@@ -204,12 +214,7 @@
                 self.disabled = True
                 root.load_sam()
         Button:
-            id: sam_btn
-            text: 'Reset Left Mask'
-            on_press:
-                root.reset_mask(left=True)
-        Button:
-            id: sam_btn
+            id: reset_right_mask
             text: 'Reset Right Mask'
             on_press:
                 root.reset_mask(left=False)
@@ -485,12 +490,16 @@
             manager: root.manager
         PaddedBoxLayout:
             size_hint_y: 1.0
-            AnnotatePanel
-                id: annotate_panel
+            AnnotateLeftPanel
+                id: annotate_left_panel
                 screen: root
                 record: root.current_record
             FullAnnotateImage:
                 id: annotate_img
+            AnnotateRightPanel
+                id: annotate_right_panel
+                screen: root
+                record: root.current_record
             ControlPanel
                 id: control_panel
                 screen: root

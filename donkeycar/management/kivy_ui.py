@@ -616,20 +616,10 @@ class ControlPanel(BoxLayout):
         elif scancode == 46:
             self.update_speed(up=True)
 
-class AnnotatePanel(BoxLayout):
+class AnnotateLeftPanel(BoxLayout):
     """ Class for control panel navigation. """
     screen = ObjectProperty()
     record_display = StringProperty()
-    labels_display = StringProperty()
-
-    def instanciate_sam(self, event):
-        annotate_screen().instanciate_sam()
-        self.ids.left_box.disabled = False
-        self.ids.right_box.disabled = False
-        self.ids.left_foreground_point.disabled = False
-        self.ids.left_background_point.disabled = False
-        self.ids.right_foreground_point.disabled = False
-        self.ids.right_background_point.disabled = False
 
     def box(self,left=False):
         annotate_screen().box(left)
@@ -641,6 +631,30 @@ class AnnotatePanel(BoxLayout):
 
     def reset_poi (self):
         annotate_screen().reset_poi()
+
+    def reset_mask(self, left=False):
+        annotate_screen().reset_mask(left)
+        
+    def on_keyboard(self, key, scancode):
+        """ Method to chack with keystroke has ben sent. """
+        pass
+
+class AnnotateRightPanel(BoxLayout):
+    """ Class for control panel navigation. """
+    screen = ObjectProperty()
+    record_display = StringProperty()
+    labels_display = StringProperty()
+
+    def instanciate_sam(self, event):
+        annotate_screen().instanciate_sam()
+
+    def box(self,left=False):
+        annotate_screen().box(left)
+        pass
+
+    def point (self, left=False, fg=True):
+        annotate_screen().point(left, fg)
+        pass
 
     def load_sam(self) :
         annotate_screen().status("Loading SAM, please wait...")
@@ -856,6 +870,7 @@ class AnnotateScreen(Screen):
     current_record = ObjectProperty(None)
     current_mask_record = ObjectProperty(None)
     keys_enabled = BooleanProperty(False)
+    sam_loaded = BooleanProperty(False)
     config = ObjectProperty()
     mask_tub = ObjectProperty(None)
     mask_records = None
@@ -932,6 +947,13 @@ class AnnotateScreen(Screen):
 
     def instanciate_sam(self):
         self.segment = Segmentation(self.config)
+        self.sam_loaded = True
+        self.ids.annotate_left_panel.ids.left_box.disabled = False
+        self.ids.annotate_right_panel.ids.right_box.disabled = False
+        self.ids.annotate_left_panel.ids.left_foreground_point.disabled = False
+        self.ids.annotate_left_panel.ids.left_background_point.disabled = False
+        self.ids.annotate_right_panel.ids.right_foreground_point.disabled = False
+        self.ids.annotate_right_panel.ids.right_background_point.disabled = False
         self.status("SAM Loaded")
 
     def load_action(self):
@@ -991,7 +1013,7 @@ class AnnotateScreen(Screen):
         if not record:
             return
         i = record.underlying['_index']
-        self.ids.annotate_panel.record_display = f"Record {i:06}"
+        self.ids.annotate_left_panel.record_display = f"Record {i:06}"
         self.update_image_with_mask(record, i)
     
     def skip_next_unmask(self, *largs):
