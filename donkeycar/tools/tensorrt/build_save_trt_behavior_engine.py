@@ -14,7 +14,7 @@ from docopt import docopt
 # TensorRT logger setup
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
-def build_engine(onnx_file_path, engine_file_path, isOrin):
+def build_engine(onnx_file_path, engine_file_path, is_orin):
     # Create a builder
     builder = trt.Builder(TRT_LOGGER)
 
@@ -39,7 +39,7 @@ def build_engine(onnx_file_path, engine_file_path, isOrin):
 
     # Build the engine
     builder.max_batch_size = 1
-    if not isOrin:
+    if not is_orin:
         builder.max_workspace_size = 1 << 30  # 1GB
     engine = builder.build_engine(network, config)
 
@@ -51,9 +51,9 @@ def main():
     arguments = docopt(__doc__)
     onnx_model_path = arguments['<onnx_model_path>']
     trt_engine_path = arguments['<trt_engine_path>']
-    isOrin = arguments['--orin']
+    is_orin = arguments['--orin']
 
-    build_engine(onnx_model_path, trt_engine_path, isOrin)
+    build_engine(onnx_model_path, trt_engine_path, is_orin)
 
 if __name__ == "__main__":
     main()
