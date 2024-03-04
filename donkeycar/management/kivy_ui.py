@@ -960,7 +960,6 @@ class AnnotateScreen(Screen):
         if tub_screen().ids.tub_loader.records:
             default_mask = self.get_empty_mask()
             self.mask_height, self.mask_width = default_mask.shape
-            print (f"{self.height} {self.width}")
             to_create = tub_screen().ids.tub_loader.len_with_deleted-self.mask_tub.manifest.current_index
             if (to_create>0):
                 print("Init/Complete default or imported mask tub, wait a minute ...") 
