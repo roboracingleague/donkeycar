@@ -214,6 +214,8 @@ def load_image(filename, cfg, format='PIL'):
         if img.mode == 'L':
             h, w = img_arr.shape[:2]
             img_arr = img_arr.reshape(h, w, 1)
+    if (format=='NPY'):
+        img_arr = np.load(filename)
     if (format=='NPZ'):
         saved = np.load(filename)
         shape = saved['arr_0']

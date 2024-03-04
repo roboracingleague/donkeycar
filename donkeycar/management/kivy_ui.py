@@ -13,6 +13,8 @@ import traceback
 
 import io
 import os
+import shutil
+import glob
 import atexit
 import yaml
 from PIL import Image as PilImage
@@ -258,6 +260,7 @@ class TubLoader(BoxLayout, FileChooserBase):
     file_path = StringProperty(rc_handler.data.get('last_tub', ''))
     tub = ObjectProperty(None)
     len = NumericProperty(1)
+    len_with_deleted = NumericProperty(1)
     records = None
 
     def load_action(self):
@@ -267,7 +270,7 @@ class TubLoader(BoxLayout, FileChooserBase):
             rc_handler.data['last_tub'] = self.file_path
             annotate_screen().load_action()
 
-    def update_tub(self, event=None):
+    def update_tub(self, event=None, syncAnnotate=True):
         if not self.file_path:
             return False
         # If config not yet loaded return
@@ -277,7 +280,13 @@ class TubLoader(BoxLayout, FileChooserBase):
         # At least check if there is a manifest file in the tub path
         if not os.path.exists(os.path.join(self.file_path, 'manifest.json')):
             tub_screen().status(f'Path {self.file_path} is not a valid tub.')
-            return False
+            if (os.path.isdir(f'{self.file_path}/raw_catalogs') and os.path.isfile(f'{self.file_path}/raw_catalogs/manifest.json')):
+                tub_screen().status(f"init Tub : found {self.file_path}/raw_catalogs, trying to import ...")
+                for afile in glob.glob(f'{self.file_path}/raw_catalogs/catalog_*.catalog'):
+                    shutil.copy(f'{self.file_path}/raw_catalogs/{os.path.basename(afile)}', f'{self.file_path}/{os.path.basename(afile)}')
+                shutil.copyfile(f'{self.file_path}/raw_catalogs/manifest.json', f'{self.file_path}/manifest.json')
+            else:
+                return False
         try:
             if self.tub:
                 self.tub.close()
@@ -305,6 +314,7 @@ class TubLoader(BoxLayout, FileChooserBase):
         self.records = [TubRecord(cfg, self.tub.base_path, record)
                         for record in self.tub if select(record)]
         self.len = len(self.records)
+        self.len_with_deleted = self.tub.manifest.current_index
         if self.len > 0:
             tub_screen().index = 0
             tub_screen().ids.data_plot.update_dataframe_from_tub()
@@ -312,6 +322,8 @@ class TubLoader(BoxLayout, FileChooserBase):
         else:
             msg = f'No records in tub {self.file_path}'
         tub_screen().status(msg)
+        if syncAnnotate:
+            annotate_screen().update_mask_tub()
         return True
 
 
@@ -686,6 +698,7 @@ class TubEditor(PaddedBoxLayout):
     def del_lr(self, is_del):
         """ Deletes or restores records in chosen range """
         tub = tub_screen().ids.tub_loader.tub
+        mask_tub = annotate_screen().mask_tub
         if self.lr[1] >= self.lr[0]:
             selected = list(range(*self.lr))
         else:
@@ -693,6 +706,13 @@ class TubEditor(PaddedBoxLayout):
             selected = list(range(self.lr[0], last_id))
             selected += list(range(self.lr[1]))
         tub.delete_records(selected) if is_del else tub.restore_records(selected)
+        mask_tub.delete_records(selected) if is_del else tub.restore_records(selected)
+
+    def restore_all(self):
+        tub = tub_screen().ids.tub_loader.tub
+        mask_tub = annotate_screen().mask_tub
+        tub.restore_records(list(range(0, tub_screen().ids.tub_loader.len - 1)))
+        mask_tub.restore_records(list(range(0, tub_screen().ids.tub_loader.len - 1)))
 
     def apply_label_lr(self):
         tub = tub_screen().ids.tub_loader.tub
@@ -844,11 +864,16 @@ class TubScreen(Screen):
                 labels.append(aLabel)
         return labels
 
-    def on_index(self, obj, index):
+    def on_index(self, obj, index, syncAnnotateScreen=True):
         """ Kivy method that is called if self.index changes"""
         if index >= 0:
             self.current_record = self.ids.tub_loader.records[index]
             self.ids.slider.value = index
+            if syncAnnotateScreen and annotate_screen().mask_records:
+                annotate_screen().on_index(None, index)
+
+
+
 
     def on_current_record(self, obj, record):
         """ Kivy method that is called if self.current_record changes."""
@@ -889,13 +914,13 @@ class AnnotateScreen(Screen):
         tub_screen().ids.tub_loader.update_tub()
         self.init_mask_tub()
         self.update_mask_tub()
-        self.index = tub_screen().index
         self.config = tub_screen().ids.config_manager.config
         if tub_screen().ids.tub_loader.records:
+            self.index = tub_screen().index
             self.current_record = tub_screen().ids.tub_loader.records[0]
             if self.mask_records:
                 self.current_mask_record=self.mask_records[0]
-            self.update_image_with_mask(self.current_record)
+            self.update_image_with_mask(self.current_record, index=self.index)
 
     def get_empty_mask(self):
         pil_image_ref = PilImage.fromarray(tub_screen().ids.tub_loader.records[0].image())
@@ -903,7 +928,6 @@ class AnnotateScreen(Screen):
         return default_mask
     
     def init_mask_tub(self):
-
         if not tub_screen().ids.tub_loader.file_path:
             return False
 
@@ -911,7 +935,7 @@ class AnnotateScreen(Screen):
             self.status(f'Path {tub_screen().ids.tub_loader.file_path} is not a valid tub.')
             return False
 
-        self.binary_mask_file_path = os.path.join(tub_screen().ids.tub_loader.file_path,'binary_mask')
+        self.binary_mask_file_path = os.path.join(tub_screen().ids.tub_loader.file_path,'binary_masks')
 
         if not os.path.exists(self.binary_mask_file_path):
             self.status(f'Path {self.binary_mask_file_path} : No directory for binary mask found, creating it.')
@@ -925,7 +949,7 @@ class AnnotateScreen(Screen):
                 self.mask_tub.close()
             inputs = ['left_mask', 'right_mask', 'left_poi', 'right_poi']
             types = ['left_mask', 'right_mask','dict', 'dict']
-            self.mask_tub = Tub(self.binary_mask_file_path, inputs=inputs, types=types)
+            self.mask_tub = Tub(self.binary_mask_file_path, inputs=inputs, types=types, lr=True)
         except Exception as e:
             self.status(f'Failed loading binary mask tub: {str(e)}')
             return False
@@ -933,14 +957,21 @@ class AnnotateScreen(Screen):
         self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
                         for record in self.mask_tub]
         self.mask_len = len(self.mask_records)
-
         if tub_screen().ids.tub_loader.records:
             default_mask = self.get_empty_mask()
-            to_create = len(tub_screen().ids.tub_loader.records)-self.mask_len
+            to_create = tub_screen().ids.tub_loader.len_with_deleted-self.mask_tub.manifest.current_index
             if (to_create>0):
-                print("Init/Complete default mask tub") 
+                print("Init/Complete default or imported mask tub, wait a minute ...") 
                 for idx in range(to_create):
-                    mask_record={'left_mask':default_mask, 'right_mask':default_mask, 'left_poi':[], 'right_poi':[]}
+                    left_mask = default_mask
+                    right_mask = default_mask
+                    if os.path.isfile(f'{self.mask_tub.base_path}/left/{idx}_cam_image_array_.npy'):
+                        existing_record = np.load(f'{self.mask_tub.base_path}/left/{idx}_cam_image_array_.npy')
+                        left_mask = existing_record
+                    if os.path.isfile(f'{self.mask_tub.base_path}/right/{idx}_cam_image_array_.npy'):
+                        existing_record = np.load(f'{self.mask_tub.base_path}/right/{idx}_cam_image_array_.npy')
+                        right_mask = existing_record
+                    mask_record={'left_mask':left_mask, 'right_mask':right_mask, 'left_poi':[], 'right_poi':[]}
                     self.mask_tub.write_record(mask_record)
         else:
             self.status(f'Unale to create default mask, no records in tub')
@@ -958,10 +989,13 @@ class AnnotateScreen(Screen):
 
     def load_action(self):
         """ Update tub from the file path"""
+        self.init_mask_tub()
         self.update_mask_tub()
 
     def update_mask_tub(self):
 
+        if self.mask_tub == None:
+            return
         self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
                         for record in self.mask_tub]
         self.mask_len = len(self.mask_records)
@@ -983,22 +1017,23 @@ class AnnotateScreen(Screen):
                 mask_record={'left_mask':mask_record.underlying['left_mask'], 'right_mask':default_mask, 'left_poi':mask_record.underlying['left_poi'], 'right_poi':[]}
             self.mask_tub.write_record(mask_record, index=self.index)
             self.status(f'Mask tub record index {self.index} reinitialized')
-            self.update_image_with_mask(self.current_record)
+            self.update_image_with_mask(self.current_record, index=self.index)
 
     def update_image_with_mask (self, record, index=None):
         if self.mask_records:
             if (index != None):
                 self.current_mask_record = self.mask_records[index]
-            mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPZ', reload=True)
-            mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPZ', reload=True)
-            self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
-        else:
-            self.ids.annotate_img.update(record)
+                mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+                mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+                self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
+                return
+        self.ids.annotate_img.update(record)
 
     def on_index(self, obj, index):
         """ Kivy method that is called if self.index changes. Here we update
             self.current_record and the slider value. """
         if tub_screen().ids.tub_loader.records:
+            tub_screen().on_index (None, index, syncAnnotateScreen=False)
             self.current_record = tub_screen().ids.tub_loader.records[index]
             self.ids.annotate_slider.value = index
             if self.mask_records:
@@ -1006,6 +1041,7 @@ class AnnotateScreen(Screen):
 #        if self.ids.mask_records:
 #            current_mask_record
         self.reset_poi()
+        self.update_image_with_mask(self.current_record, index=index)
 
     def on_current_record(self, obj, record):
         """ Kivy method that is called when self.current_index changes. Here
@@ -1014,7 +1050,6 @@ class AnnotateScreen(Screen):
             return
         i = record.underlying['_index']
         self.ids.annotate_left_panel.record_display = f"Record {i:06}"
-        self.update_image_with_mask(record, i)
     
     def skip_next_unmask(self, *largs):
         if self.index is None:
@@ -1108,7 +1143,8 @@ class AnnotateScreen(Screen):
     def on_keyboard(self, instance, keycode, scancode, key, modifiers):
         if self.keys_enabled:
             self.ids.control_panel.on_keyboard(key, scancode)
-            self.ids.annotate_panel.on_keyboard(key, scancode)
+            self.ids.annotate_left_panel.on_keyboard(key, scancode)
+            self.ids.annotate_right_panel.on_keyboard(key, scancode)
 
     def get_original_coordinates(self,x,y):
         ox=map_range(x,self.ids.annotate_img.x,self.ids.annotate_img.x+self.ids.annotate_img.size[0],0,self.ids.annotate_img.norm_image_size[0], True)
@@ -1182,6 +1218,7 @@ class AnnotateScreen(Screen):
         print (f"NP Array input_labels : {input_labels}")
         print (f"NP Array input_box : {input_box}")
         if self.segment and input_box.size >0:
+            self.status(f'Processing image with SAM ....')
             self.segment.set_image(self.current_record.image())
             masks, scores, logits = self.segment.predict(
                 input_points=input_points if input_points.size>0 else None,
@@ -1202,7 +1239,7 @@ class AnnotateScreen(Screen):
                 mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
             self.mask_tub.write_record(mask_record, index=idx)
             self.status(f'Mask tub record index {idx} written')
-            self.update_image_with_mask(self.current_record)
+            self.update_image_with_mask(self.current_record, index=idx)
             self.reset_poi()
         else:
             self.status(f'SAM not loaded')

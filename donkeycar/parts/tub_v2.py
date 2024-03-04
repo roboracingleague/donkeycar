@@ -19,11 +19,13 @@ class Tub(object):
     """
 
     def __init__(self, base_path, inputs=[], types=[], metadata=[],
-                 max_catalog_len=1000, read_only=False):
+                 max_catalog_len=1000, read_only=False, lr=False):
         self.base_path = base_path
         self.images_base_path = os.path.join(self.base_path, Tub.images())
         self.depths_base_path = self.images_base_path.replace("images","depths")
         self.undistorted_images_base_path = self.images_base_path.replace("images","undistorted_images")
+        self.left_base_path = self.images_base_path.replace("images","left")
+        self.right_base_path = self.images_base_path.replace("images","right")
         self.inputs = inputs
         self.types = types
         self.metadata = metadata
@@ -38,6 +40,11 @@ class Tub(object):
             os.makedirs(self.depths_base_path, exist_ok=True)
         if not os.path.exists(self.undistorted_images_base_path):
             os.makedirs(self.undistorted_images_base_path, exist_ok=True)
+        if lr:
+            if not os.path.exists(self.left_base_path):
+                os.makedirs(self.left_base_path, exist_ok=True)
+            if not os.path.exists(self.right_base_path):
+                os.makedirs(self.right_base_path, exist_ok=True)
         
         # set up the publisher
         # self.context = zmq.Context()
@@ -126,30 +133,24 @@ class Tub(object):
                     contents[key] = name
                 elif input_type == 'left_mask':
                     if type(value) != type(""):
-                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key, extension='.mask').replace("image","left")
-                        image_path = os.path.join(self.images_base_path, name)
-                        shape = np.array(list(value.shape), dtype=np.uint32)
-                        packed = np.packbits(value)
-                        np.savez_compressed(image_path, shape, packed)
-                        #image = Image.fromarray(value)
-                        #image.save(image_path)
-                        #image.close()
-                        #del image
-                        contents[key] = f"{name}.npz"
+                        name = Tub._image_file_name(index=index if index!=None else self.manifest.current_index, key='cam_image_array', extension='')
+                        image_path = os.path.join(self.left_base_path, name)
+                        #shape = np.array(list(value.shape), dtype=np.uint32)
+                        #packed = np.packbits(value)
+                        #np.savez_compressed(image_path, shape, packed)
+                        np.save(image_path, value)
+                        contents[key] = f"{name}.npy"
                     else:
                         contents[key] = value
                 elif input_type == 'right_mask':
                     if type(value) != type(""):
-                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key, extension='.mask').replace("image","right")
-                        image_path = os.path.join(self.images_base_path, name)
-                        shape = np.array(list(value.shape), dtype=np.uint32)
-                        packed = np.packbits(value)
-                        np.savez_compressed(image_path, shape, packed)
-                        #image = Image.fromarray(value)
-                        #image.save(image_path)
-                        #image.close()
-                        #del image
-                        contents[key] = f"{name}.npz"
+                        name = Tub._image_file_name(index=index if index!=None else self.manifest.current_index, key='cam_image_array', extension='')
+                        image_path = os.path.join(self.right_base_path, name)
+                        #shape = np.array(list(value.shape), dtype=np.uint32)
+                        #packed = np.packbits(value)
+                        #np.savez_compressed(image_path, shape, packed)
+                        np.save(image_path, value)
+                        contents[key] = f"{name}.npy"
                     else:
                         contents[key] = value
 

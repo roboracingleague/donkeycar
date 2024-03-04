@@ -282,6 +282,7 @@ class Manifest(object):
 
     def write_record(self, record, index=None):
         new_catalog = False
+
         if index and index>self.current_index:
             print (f"Invalid index {index} {self.current_index}")
             index=None
@@ -300,7 +301,7 @@ class Manifest(object):
             catalog_to_update = Catalog(catalog_path,
                                 read_only=self.read_only,
                                 start_index=0)
-            catalog_to_update.write_record(record, index)
+            catalog_to_update.write_record(record,index%self.max_len)
         else:
             self.current_catalog.write_record(record, index)
             self.current_index += 1
@@ -488,7 +489,7 @@ class ManifestIterator(object):
                 # underlying iterator.
                 current_index = self.current_index
                 self.current_index += 1
-                if current_index in self.manifest.deleted_indexes:
+                if current_index in self.manifest.deleted_indexes :
                     # Skip over index, because it has been marked deleted
                     continue
                 else:
