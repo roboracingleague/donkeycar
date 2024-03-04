@@ -959,6 +959,8 @@ class AnnotateScreen(Screen):
         self.mask_len = len(self.mask_records)
         if tub_screen().ids.tub_loader.records:
             default_mask = self.get_empty_mask()
+            self.mask_height, self.mask_width = default_mask.shape
+            print (f"{self.height} {self.width}")
             to_create = tub_screen().ids.tub_loader.len_with_deleted-self.mask_tub.manifest.current_index
             if (to_create>0):
                 print("Init/Complete default or imported mask tub, wait a minute ...") 
@@ -1191,28 +1193,28 @@ class AnnotateScreen(Screen):
         input_box = np.array([])
         if left :
             for pts in self.poi_left_foreground_points:
-                input_points=np.append(input_points, np.array([[pts['x'],pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'],self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[1]]))
             for pts in self.poi_left_background_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[0]]))
             if len(self.poi_left_box)>0:
                 input_box=np.array([min(self.poi_left_box['x0'],self.poi_left_box['x1']), 
-                                    min(self.poi_left_box['y0'],self.poi_left_box['y1']),
+                                    min(self.mask_height-self.poi_left_box['y0'],self.mask_height-self.poi_left_box['y1']),
                                     max(self.poi_left_box['x0'],self.poi_left_box['x1']),
-                                    max(self.poi_left_box['y0'],self.poi_left_box['y1'])])
+                                    max(self.mask_height-self.poi_left_box['y0'],self.mask_height-self.poi_left_box['y1'])])
         else :
             for pts in self.poi_right_foreground_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[1]]))
             for pts in self.poi_right_background_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[0]]))
             if len(self.poi_right_box)>0:
                 input_box=np.array([min(self.poi_right_box['x0'],  self.poi_right_box['x1']),
-                                    min(self.poi_right_box['y0'], self.poi_right_box['y1']),
+                                    min(self.mask_height-self.poi_right_box['y0'], self.mask_height-self.poi_right_box['y1']),
                                     max(self.poi_right_box['x0'],  self.poi_right_box['x1']),
-                                    max(self.poi_right_box['y0'], self.poi_right_box['y1'])])
+                                    max(self.mask_height-self.poi_right_box['y0'], self.mask_height-self.poi_right_box['y1'])])
 
         print (f"NP Array input_points : {input_points}")
         print (f"NP Array input_labels : {input_labels}")
