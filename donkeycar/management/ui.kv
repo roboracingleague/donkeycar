@@ -225,10 +225,11 @@
                 root.reset_mask(left=False)
 
         Button:
-            id: free
-            text: 'Not Affected'
+            id: auto_mask
+            text: 'Auto mask'
+            disabled: True
             on_press:
-                #root.feature()
+                root.set_auto_mask()
 
 <ControlPanel>
     orientation: 'vertical'

@@ -13,6 +13,7 @@ import traceback
 
 import io
 import os
+import sys
 import shutil
 import glob
 import atexit
@@ -677,7 +678,10 @@ class AnnotateRightPanel(BoxLayout):
 
     def reset_mask(self, left=False):
         annotate_screen().reset_mask(left)
-        
+
+    def set_auto_mask(self):
+        annotate_screen().set_auto_mask()
+
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
         pass
@@ -914,6 +918,16 @@ class AnnotateScreen(Screen):
         self.segment = None
         self.touch_down_pos = [0, 0]
         self.show_rules = False
+        self.bbox_mask_left = None
+        self.bbox_mask_right = None
+        self.auto_mask = False
+        self.auto_mask_offset = 5
+        self.poi_left_foreground_points=[]                
+        self.poi_left_background_points=[]                
+        self.poi_right_foreground_points=[]                
+        self.poi_right_background_points=[]                
+        self.poi_left_box=[]
+        self.poi_right_box=[]
         tub_screen().ids.config_manager.load_action()
         tub_screen().ids.tub_loader.update_tub()
         self.init_mask_tub()
@@ -986,6 +1000,7 @@ class AnnotateScreen(Screen):
         self.sam_loaded = True
         self.ids.annotate_left_panel.ids.left_box.disabled = False
         self.ids.annotate_right_panel.ids.right_box.disabled = False
+        self.ids.annotate_right_panel.ids.auto_mask.disabled = False
         self.ids.annotate_left_panel.ids.left_foreground_point.disabled = False
         self.ids.annotate_left_panel.ids.left_background_point.disabled = False
         self.ids.annotate_right_panel.ids.right_foreground_point.disabled = False
@@ -1024,12 +1039,46 @@ class AnnotateScreen(Screen):
             self.status(f'Mask tub record index {self.index} reinitialized')
             self.update_image_with_mask(self.current_record, index=self.index)
 
+    def set_auto_mask(self):
+        if (self.auto_mask):
+            self.auto_mask=False
+        else:
+            self.auto_mask=True
+        self.status(f'Auto Mask set to {self.auto_mask}')
+
     def update_image_with_mask (self, record, index=None):
         if self.mask_records:
-            if (index != None):
+            if (index != None): 
+                input_box = np.array([])
                 self.current_mask_record = self.mask_records[index]
                 mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
                 mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+                #np.set_printoptions(threshold=sys.maxsize)
+                if not np.any(mask_left): #if no mask
+                    if self.bbox_mask_left and self.auto_mask: #and previous one and auto_mask
+                        input_box=np.array([max(min(self.bbox_mask_left[0],self.bbox_mask_left[1])-self.auto_mask_offset,0), 
+                                    max(min(self.bbox_mask_left[2],self.bbox_mask_left[3])-self.auto_mask_offset,0),
+                                    min(max(self.bbox_mask_left[0],self.bbox_mask_left[1])+self.auto_mask_offset, self.mask_width),
+                                    min(max(self.bbox_mask_left[2],self.bbox_mask_left[3])+self.auto_mask_offset, self.mask_height)])
+                        mask_left, scores, logits = self.segment_image(input_points=None, input_labels=None, input_box=input_box)
+                        self.store_mask (index=index, masks=mask_left, left=True)
+                        mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+                if np.any(mask_left): #if mask
+                    left = np.where(mask_left == 1)
+                    self.bbox_mask_left = np.min(left[1]), np.max(left[1]), np.min(left[0]), np.max(left[0])
+                if not np.any(mask_right): #if no mask
+                    if self.bbox_mask_right and self.auto_mask: #and previous one and auto_mask
+                        print ("Previous right mask found")
+                        input_box=np.array([max(min(self.bbox_mask_right[0],self.bbox_mask_right[1])-self.auto_mask_offset,0), 
+                                    max(min(self.bbox_mask_right[2],self.bbox_mask_right[3])-self.auto_mask_offset,0),
+                                    min(max(self.bbox_mask_right[0],self.bbox_mask_right[1])+self.auto_mask_offset, self.mask_width),
+                                    min(max(self.bbox_mask_right[2],self.bbox_mask_right[3])+self.auto_mask_offset, self.mask_height)])
+                        mask_right, scores, logits = self.segment_image(input_points=None, input_labels=None, input_box=input_box)
+                        self.store_mask (index=index, masks=mask_right, left=False)
+                        mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+                if np.any(mask_right): #if mask
+                    right = np.where(mask_right == 1)
+                    self.bbox_mask_right = np.min(right[1]), np.max(right[1]), np.min(right[0]), np.max(right[0])
                 self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
                 return
         self.ids.annotate_img.update(record)
@@ -1210,7 +1259,35 @@ class AnnotateScreen(Screen):
                 else:
                     self.poi_right_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
                
-    def segment_image(self):
+    def store_mask(self, index, masks, left=True):
+            mask_record={}
+            mask_record['left_poi']=self.current_mask_record.underlying['left_poi']
+            mask_record['right_poi']=self.current_mask_record.underlying['right_poi']
+            mask_record['left_mask']=self.current_mask_record.underlying['left_mask']
+            mask_record['right_mask']=self.current_mask_record.underlying['right_mask']
+            if left: #'left_mask', 'right_mask', 'left_poi', 'right_poi'
+                mask_record['left_mask'] = masks[0]
+                if (self.poi_left_foreground_points and self.poi_left_background_points and self.poi_left_box):
+                    mask_record['left_poi']={'fg_pts':self.poi_left_foreground_points, 'bg_pts':self.poi_left_background_points, 'box':self.poi_left_box}
+            else:        
+                mask_record['right_mask'] = masks[0]
+                if (self.poi_right_foreground_points and self.poi_right_background_points and self.poi_right_box):
+                    mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
+            self.mask_tub.write_record(mask_record, index=index)
+            self.status(f'Mask tub record index {index} written')
+        
+    def segment_image(self, input_points=None, input_labels=None, input_box=None):
+            if self.segment:
+                self.status(f'Processing image with SAM ....')
+                self.segment.set_image(self.current_record.image())
+                return self.segment.predict(
+                    input_points=input_points if input_points and input_points.size>0 else None,
+                    input_labels=input_labels if input_labels and input_labels.size>0 else None,
+                    input_box=input_box)
+            else:
+                return None, None, None
+
+    def segment_image_from_ui(self):
         self.update_poi_record()
         left = True if 'left' in self.drawing else False
         input_points = np.empty((0,2), int)
@@ -1245,27 +1322,10 @@ class AnnotateScreen(Screen):
         print (f"NP Array input_labels : {input_labels}")
         print (f"NP Array input_box : {input_box}")
         if self.segment and input_box.size >0:
-            self.status(f'Processing image with SAM ....')
-            self.segment.set_image(self.current_record.image())
-            masks, scores, logits = self.segment.predict(
-                input_points=input_points if input_points.size>0 else None,
-                input_labels=input_labels if input_labels.size>0 else None,
-                input_box=input_box)
+            masks, scores, logits = self.segment_image (input_points, input_labels, input_box)
             idx = self.current_record.underlying['_index']
 
-            mask_record={}
-            mask_record['left_poi']=self.current_mask_record.underlying['left_poi']
-            mask_record['right_poi']=self.current_mask_record.underlying['right_poi']
-            mask_record['left_mask']=self.current_mask_record.underlying['left_mask']
-            mask_record['right_mask']=self.current_mask_record.underlying['right_mask']
-            if left: #'left_mask', 'right_mask', 'left_poi', 'right_poi'
-                mask_record['left_mask'] = masks[0]
-                mask_record['left_poi']={'fg_pts':self.poi_left_foreground_points, 'bg_pts':self.poi_left_background_points, 'box':self.poi_left_box}
-            else:        
-                mask_record['right_mask'] = masks[0]
-                mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
-            self.mask_tub.write_record(mask_record, index=idx)
-            self.status(f'Mask tub record index {idx} written')
+            self.store_mask (index=idx, masks=masks, left=left)
             self.update_image_with_mask(self.current_record, index=idx)
             self.reset_poi()
         else:
@@ -1317,7 +1377,7 @@ class AnnotateScreen(Screen):
         if touch.grab_current is self:
             # I receive my grabbed touch, I must ungrab it!
             touch.ungrab(self)
-            self.segment_image()
+            self.segment_image_from_ui()
             # if 'box' in self.drawing:
             #     self.clear_box_markers()
             #     self.drawing = ''
