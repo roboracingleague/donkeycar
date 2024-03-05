@@ -181,6 +181,11 @@
             text: 'Reset Left Mask'
             on_press:
                 root.reset_mask(left=True)
+        Button:
+            id: show_hide_rules
+            text: 'Show/Hide rules'
+            on_press:
+                root.show_hide_rules()
 
 <AnnotateRightPanel>
     orientation: 'vertical'
@@ -218,6 +223,12 @@
             text: 'Reset Right Mask'
             on_press:
                 root.reset_mask(left=False)
+
+        Button:
+            id: free
+            text: 'Not Affected'
+            on_press:
+                #root.feature()
 
 <ControlPanel>
     orientation: 'vertical'

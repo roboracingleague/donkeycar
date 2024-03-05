@@ -647,6 +647,9 @@ class AnnotateLeftPanel(BoxLayout):
     def reset_mask(self, left=False):
         annotate_screen().reset_mask(left)
         
+    def show_hide_rules(self):
+        annotate_screen().show_hide_rules()
+
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
         pass
@@ -910,6 +913,7 @@ class AnnotateScreen(Screen):
         self.poi={}
         self.segment = None
         self.touch_down_pos = [0, 0]
+        self.show_rules = False
         tub_screen().ids.config_manager.load_action()
         tub_screen().ids.tub_loader.update_tub()
         self.init_mask_tub()
@@ -1141,6 +1145,23 @@ class AnnotateScreen(Screen):
         self.clear_markers()
         self.raz_poi_record()
 
+    def show_hide_rules(self):
+        #Toggle
+        if self.show_rules:
+            self.show_rules = False
+        else:
+            self.show_rules = True
+
+        if self.show_rules:
+            with self.canvas:
+                Color(0.7,0.7,0.5,0.5,mode='rgba')
+                for h in[60,65,70,75,80,85,90]:
+                    x0, y0 = self.map_original_coordinates (0, self.mask_height-h)
+                    x1, y1 = self.map_original_coordinates (self.mask_width, self.mask_height-h)
+                    Line(points=[x0,y0,x1,y1], width=2, group=u'rules')
+        else:
+            self.canvas.remove_group(u"rules")
+
     def on_keyboard(self, instance, keycode, scancode, key, modifiers):
         if self.keys_enabled:
             self.ids.control_panel.on_keyboard(key, scancode)
@@ -1150,6 +1171,11 @@ class AnnotateScreen(Screen):
     def get_original_coordinates(self,x,y):
         ox=map_range(x,self.ids.annotate_img.x,self.ids.annotate_img.x+self.ids.annotate_img.size[0],0,self.ids.annotate_img.norm_image_size[0], True)
         oy=map_range(y,self.ids.annotate_img.y,self.ids.annotate_img.y+self.ids.annotate_img.size[1],0,self.ids.annotate_img.norm_image_size[1], True)
+        return ox, oy
+
+    def map_original_coordinates(self,x,y):
+        ox=map_range(x,0,self.ids.annotate_img.norm_image_size[0], self.ids.annotate_img.x,self.ids.annotate_img.x+self.ids.annotate_img.size[0], True)
+        oy=map_range(y,0,self.ids.annotate_img.norm_image_size[1], self.ids.annotate_img.y,self.ids.annotate_img.y+self.ids.annotate_img.size[1], True)
         return ox, oy
 
     def update_poi_record(self):
@@ -1295,6 +1321,10 @@ class AnnotateScreen(Screen):
             # if 'box' in self.drawing:
             #     self.clear_box_markers()
             #     self.drawing = ''
+            return True
+        else:
+            return super(Screen, self).on_touch_up(touch)
+
     
     def on_touch_move(self, touch):
         if touch.grab_current is self:
@@ -1303,6 +1333,10 @@ class AnnotateScreen(Screen):
                     ud = touch.ud
                     if "box" in self.drawing:
                         self.poi['box'].size = (touch.x - self.touch_down_pos[0], touch.y - self.touch_down_pos[1])
+            return True
+        else:
+            return super(Screen, self).on_touch_move(touch)
+
     
 class PilotLoader(BoxLayout, FileChooserBase):
     """ Class to mange loading of the config file from the car directory"""
