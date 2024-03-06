@@ -192,8 +192,11 @@
     spacing: 2
     GridLayout:
         cols: 1
-        Label:
-            id: unused_1
+        Button:
+            id: clean_mask
+            text: 'Clean all mask'
+            on_press:
+                root.clean_mask()
         Button:
             id: right_foreground_point
             text: 'Right Fg Point'

@@ -272,7 +272,6 @@ class Manifest(object):
         else:
             last_known_catalog = os.path.join(self.base_path,
                                               self.catalog_paths[-1])
-            print(f'Using catalog {last_known_catalog}')
             self.current_catalog = Catalog(last_known_catalog,
                                            read_only=self.read_only,
                                            start_index=self.current_index)
@@ -296,7 +295,6 @@ class Manifest(object):
             #get the catalog
             catalog_index = index // self.max_len
             catalog_path = os.path.join(self.base_path, self.catalog_paths[catalog_index])
-            print(f"Update catalog {catalog_index} - {catalog_path}")
 
             catalog_to_update = Catalog(catalog_path,
                                 read_only=self.read_only,
