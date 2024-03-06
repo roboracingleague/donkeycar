@@ -135,29 +135,37 @@ def has_multiple_areas(mask):
 def extract_widest_area(mask):
     # Label connected components in the binary mask
     labeled_mask, num_features = label(mask)
+    counts = np.bincount(labeled_mask.flatten())
+    most_frequent_value = np.argmax(counts[1:])
+    widest_mask = (labeled_mask == (most_frequent_value+1)).astype(int)
+    return widest_mask
 
-    # Find bounding boxes for each connected component
-    bounding_boxes = find_objects(labeled_mask)
+# def extract_widest_area(mask):
+#     # Label connected components in the binary mask
+#     labeled_mask, num_features = label(mask)
 
-    # Find the bounding box of the widest area
-    max_width = 0
-    widest_area_bbox = None
+#     # Find bounding boxes for each connected component
+#     bounding_boxes = find_objects(labeled_mask)
 
-    for bbox in bounding_boxes:
-        width = bbox[1].stop - bbox[1].start
-        if width > max_width:
-            max_width = width
-            widest_area_bbox = bbox
+#     # Find the bounding box of the widest area
+#     max_width = 0
+#     widest_area_bbox = None
 
-    if widest_area_bbox is not None:
-        # Extract the widest area from the original mask
-        widest_area = mask[widest_area_bbox[0], widest_area_bbox[1]]
-        padded_widest_area = np.zeros_like(mask)
-        padded_widest_area[widest_area_bbox[0], widest_area_bbox[1]] = widest_area
+#     for bbox in bounding_boxes:
+#         width = bbox[1].stop - bbox[1].start
+#         if width > max_width:
+#             max_width = width
+#             widest_area_bbox = bbox
 
-        return padded_widest_area.astype(int)  # Convert to binary mask (0 and 1)
-    else:
-        return None
+#     if widest_area_bbox is not None:
+#         # Extract the widest area from the original mask
+#         widest_area = mask[widest_area_bbox[0], widest_area_bbox[1]]
+#         padded_widest_area = np.zeros_like(mask)
+#         padded_widest_area[widest_area_bbox[0], widest_area_bbox[1]] = widest_area
+
+#         return padded_widest_area.astype(int)  # Convert to binary mask (0 and 1)
+#     else:
+#         return None
     
 def tub_screen():
     return App.get_running_app().tub_screen if App.get_running_app() else None
