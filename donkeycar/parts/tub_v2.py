@@ -44,18 +44,20 @@ class Tub(object):
         # self.socket = self.context.socket(zmq.PUB)
         # self.socket.bind("tcp://*:5555")
 
-    def write_record(self, record=None):
+    def write_record(self, record=None, index=None):
         """
         Can handle various data types including images.
         """
         contents = dict()
         for key, value in record.items():
-            if value is None:
+            if value is None and not callable(key):
                 continue
             elif key not in self.input_types:
                 continue
             else:
                 input_type = self.input_types[key]
+                if input_type == 'callback':
+                    key('contents', contents)
                 if input_type == 'float':
                     # Handle np.float() types gracefully
                     contents[key] = float(value)
@@ -69,10 +71,12 @@ class Tub(object):
                     contents[key] = value.tolist()
                 elif input_type == 'list' or input_type == 'vector':
                     contents[key] = list(value)
+                elif input_type == 'dict' or input_type == 'vector':
+                    contents[key] = dict(value)
                 elif input_type == 'image_array':
                     # Handle image array
                     # original version
-                    name = Tub._image_file_name(self.manifest.current_index, key)
+                    name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key)
                     image_path = os.path.join(self.images_base_path, name)
                     image = Image.fromarray(np.uint8(value))
                     image.save(image_path)
@@ -108,26 +112,53 @@ class Tub(object):
 
                 elif input_type == 'gray16_array':
                     # Handle image array
-                    name = Tub._image_file_name(self.manifest.current_index, key).replace("image","depth")
+                    name = Tub._image_file_name(index if index else self.manifest.current_index, key).replace("image","depth")
                     image_path = os.path.join(self.depths_base_path, name)
                     np.savez_compressed(image_path, img=np.uint16(value))
                     contents[key] = name
                 elif input_type == 'undistorted_image':
-                    name = Tub._image_file_name(self.manifest.current_index, key).replace("image","undistort")
+                    name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key).replace("image","undistort")
                     image_path = os.path.join(self.undistorted_images_base_path, name)
                     image = Image.fromarray(np.uint8(value))
                     image.save(image_path)
                     image.close()
                     del image
                     contents[key] = name
+                elif input_type == 'left_mask':
+                    if type(value) != type(""):
+                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key, extension='.mask').replace("image","left")
+                        image_path = os.path.join(self.images_base_path, name)
+                        shape = np.array(list(value.shape), dtype=np.uint32)
+                        packed = np.packbits(value)
+                        np.savez_compressed(image_path, shape, packed)
+                        #image = Image.fromarray(value)
+                        #image.save(image_path)
+                        #image.close()
+                        #del image
+                        contents[key] = f"{name}.npz"
+                    else:
+                        contents[key] = value
+                elif input_type == 'right_mask':
+                    if type(value) != type(""):
+                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key, extension='.mask').replace("image","right")
+                        image_path = os.path.join(self.images_base_path, name)
+                        shape = np.array(list(value.shape), dtype=np.uint32)
+                        packed = np.packbits(value)
+                        np.savez_compressed(image_path, shape, packed)
+                        #image = Image.fromarray(value)
+                        #image.save(image_path)
+                        #image.close()
+                        #del image
+                        contents[key] = f"{name}.npz"
+                    else:
+                        contents[key] = value
 
 
         # Private properties
         contents['_timestamp_ms'] = int(round(time.time() * 1000))
-        contents['_index'] = self.manifest.current_index
+        contents['_index'] = index if index!= None else self.manifest.current_index
         contents['_session_id'] = self.manifest.session_id
-
-        self.manifest.write_record(contents)
+        self.manifest.write_record(contents, index)
 
     def delete_records(self, record_indexes):
         self.manifest.delete_records(record_indexes)

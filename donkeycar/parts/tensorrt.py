@@ -1,6 +1,7 @@
 from collections import namedtuple
 from donkeycar.parts.keras import KerasPilot
 from donkeycar.utils import throttle as calculate_throttle
+from donkeycar.parts.extensible_record import RobocarsExtensibleRecord
 import json
 import numpy as np
 import pycuda.driver as cuda
@@ -13,6 +14,8 @@ import donkeycar as dk
 
 HostDeviceMemory = namedtuple('HostDeviceMemory', 'host_memory device_memory')
 #ctx = pycuda.autoinit.context
+
+ExtRecorder = RobocarsExtensibleRecord()
 
 
 
@@ -319,6 +322,9 @@ class TensorRTBehavior(KerasPilot):
     '''
     Uses TensorRT to do the inference.
     '''
+    record_behavior_throttle_out = ExtRecorder.register_data('rtbehavior_throttle_out', 'float')
+    record_behavior_angle_out = ExtRecorder.register_data('rtbehavior_angle_out', 'float')
+
     def __init__(self, cfg):
         super().__init__()
         self.logger = trt.Logger(trt.Logger.ERROR)
@@ -437,7 +443,8 @@ class TensorRTBehavior(KerasPilot):
                     out_throttle = min_throttle
             else:
                 out_throttle = throttle
-
+            ExtRecorder.record_data(TensorRTBehavior.record_behavior_throttle_out,out_throttle)
+            ExtRecorder.record_data(TensorRTBehavior.record_behavior_angle_out,angle)
             return angle, out_throttle
         else:
             [angle_binned] = interpreter_out
@@ -496,6 +503,9 @@ class TensorRTDetector(KerasPilot):
     '''
     Uses TensorRT to do the inference.
     '''
+
+    rtdetector_loc = ExtRecorder.register_data('rtdetector_loc', 'int')
+
     def __init__(self, cfg):
         super().__init__()
         self.logger = trt.Logger(trt.Logger.ERROR)
@@ -507,7 +517,7 @@ class TensorRTDetector(KerasPilot):
         self.bindings = None
         self.stream = None
         self.context = None
-        self.throttle_range = 0.5
+        self.throttle_range = 0.5        
         print(f'inside TensorRTDetector')
 
     def compile(self):
@@ -548,6 +558,7 @@ class TensorRTDetector(KerasPilot):
 
         [track_loc] = interpreter_out
         loc = np.argmax(track_loc)
+        ExtRecorder.record_data(TensorRTDetector.rtdetector_loc, self.cfg.BEHAVIOR_LIST[loc])
         return loc
 
     @classmethod

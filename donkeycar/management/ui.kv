@@ -145,6 +145,80 @@
             on_text: root.add_remove()
             on_values: root.clear()
 
+<AnnotateLeftPanel>
+    orientation: 'vertical'
+    spacing: 2
+    GridLayout:
+        cols: 1
+        Label:
+            id: record_num
+            text: root.record_display
+        Button:
+            id: left_foreground_point
+            text: 'Left Fg Point'
+            disabled: True
+            on_press:
+                root.point(left=True, fg=True)
+        Button:
+            id: left_background_point
+            text: 'Left Bg Point'
+            disabled: True
+            on_press:
+                root.point(left=True, fg=False)
+        Button:
+            id: left_box
+            text: 'Left Box'
+            disabled: True
+            on_press:
+                root.box(left=True)
+        Button:
+            id: reset_poi
+            text: 'Reset POI'
+            on_press:
+                root.reset_poi()
+        Button:
+            id: reset_left_mask
+            text: 'Reset Left Mask'
+            on_press:
+                root.reset_mask(left=True)
+
+<AnnotateRightPanel>
+    orientation: 'vertical'
+    spacing: 2
+    GridLayout:
+        cols: 1
+        Label:
+            id: unused_1
+        Button:
+            id: right_foreground_point
+            text: 'Right Fg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=True)
+        Button:
+            id: right_background_point
+            text: 'Right Bg Point'
+            disabled: True
+            on_press:
+                root.point(left=False, fg=False)
+        Button:
+            id: right_box
+            text: 'Right Box'
+            disabled: True
+            on_press:
+                root.box(left=False)
+        Button:
+            id: sam_btn
+            text: 'Load SAM'
+            on_press:
+                self.disabled = True
+                root.load_sam()
+        Button:
+            id: reset_right_mask
+            text: 'Reset Right Mask'
+            on_press:
+                root.reset_mask(left=False)
+
 <ControlPanel>
     orientation: 'vertical'
     GridLayout:
@@ -194,7 +268,7 @@
             id: next_throttle_falling_edge
             text: 'T  ¯¯\\__'
             on_press:
-                root.start(fwd=True, continuous=False, nextThrottleFallingEdge=True)
+                root.start(fwd=True, continuous=False, skip=True)
             on_release:
                 root.stop()
     Button:
@@ -267,6 +341,17 @@
         multiline: False
         on_focus: app.tub_screen.keys_enabled = not app.tub_screen.keys_enabled
 
+<-FullAnnotateImage>:
+    size_hint_x: 4
+    size_hint_y: 1
+    canvas:
+        Color:
+            rgb: (1, 1, 1)
+        Rectangle:
+            texture: self.texture
+            size: self.width, self.height
+            pos: self.x, self.y
+
 <-FullImage>:
     size_hint_x: 1.2
     size_hint_y: 1.2
@@ -311,6 +396,14 @@
         on_press:
             root.manager.current_screen.keys_enabled = False
             root.manager.current = 'tub'
+            root.manager.current_screen.keys_enabled = True
+            root.manager.current_screen.ids.tab_bar.disable_only(root.manager.current_screen.name)
+    Button:
+        id: annotate_btn
+        text: 'Annotation Manager'
+        on_press:
+            root.manager.current_screen.keys_enabled = False
+            root.manager.current = 'annotate'
             root.manager.current_screen.keys_enabled = True
             root.manager.current_screen.ids.tab_bar.disable_only(root.manager.current_screen.name)
     Button:
@@ -363,6 +456,7 @@
             ControlPanel
                 id: control_panel
                 screen: root
+                nextThrottleFallingEdge: True
         Slider:
             id: slider
             min: 0
@@ -382,6 +476,44 @@
         StatusLabel:
             id: status
 
+<AnnotateScreen>:
+    config: app.tub_screen.ids.config_manager.config
+    canvas:
+        Color:
+            rgb: 0, 0, 0
+        Rectangle:
+            size: self.size
+    BoxLayout:
+        orientation: 'vertical'
+        TabBar:
+            id: tab_bar
+            manager: root.manager
+        PaddedBoxLayout:
+            size_hint_y: 1.0
+            AnnotateLeftPanel
+                id: annotate_left_panel
+                screen: root
+                record: root.current_record
+            FullAnnotateImage:
+                id: annotate_img
+            AnnotateRightPanel
+                id: annotate_right_panel
+                screen: root
+                record: root.current_record
+            ControlPanel
+                id: control_panel
+                screen: root
+                nextEmptyMask: True
+        Slider:
+            id: annotate_slider
+            min: 0
+            max: app.tub_screen.ids.tub_loader.len - 1
+            value: 0
+            size_hint_y: None
+            height: common_height
+            on_value: root.index = int(self.value)
+        StatusLabel:
+            id: annotate_status
 
 <PilotLoader>:
     title: 'Choose the pilot'

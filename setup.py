@@ -14,10 +14,11 @@ def package_files(directory, strip_leading):
 
 
 car_templates = ['templates/*']
+kivy_ui = ['management/*']
 web_controller_html = package_files('donkeycar/parts/controllers/templates',
                                     'donkeycar/')
 
-extra_files = car_templates + web_controller_html
+extra_files = car_templates + web_controller_html + kivy_ui
 print('extra_files', extra_files)
 
 with open("README.md", "r") as fh:
@@ -77,12 +78,31 @@ setup(name='donkeycar',
           'pc': [
               'matplotlib',
               'kivy',
-            #   'protobuf==3.20.3',
-              'protobuf==3.19.6',
+              'protobuf==3.20.3',
+              #'protobuf==3.19.6',
               'pandas',
               'pyyaml',
               'plotly',
-              'imgaug'
+              'imgaug',
+              'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main',
+              'torch',
+              'torchvision',
+              'torchaudio' 
+
+          ],
+          'macm2': [
+              #'protobuf==3.19.6',
+            'tensorflow-macos==2.9.2',
+            'tensorflow-metal==0.5.1',
+            'kivy==2.1',
+            'pandas',
+            'plotly',
+            'albumentations',
+            'segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@main#egg=sam',
+            'torch',
+            'torchvision',
+            'torchaudio' 
+
           ],
           'macm2': [
             'tensorflow-macos==2.9.2',
@@ -127,8 +147,10 @@ setup(name='donkeycar',
           # Specify the Python versions you support here. In particular, ensure
           # that you indicate whether you support Python 2, Python 3 or both.
           'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.7'
       ],
       keywords='selfdriving cars donkeycar diyrobocars',
       packages=find_packages(exclude=(['tests', 'docs', 'site', 'env'])),
+      dependency_links=[
+          'https://download.pytorch.org/whl/cpu']
     )

@@ -195,24 +195,34 @@ def load_pil_image(filename, cfg):
         return None
 
 
-def load_image(filename, cfg):
+def load_image(filename, cfg, format='PIL'):
     """
     :param string filename:     path to image file
     :param cfg:                 donkey config
     :return np.ndarray:         numpy uint8 image array
     """
-    img = load_pil_image(filename, cfg)
+    if (format=='PIL'):
+        img = load_pil_image(filename, cfg)
 
-    if not img:
-        return None
+        if not img:
+            return None
 
-    img_arr = np.asarray(img)
+        img_arr = np.asarray(img)
 
-    # If the PIL image is greyscale, the np array will have shape (H, W)
-    # Need to add a depth channel by expanding to (H, W, 1)
-    if img.mode == 'L':
-        h, w = img_arr.shape[:2]
-        img_arr = img_arr.reshape(h, w, 1)
+        # If the PIL image is greyscale, the np array will have shape (H, W)
+        # Need to add a depth channel by expanding to (H, W, 1)
+        if img.mode == 'L':
+            h, w = img_arr.shape[:2]
+            img_arr = img_arr.reshape(h, w, 1)
+    if (format=='NPZ'):
+        saved = np.load(filename)
+        shape = saved['arr_0']
+        D, H = shape
+        size = D * H
+        packed = saved['arr_1']
+        padded = np.unpackbits(packed)
+        binary = padded[:size]
+        img_arr=np.reshape(binary, [D, H])
 
     return img_arr
 

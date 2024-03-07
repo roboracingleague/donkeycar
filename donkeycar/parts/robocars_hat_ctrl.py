@@ -7,6 +7,7 @@ from donkeycar.utils import Singleton
 import numpy as np
 from donkeycar.parts.actuator import RobocarsHat
 from donkeycar.utilities.logger import init_special_logger
+from donkeycar.parts.extensible_record import RobocarsExtensibleRecord
 import socket
 import errno
 import sys
@@ -17,6 +18,8 @@ import math
 
 mylogger = init_special_logger("Rx")
 mylogger.setLevel(logging.INFO)
+
+ExtRecorder = RobocarsExtensibleRecord()
 
 def most_frequent(List):
     val = max(set(List), key = List.count)
@@ -366,13 +369,15 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                 user_throttle = 0
 
         # Discret throttle mode
-        if mode=='user':
+        if mode=='user' and self.cfg.ROBOCARSHAT_THROTTLE_DISCRET != None:
             # Discret mode, apply profile
-            if self.cfg.ROBOCARSHAT_THROTTLE_DISCRET != None :
-                inds = np.digitize(user_throttle, self.discretesThrottle)
-                inds = min(max(inds,1), len(self.cfg.ROBOCARSHAT_THROTTLE_DISCRET))
-                user_throttle = self.cfg.ROBOCARSHAT_THROTTLE_DISCRET[inds-1]
-            else:
+            inds = np.digitize(user_throttle, self.discretesThrottle)
+            inds = min(max(inds,1), len(self.cfg.ROBOCARSHAT_THROTTLE_DISCRET))
+            user_throttle = self.cfg.ROBOCARSHAT_THROTTLE_DISCRET[inds-1]
+        else:
+            # Do we apply flanger
+            if ((mode=='user') or 
+                (mode=='local_angle' and self.cfg.ROBOCARSHAT_LOCAL_ANGLE_FIX_THROTTLE == None)):
                 # direct throttle from remote control, Keep throttle in authorized range
                 if self.cfg.ROBOCARSHAT_THROTTLE_FLANGER != None :
                     user_throttle = dualMap(user_throttle,
@@ -790,6 +795,9 @@ logging.getLogger('transitions').setLevel(logging.INFO)
 
 class RobocarsHatDriveCtrl(metaclass=Singleton):
 
+    drivectrl_throttle_out = ExtRecorder.register_data('drivectrl_throttle_out', 'float')
+    drivectrl_angle_out = ExtRecorder.register_data('drivectrl_angle_out', 'float')
+
     ACC_DEFAULT = 0
     ACC_STRAIGHT_LINE = 1
 
@@ -827,7 +835,6 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
         self.last_sl=deque(maxlen=self.cfg.ROBOCARS_THROTTLE_SCALER_ON_SL_FILTER_SIZE)
         self.lane = 0
         self.on = True
-
         self.machine = HierarchicalMachine(self, states=self.states, initial='stopped', ignore_invalid_triggers=True)
         self.machine.add_transition (trigger='drive', source='stopped', dest='driving')
         self.machine.add_transition (trigger='stop', source='driving', dest='stopped')
@@ -907,6 +914,9 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             else:
                 self.throttle_out  = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_SPEED
                 self.brake_cycle -=1
+
+        ExtRecorder.record_data(RobocarsHatDriveCtrl.drivectrl_throttle_out,self.throttle_out)
+        ExtRecorder.record_data(RobocarsHatDriveCtrl.drivectrl_angle_out,self.angle_out)
 
         return self.throttle_out, self.angle_out
  
