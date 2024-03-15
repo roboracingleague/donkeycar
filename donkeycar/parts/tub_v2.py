@@ -138,7 +138,7 @@ class Tub(object):
                         #packed = np.packbits(value)
                         #np.savez_compressed(image_path, shape, packed)
                         np.save(image_path, value)
-                        contents[key] = f"{name}.npz"
+                        contents[key] = f"{name}.npy"
                     else:
                         contents[key] = value
                 elif input_type == 'right_mask':
@@ -149,7 +149,7 @@ class Tub(object):
                         #packed = np.packbits(value)
                         #np.savez_compressed(image_path, shape, packed)
                         np.save(image_path, value)
-                        contents[key] = f"{name}.npz"
+                        contents[key] = f"{name}.npy"
                     else:
                         contents[key] = value
 
