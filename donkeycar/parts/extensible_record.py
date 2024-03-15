@@ -33,7 +33,7 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
             self.data[key]['data'] = bool(data)
         elif self.data[key]['type'] == 'nparray':
             self.data[key]['data'] = data.tolist()
-        elif self.data[key]['type'] == 'list' or input_type == 'vector':
+        elif self.data[key]['type'] == 'list' or self.data[key]['type'] == 'vector':
             self.data[key]['data'] = list(data)
         else:
             self.data[key]['data'] = 'type error'
