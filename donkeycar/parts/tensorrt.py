@@ -558,7 +558,7 @@ class TensorRTDetector(KerasPilot):
 
         [track_loc] = interpreter_out
         loc = np.argmax(track_loc)
-        ExtRecorder.record_data(TensorRTDetector.rtdetector_loc, self.cfg.BEHAVIOR_LIST[loc])
+        ExtRecorder.record_data(TensorRTDetector.rtdetector_loc, self.cfg.BEHAVIOR_LIST[loc-1])
         return loc
 
     @classmethod
