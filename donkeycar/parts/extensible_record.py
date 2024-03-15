@@ -20,7 +20,7 @@ class RobocarsExtensibleRecord(metaclass=Singleton):
         return key
     
     def record_data (self, key, data):
-        if (key == None):
+        if (key == None or data == None):
             return
         if self.data[key]['type'] == 'float':
             # Handle np.float() types gracefully
