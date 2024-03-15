@@ -1340,7 +1340,7 @@ class AnnotateScreen(Screen):
         if self.show_rules:
             with self.canvas:
                 Color(0.7,0.7,0.5,0.5,mode='rgba')
-                for h in[60,65,70,75,80,85,90]:
+                for h in[50,55,60,65,70,75,80,85,90]:
                     x0, y0 = self.map_original_coordinates (0, self.mask_height-h)
                     x1, y1 = self.map_original_coordinates (self.mask_width, self.mask_height-h)
                     Line(points=[x0,y0,x1,y1], width=2, group=u'rules')
