@@ -56,7 +56,7 @@ class Config():
 
     def process_profile(self):
         if getattr (self, 'ROBOCARS_CONFIG_PROFILE', None):
-            print (f"Config : Profile {self.ROBOCARS_CONFIG_PROFILE['ROBOCARS_PROFILE_NAME']} found")
+            print ("Config profile found")
             for k,v in self.ROBOCARS_CONFIG_PROFILE.items() :
                 current = getattr(self, k,None)
                 if current and current != v:
