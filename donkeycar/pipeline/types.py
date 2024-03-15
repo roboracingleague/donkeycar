@@ -45,7 +45,7 @@ class TubRecord(object):
         self._depth_map: Optional[Any] = None
         
 
-    def image(self, processor=None, as_nparray=True, key='cam/image_array', format='PIL', reload=False) -> np.ndarray:
+    def image(self, processor=None, as_nparray=True, key='cam/image_array', format='PIL', reload=False, image_base_path='images') -> np.ndarray:
         """
         Loads the image.
 
@@ -59,7 +59,7 @@ class TubRecord(object):
 
         if self._image is None or reload:
             image_path = self.underlying[key]
-            full_path = os.path.join(self.base_path, 'images', image_path)
+            full_path = os.path.join(self.base_path, image_base_path, image_path)
 
             if as_nparray:
                 _image = load_image(full_path, cfg=self.config, format=format)

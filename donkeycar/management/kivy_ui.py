@@ -13,11 +13,16 @@ import traceback
 
 import io
 import os
+import sys
+import shutil
+import glob
 import atexit
 import yaml
 from PIL import Image as PilImage
 import pandas as pd
 import numpy as np
+from scipy.ndimage import label, find_objects
+
 import plotly.express as px
 from kivy.clock import Clock
 from kivy.app import App
@@ -84,6 +89,84 @@ def map_range(x, X_min, X_max, Y_min, Y_max, enforce_input_in_range=False):
 
     return int(y)
 
+def np_label(mask):
+    labeled_mask = np.zeros_like(mask, dtype=int)
+    label_count = 0
+
+    def dfs(i, j):
+        nonlocal label_count
+        if 0 <= i < mask.shape[0] and 0 <= j < mask.shape[1] and mask[i, j] == 1 and labeled_mask[i, j] == 0:
+            label_count += 1
+            labeled_mask[i, j] = label_count
+
+            # Explore neighbors
+            dfs(i + 1, j)
+            dfs(i - 1, j)
+            dfs(i, j + 1)
+            dfs(i, j - 1)
+
+    for i in range(mask.shape[0]):
+        for j in range(mask.shape[1]):
+            if mask[i, j] == 1 and labeled_mask[i, j] == 0:
+                dfs(i, j)
+
+    return labeled_mask, label_count
+
+def find_widest_area(mask):
+    labeled_mask, num_features = np_label(mask)
+
+    unique_labels, label_counts = np.unique(labeled_mask, return_counts=True)
+    unique_labels = unique_labels[1:]
+    label_counts = label_counts[1:]
+
+    if len(unique_labels) == 0:
+        return None
+
+    widest_area_label = unique_labels[np.argmax(label_counts)]
+    widest_area_mask = (labeled_mask == widest_area_label).astype(int)
+
+    return widest_area_mask
+
+def has_multiple_areas(mask):
+    labeled_mask, num_features = label(mask)
+    
+    return num_features > 1
+
+def extract_widest_area(mask):
+    # Label connected components in the binary mask
+    labeled_mask, num_features = label(mask)
+    counts = np.bincount(labeled_mask.flatten())
+    most_frequent_value = np.argmax(counts[1:])
+    widest_mask = (labeled_mask == (most_frequent_value+1)).astype(int)
+    return widest_mask
+
+# def extract_widest_area(mask):
+#     # Label connected components in the binary mask
+#     labeled_mask, num_features = label(mask)
+
+#     # Find bounding boxes for each connected component
+#     bounding_boxes = find_objects(labeled_mask)
+
+#     # Find the bounding box of the widest area
+#     max_width = 0
+#     widest_area_bbox = None
+
+#     for bbox in bounding_boxes:
+#         width = bbox[1].stop - bbox[1].start
+#         if width > max_width:
+#             max_width = width
+#             widest_area_bbox = bbox
+
+#     if widest_area_bbox is not None:
+#         # Extract the widest area from the original mask
+#         widest_area = mask[widest_area_bbox[0], widest_area_bbox[1]]
+#         padded_widest_area = np.zeros_like(mask)
+#         padded_widest_area[widest_area_bbox[0], widest_area_bbox[1]] = widest_area
+
+#         return padded_widest_area.astype(int)  # Convert to binary mask (0 and 1)
+#     else:
+#         return None
+    
 def tub_screen():
     return App.get_running_app().tub_screen if App.get_running_app() else None
 
@@ -258,6 +341,7 @@ class TubLoader(BoxLayout, FileChooserBase):
     file_path = StringProperty(rc_handler.data.get('last_tub', ''))
     tub = ObjectProperty(None)
     len = NumericProperty(1)
+    len_with_deleted = NumericProperty(1)
     records = None
 
     def load_action(self):
@@ -267,7 +351,7 @@ class TubLoader(BoxLayout, FileChooserBase):
             rc_handler.data['last_tub'] = self.file_path
             annotate_screen().load_action()
 
-    def update_tub(self, event=None):
+    def update_tub(self, event=None, syncAnnotate=True):
         if not self.file_path:
             return False
         # If config not yet loaded return
@@ -277,7 +361,13 @@ class TubLoader(BoxLayout, FileChooserBase):
         # At least check if there is a manifest file in the tub path
         if not os.path.exists(os.path.join(self.file_path, 'manifest.json')):
             tub_screen().status(f'Path {self.file_path} is not a valid tub.')
-            return False
+            if (os.path.isdir(f'{self.file_path}/raw_catalogs') and os.path.isfile(f'{self.file_path}/raw_catalogs/manifest.json')):
+                tub_screen().status(f"init Tub : found {self.file_path}/raw_catalogs, trying to import ...")
+                for afile in glob.glob(f'{self.file_path}/raw_catalogs/catalog_*.catalog'):
+                    shutil.copy(f'{self.file_path}/raw_catalogs/{os.path.basename(afile)}', f'{self.file_path}/{os.path.basename(afile)}')
+                shutil.copyfile(f'{self.file_path}/raw_catalogs/manifest.json', f'{self.file_path}/manifest.json')
+            else:
+                return False
         try:
             if self.tub:
                 self.tub.close()
@@ -305,6 +395,7 @@ class TubLoader(BoxLayout, FileChooserBase):
         self.records = [TubRecord(cfg, self.tub.base_path, record)
                         for record in self.tub if select(record)]
         self.len = len(self.records)
+        self.len_with_deleted = self.tub.manifest.current_index
         if self.len > 0:
             tub_screen().index = 0
             tub_screen().ids.data_plot.update_dataframe_from_tub()
@@ -312,6 +403,8 @@ class TubLoader(BoxLayout, FileChooserBase):
         else:
             msg = f'No records in tub {self.file_path}'
         tub_screen().status(msg)
+        if syncAnnotate:
+            annotate_screen().update_mask_tub()
         return True
 
 
@@ -475,9 +568,9 @@ class FullAnnotateImage(Image):
             self.core_image = CoreImage(bytes_io, ext='png')
             self.texture = self.core_image.texture
         except KeyError as e:
-            Logger.error(f'Record: update_with_mask : Missing key: {e}')
+            Logger.error(f'Record index {record.underlying["_index"]}: update_with_mask : Missing key: {e}')
         except Exception as e:
-            Logger.error(f'Record: update_with_mask : Bad record: {e}')
+            Logger.error(f'Record index {record.underlying["_index"]}: update_with_mask : Bad record: {e}')
             traceback.print_exc() 
 
     def get_image(self, record):
@@ -635,6 +728,9 @@ class AnnotateLeftPanel(BoxLayout):
     def reset_mask(self, left=False):
         annotate_screen().reset_mask(left)
         
+    def show_hide_rules(self):
+        annotate_screen().show_hide_rules()
+
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
         pass
@@ -647,6 +743,9 @@ class AnnotateRightPanel(BoxLayout):
 
     def instanciate_sam(self, event):
         annotate_screen().instanciate_sam()
+
+    def clean_mask(self) :
+        annotate_screen().clean_mask()
 
     def box(self,left=False):
         annotate_screen().box(left)
@@ -662,7 +761,10 @@ class AnnotateRightPanel(BoxLayout):
 
     def reset_mask(self, left=False):
         annotate_screen().reset_mask(left)
-        
+
+    def set_auto_mask(self):
+        annotate_screen().set_auto_mask()
+
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
         pass
@@ -686,6 +788,7 @@ class TubEditor(PaddedBoxLayout):
     def del_lr(self, is_del):
         """ Deletes or restores records in chosen range """
         tub = tub_screen().ids.tub_loader.tub
+        mask_tub = annotate_screen().mask_tub
         if self.lr[1] >= self.lr[0]:
             selected = list(range(*self.lr))
         else:
@@ -693,6 +796,13 @@ class TubEditor(PaddedBoxLayout):
             selected = list(range(self.lr[0], last_id))
             selected += list(range(self.lr[1]))
         tub.delete_records(selected) if is_del else tub.restore_records(selected)
+        mask_tub.delete_records(selected) if is_del else tub.restore_records(selected)
+
+    def restore_all(self):
+        tub = tub_screen().ids.tub_loader.tub
+        mask_tub = annotate_screen().mask_tub
+        tub.restore_records(list(range(0, tub_screen().ids.tub_loader.len - 1)))
+        mask_tub.restore_records(list(range(0, tub_screen().ids.tub_loader.len - 1)))
 
     def apply_label_lr(self):
         tub = tub_screen().ids.tub_loader.tub
@@ -844,11 +954,16 @@ class TubScreen(Screen):
                 labels.append(aLabel)
         return labels
 
-    def on_index(self, obj, index):
+    def on_index(self, obj, index, syncAnnotateScreen=True):
         """ Kivy method that is called if self.index changes"""
         if index >= 0:
             self.current_record = self.ids.tub_loader.records[index]
             self.ids.slider.value = index
+            if syncAnnotateScreen and annotate_screen().mask_records:
+                annotate_screen().on_index(None, index)
+
+
+
 
     def on_current_record(self, obj, record):
         """ Kivy method that is called if self.current_record changes."""
@@ -885,17 +1000,28 @@ class AnnotateScreen(Screen):
         self.poi={}
         self.segment = None
         self.touch_down_pos = [0, 0]
+        self.show_rules = False
+        self.bbox_mask_left = None
+        self.bbox_mask_right = None
+        self.auto_mask = False
+        self.auto_mask_offset = 5
+        self.poi_left_foreground_points=[]                
+        self.poi_left_background_points=[]                
+        self.poi_right_foreground_points=[]                
+        self.poi_right_background_points=[]                
+        self.poi_left_box=[]
+        self.poi_right_box=[]
         tub_screen().ids.config_manager.load_action()
         tub_screen().ids.tub_loader.update_tub()
         self.init_mask_tub()
         self.update_mask_tub()
-        self.index = tub_screen().index
         self.config = tub_screen().ids.config_manager.config
         if tub_screen().ids.tub_loader.records:
+            self.index = tub_screen().index
             self.current_record = tub_screen().ids.tub_loader.records[0]
             if self.mask_records:
                 self.current_mask_record=self.mask_records[0]
-            self.update_image_with_mask(self.current_record)
+            self.update_image_with_mask(self.current_record, index=self.index)
 
     def get_empty_mask(self):
         pil_image_ref = PilImage.fromarray(tub_screen().ids.tub_loader.records[0].image())
@@ -903,7 +1029,6 @@ class AnnotateScreen(Screen):
         return default_mask
     
     def init_mask_tub(self):
-
         if not tub_screen().ids.tub_loader.file_path:
             return False
 
@@ -911,7 +1036,7 @@ class AnnotateScreen(Screen):
             self.status(f'Path {tub_screen().ids.tub_loader.file_path} is not a valid tub.')
             return False
 
-        self.binary_mask_file_path = os.path.join(tub_screen().ids.tub_loader.file_path,'binary_mask')
+        self.binary_mask_file_path = os.path.join(tub_screen().ids.tub_loader.file_path,'binary_masks')
 
         if not os.path.exists(self.binary_mask_file_path):
             self.status(f'Path {self.binary_mask_file_path} : No directory for binary mask found, creating it.')
@@ -925,7 +1050,7 @@ class AnnotateScreen(Screen):
                 self.mask_tub.close()
             inputs = ['left_mask', 'right_mask', 'left_poi', 'right_poi']
             types = ['left_mask', 'right_mask','dict', 'dict']
-            self.mask_tub = Tub(self.binary_mask_file_path, inputs=inputs, types=types)
+            self.mask_tub = Tub(self.binary_mask_file_path, inputs=inputs, types=types, lr=True)
         except Exception as e:
             self.status(f'Failed loading binary mask tub: {str(e)}')
             return False
@@ -933,14 +1058,22 @@ class AnnotateScreen(Screen):
         self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
                         for record in self.mask_tub]
         self.mask_len = len(self.mask_records)
-
         if tub_screen().ids.tub_loader.records:
             default_mask = self.get_empty_mask()
-            to_create = len(tub_screen().ids.tub_loader.records)-self.mask_len
+            self.mask_height, self.mask_width = default_mask.shape
+            to_create = tub_screen().ids.tub_loader.len_with_deleted-self.mask_tub.manifest.current_index
             if (to_create>0):
-                print("Init/Complete default mask tub") 
+                print("Init/Complete default or imported mask tub, wait a minute ...") 
                 for idx in range(to_create):
-                    mask_record={'left_mask':default_mask, 'right_mask':default_mask, 'left_poi':[], 'right_poi':[]}
+                    left_mask = default_mask
+                    right_mask = default_mask
+                    if os.path.isfile(f'{self.mask_tub.base_path}/left/{idx}_cam_image_array_.npy'):
+                        existing_record = np.load(f'{self.mask_tub.base_path}/left/{idx}_cam_image_array_.npy')
+                        left_mask = existing_record
+                    if os.path.isfile(f'{self.mask_tub.base_path}/right/{idx}_cam_image_array_.npy'):
+                        existing_record = np.load(f'{self.mask_tub.base_path}/right/{idx}_cam_image_array_.npy')
+                        right_mask = existing_record
+                    mask_record={'left_mask':left_mask, 'right_mask':right_mask, 'left_poi':[], 'right_poi':[]}
                     self.mask_tub.write_record(mask_record)
         else:
             self.status(f'Unale to create default mask, no records in tub')
@@ -950,6 +1083,7 @@ class AnnotateScreen(Screen):
         self.sam_loaded = True
         self.ids.annotate_left_panel.ids.left_box.disabled = False
         self.ids.annotate_right_panel.ids.right_box.disabled = False
+        self.ids.annotate_right_panel.ids.auto_mask.disabled = False
         self.ids.annotate_left_panel.ids.left_foreground_point.disabled = False
         self.ids.annotate_left_panel.ids.left_background_point.disabled = False
         self.ids.annotate_right_panel.ids.right_foreground_point.disabled = False
@@ -958,10 +1092,13 @@ class AnnotateScreen(Screen):
 
     def load_action(self):
         """ Update tub from the file path"""
+        self.init_mask_tub()
         self.update_mask_tub()
 
     def update_mask_tub(self):
 
+        if self.mask_tub == None:
+            return
         self.mask_records = [TubRecord(self.config, self.mask_tub.base_path, record)
                         for record in self.mask_tub]
         self.mask_len = len(self.mask_records)
@@ -973,6 +1110,43 @@ class AnnotateScreen(Screen):
         self.status(msg)
         return True
 
+    def clean_mask(self):
+        if self.index is None:
+            self.status("No tub loaded")
+            return
+        starting_index = 0
+        nb_fix = 0
+        fixed_left=[]
+        fixed_right=[]
+        for index, rec in enumerate (self.mask_records[starting_index:]): 
+            mask_left = rec.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+            mask_right = rec.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+            if np.any(mask_left):
+                nb_left_area = has_multiple_areas (mask_left)
+                if nb_left_area:
+                    widest_left_area = extract_widest_area (mask_left)
+                    if widest_left_area is not None:
+                        self.store_mask (rec, index=rec.underlying['_index'], mask=widest_left_area, left=True)
+                        fixed_left.append(index)
+                        nb_fix+=1
+                    else :
+                        print(f"Was not able to process Left mask index {index}")
+            if np.any(mask_right):
+                nb_right_area = has_multiple_areas (mask_right)
+                if nb_right_area:
+                    widest_right_area = extract_widest_area (mask_right)
+                    if widest_right_area is not None:
+                        self.store_mask (rec, index=rec.underlying['_index'], mask=widest_right_area, left=False)
+                        fixed_right.append(index)
+                        nb_fix+=1
+                    else:
+                        print(f"Was not able to process Right mask index {index}")
+            
+        print(f"Fixed left indexes {fixed_left} ")
+        print(f"Fixed right indexes {fixed_right} ")
+
+        self.status(f'Mask tub cleanup done ({nb_fix} masks fixed)')
+
     def reset_mask(self, left=False):
         default_mask = self.get_empty_mask()
         if self.mask_records:
@@ -983,22 +1157,58 @@ class AnnotateScreen(Screen):
                 mask_record={'left_mask':mask_record.underlying['left_mask'], 'right_mask':default_mask, 'left_poi':mask_record.underlying['left_poi'], 'right_poi':[]}
             self.mask_tub.write_record(mask_record, index=self.index)
             self.status(f'Mask tub record index {self.index} reinitialized')
-            self.update_image_with_mask(self.current_record)
+            self.update_image_with_mask(self.current_record, index=self.index)
+
+    def set_auto_mask(self):
+        if (self.auto_mask):
+            self.auto_mask=False
+        else:
+            self.auto_mask=True
+        self.status(f'Auto Mask set to {self.auto_mask}')
 
     def update_image_with_mask (self, record, index=None):
         if self.mask_records:
-            if (index != None):
+            if (index != None): 
+                input_box = np.array([])
                 self.current_mask_record = self.mask_records[index]
-            mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPZ', reload=True)
-            mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPZ', reload=True)
-            self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
-        else:
-            self.ids.annotate_img.update(record)
+                mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+                mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+
+                #np.set_printoptions(threshold=sys.maxsize)
+                if not np.any(mask_left): #if no mask
+                    if self.bbox_mask_left and self.auto_mask: #and previous one and auto_mask
+                        input_box=np.array([max(min(self.bbox_mask_left[0],self.bbox_mask_left[1])-self.auto_mask_offset,0), 
+                                    max(min(self.bbox_mask_left[2],self.bbox_mask_left[3])-self.auto_mask_offset,0),
+                                    min(max(self.bbox_mask_left[0],self.bbox_mask_left[1])+self.auto_mask_offset, self.mask_width),
+                                    min(max(self.bbox_mask_left[2],self.bbox_mask_left[3])+self.auto_mask_offset, self.mask_height)])
+                        mask_left, scores, logits = self.segment_image(input_points=None, input_labels=None, input_box=input_box)
+                        self.store_mask (self.current_mask_record, index=index, mask=mask_left, left=True)
+                        mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+                if np.any(mask_left): #if mask
+                    left = np.where(mask_left == 1)
+                    self.bbox_mask_left = np.min(left[1]), np.max(left[1]), np.min(left[0]), np.max(left[0])
+                if not np.any(mask_right): #if no mask
+                    if self.bbox_mask_right and self.auto_mask: #and previous one and auto_mask
+                        print ("Previous right mask found")
+                        input_box=np.array([max(min(self.bbox_mask_right[0],self.bbox_mask_right[1])-self.auto_mask_offset,0), 
+                                    max(min(self.bbox_mask_right[2],self.bbox_mask_right[3])-self.auto_mask_offset,0),
+                                    min(max(self.bbox_mask_right[0],self.bbox_mask_right[1])+self.auto_mask_offset, self.mask_width),
+                                    min(max(self.bbox_mask_right[2],self.bbox_mask_right[3])+self.auto_mask_offset, self.mask_height)])
+                        mask_right, scores, logits = self.segment_image(input_points=None, input_labels=None, input_box=input_box)
+                        self.store_mask (self.current_mask_record,  index=index, mask=mask_right, left=False)
+                        mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+                if np.any(mask_right): #if mask
+                    right = np.where(mask_right == 1)
+                    self.bbox_mask_right = np.min(right[1]), np.max(right[1]), np.min(right[0]), np.max(right[0])
+                self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
+                return
+        self.ids.annotate_img.update(record)
 
     def on_index(self, obj, index):
         """ Kivy method that is called if self.index changes. Here we update
             self.current_record and the slider value. """
         if tub_screen().ids.tub_loader.records:
+            tub_screen().on_index (None, index, syncAnnotateScreen=False)
             self.current_record = tub_screen().ids.tub_loader.records[index]
             self.ids.annotate_slider.value = index
             if self.mask_records:
@@ -1006,6 +1216,7 @@ class AnnotateScreen(Screen):
 #        if self.ids.mask_records:
 #            current_mask_record
         self.reset_poi()
+        self.update_image_with_mask(self.current_record, index=index)
 
     def on_current_record(self, obj, record):
         """ Kivy method that is called when self.current_index changes. Here
@@ -1014,7 +1225,6 @@ class AnnotateScreen(Screen):
             return
         i = record.underlying['_index']
         self.ids.annotate_left_panel.record_display = f"Record {i:06}"
-        self.update_image_with_mask(record, i)
     
     def skip_next_unmask(self, *largs):
         if self.index is None:
@@ -1026,10 +1236,25 @@ class AnnotateScreen(Screen):
         elif starting_index < 0:
             starting_index = tub_screen().ids.tub_loader.len - 1
 
+        new_index=self.index
         for index, rec in enumerate (self.mask_records[starting_index:]): 
-            if (len(rec.underlying['left_poi']) == 0) and (len(rec.underlying['right_poi']) == 0):
+            mask_left = rec.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+            mask_right = rec.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+            if (not np.any(mask_left)) and (not np.any(mask_right)):
                 new_index = index+starting_index
+                self.status(f"No mask set on this image")
                 break
+            nb_left_area = has_multiple_areas (mask_left)
+            nb_right_area = has_multiple_areas (mask_right)
+            if nb_left_area:
+                new_index = index+starting_index
+                self.status(f"Left mask has more than one area")
+                break
+            if nb_right_area:
+                new_index = index+starting_index
+                self.status(f"Right mask has more than one area")
+                break
+
         self.index = new_index
 
     def status(self, msg):
@@ -1105,14 +1330,37 @@ class AnnotateScreen(Screen):
         self.clear_markers()
         self.raz_poi_record()
 
+    def show_hide_rules(self):
+        #Toggle
+        if self.show_rules:
+            self.show_rules = False
+        else:
+            self.show_rules = True
+
+        if self.show_rules:
+            with self.canvas:
+                Color(0.7,0.7,0.5,0.5,mode='rgba')
+                for h in[50,55,60,65,70,75,80,85,90]:
+                    x0, y0 = self.map_original_coordinates (0, self.mask_height-h)
+                    x1, y1 = self.map_original_coordinates (self.mask_width, self.mask_height-h)
+                    Line(points=[x0,y0,x1,y1], width=2, group=u'rules')
+        else:
+            self.canvas.remove_group(u"rules")
+
     def on_keyboard(self, instance, keycode, scancode, key, modifiers):
         if self.keys_enabled:
             self.ids.control_panel.on_keyboard(key, scancode)
-            self.ids.annotate_panel.on_keyboard(key, scancode)
+            self.ids.annotate_left_panel.on_keyboard(key, scancode)
+            self.ids.annotate_right_panel.on_keyboard(key, scancode)
 
     def get_original_coordinates(self,x,y):
         ox=map_range(x,self.ids.annotate_img.x,self.ids.annotate_img.x+self.ids.annotate_img.size[0],0,self.ids.annotate_img.norm_image_size[0], True)
         oy=map_range(y,self.ids.annotate_img.y,self.ids.annotate_img.y+self.ids.annotate_img.size[1],0,self.ids.annotate_img.norm_image_size[1], True)
+        return ox, oy
+
+    def map_original_coordinates(self,x,y):
+        ox=map_range(x,0,self.ids.annotate_img.norm_image_size[0], self.ids.annotate_img.x,self.ids.annotate_img.x+self.ids.annotate_img.size[0], True)
+        oy=map_range(y,0,self.ids.annotate_img.norm_image_size[1], self.ids.annotate_img.y,self.ids.annotate_img.y+self.ids.annotate_img.size[1], True)
         return ox, oy
 
     def update_poi_record(self):
@@ -1147,7 +1395,40 @@ class AnnotateScreen(Screen):
                 else:
                     self.poi_right_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
                
-    def segment_image(self):
+    def store_mask(self, record, index, mask, left=True):
+            mask_record={}
+            mask_record['left_poi']=record.underlying['left_poi']
+            mask_record['right_poi']=record.underlying['right_poi']
+            mask_record['left_mask']=record.underlying['left_mask']
+            mask_record['right_mask']=record.underlying['right_mask']
+            if left: #'left_mask', 'right_mask', 'left_poi', 'right_poi'
+                mask_record['left_mask'] = mask
+                if (self.poi_left_foreground_points and self.poi_left_background_points and self.poi_left_box):
+                    mask_record['left_poi']={'fg_pts':self.poi_left_foreground_points, 'bg_pts':self.poi_left_background_points, 'box':self.poi_left_box}
+            else:        
+                mask_record['right_mask'] = mask
+                if (self.poi_right_foreground_points and self.poi_right_background_points and self.poi_right_box):
+                    mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
+            self.mask_tub.write_record(mask_record, index=index)
+            self.status(f'Mask tub record index {index} written')
+        
+    def segment_image(self, input_points=None, input_labels=None, input_box=None):
+            if self.segment:
+                self.status(f'Processing image with SAM ....')
+                self.segment.set_image(self.current_record.image())
+                masks, scores, logits = self.segment.predict(
+                    input_points=input_points if input_points is not None and input_points.size>0 else None,
+                    input_labels=input_labels if input_labels is not None and input_labels.size>0 else None,
+                    input_box=input_box)
+                widest_area = extract_widest_area (masks[0])
+                if widest_area is not None:
+                    mask=widest_area
+                else: mask = masks[0]
+                return mask, scores, logits
+            else:
+                return None, None, None
+
+    def segment_image_from_ui(self):
         self.update_poi_record()
         left = True if 'left' in self.drawing else False
         input_points = np.empty((0,2), int)
@@ -1155,54 +1436,38 @@ class AnnotateScreen(Screen):
         input_box = np.array([])
         if left :
             for pts in self.poi_left_foreground_points:
-                input_points=np.append(input_points, np.array([[pts['x'],pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'],self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[1]]))
             for pts in self.poi_left_background_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[0]]))
             if len(self.poi_left_box)>0:
                 input_box=np.array([min(self.poi_left_box['x0'],self.poi_left_box['x1']), 
-                                    min(self.poi_left_box['y0'],self.poi_left_box['y1']),
+                                    min(self.mask_height-self.poi_left_box['y0'],self.mask_height-self.poi_left_box['y1']),
                                     max(self.poi_left_box['x0'],self.poi_left_box['x1']),
-                                    max(self.poi_left_box['y0'],self.poi_left_box['y1'])])
+                                    max(self.mask_height-self.poi_left_box['y0'],self.mask_height-self.poi_left_box['y1'])])
         else :
             for pts in self.poi_right_foreground_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[1]]))
             for pts in self.poi_right_background_points:
-                input_points=np.append(input_points, np.array([[pts['x'], pts['y']]]), axis=0)
+                input_points=np.append(input_points, np.array([[pts['x'], self.mask_height-pts['y']]]), axis=0)
                 input_labels=np.append(input_labels, np.array([[0]]))
             if len(self.poi_right_box)>0:
                 input_box=np.array([min(self.poi_right_box['x0'],  self.poi_right_box['x1']),
-                                    min(self.poi_right_box['y0'], self.poi_right_box['y1']),
+                                    min(self.mask_height-self.poi_right_box['y0'], self.mask_height-self.poi_right_box['y1']),
                                     max(self.poi_right_box['x0'],  self.poi_right_box['x1']),
-                                    max(self.poi_right_box['y0'], self.poi_right_box['y1'])])
+                                    max(self.mask_height-self.poi_right_box['y0'], self.mask_height-self.poi_right_box['y1'])])
 
         print (f"NP Array input_points : {input_points}")
         print (f"NP Array input_labels : {input_labels}")
         print (f"NP Array input_box : {input_box}")
         if self.segment and input_box.size >0:
-            self.segment.set_image(self.current_record.image())
-            masks, scores, logits = self.segment.predict(
-                input_points=input_points if input_points.size>0 else None,
-                input_labels=input_labels if input_labels.size>0 else None,
-                input_box=input_box)
+            mask, scores, logits = self.segment_image (input_points, input_labels, input_box)
             idx = self.current_record.underlying['_index']
 
-            mask_record={}
-            mask_record['left_poi']=self.current_mask_record.underlying['left_poi']
-            mask_record['right_poi']=self.current_mask_record.underlying['right_poi']
-            mask_record['left_mask']=self.current_mask_record.underlying['left_mask']
-            mask_record['right_mask']=self.current_mask_record.underlying['right_mask']
-            if left: #'left_mask', 'right_mask', 'left_poi', 'right_poi'
-                mask_record['left_mask'] = masks[0]
-                mask_record['left_poi']={'fg_pts':self.poi_left_foreground_points, 'bg_pts':self.poi_left_background_points, 'box':self.poi_left_box}
-            else:        
-                mask_record['right_mask'] = masks[0]
-                mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
-            self.mask_tub.write_record(mask_record, index=idx)
-            self.status(f'Mask tub record index {idx} written')
-            self.update_image_with_mask(self.current_record)
+            self.store_mask (self.current_mask_record, index=idx,  mask=mask, left=left)
+            self.update_image_with_mask(self.current_record, index=idx)
             self.reset_poi()
         else:
             self.status(f'SAM not loaded')
@@ -1253,10 +1518,14 @@ class AnnotateScreen(Screen):
         if touch.grab_current is self:
             # I receive my grabbed touch, I must ungrab it!
             touch.ungrab(self)
-            self.segment_image()
+            self.segment_image_from_ui()
             # if 'box' in self.drawing:
             #     self.clear_box_markers()
             #     self.drawing = ''
+            return True
+        else:
+            return super(Screen, self).on_touch_up(touch)
+
     
     def on_touch_move(self, touch):
         if touch.grab_current is self:
@@ -1265,6 +1534,10 @@ class AnnotateScreen(Screen):
                     ud = touch.ud
                     if "box" in self.drawing:
                         self.poi['box'].size = (touch.x - self.touch_down_pos[0], touch.y - self.touch_down_pos[1])
+            return True
+        else:
+            return super(Screen, self).on_touch_move(touch)
+
     
 class PilotLoader(BoxLayout, FileChooserBase):
     """ Class to mange loading of the config file from the car directory"""
