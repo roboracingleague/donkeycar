@@ -504,7 +504,7 @@ class TensorRTDetector(KerasPilot):
     Uses TensorRT to do the inference.
     '''
 
-    rtdetector_loc = ExtRecorder.register_data('rtdetector_loc', 'int')
+    rtdetector_loc = ExtRecorder.register_data('rtdetector_loc', 'str')
 
     def __init__(self, cfg):
         super().__init__()
