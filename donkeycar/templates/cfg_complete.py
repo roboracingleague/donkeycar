@@ -625,7 +625,7 @@ ROBOCARSHAT_CH3_FEATURE = 'record/pilot'
 ROBOCARSHAT_CH4_FEATURE = 'none' 
 ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL = False # specific mode when in pilot, throttle control control throttle scaler
 ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL_INC = 0.01
-ROBOCARS_DRIVE_BY_LANE = False # if true, when in pilot mode, steering is used to feed model as lane to follow
+ROBOCARS_DRIVE_BY_LANE = True # if true, when in pilot mode, steering is used to feed model as lane to follow
 
 ROBOCARSHAT_THROTTLE_EXP_INC = 0.05 
 ROBOCARSHAT_STEERING_EXP_INC = 0.05 
