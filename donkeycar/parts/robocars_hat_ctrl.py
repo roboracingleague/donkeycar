@@ -410,12 +410,18 @@ class RobocarsHatInCtrl(metaclass=Singleton):
 
     def run_threaded(self):
         user_throttle, user_steering, user_mode, recording = self.processAltModes ()
-        return user_steering, user_throttle, user_mode, recording
+        if self.cfg.RECORD_DEFAULT_BEHAVIOR:
+            return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 1.0
+        else:
+            return user_steering, user_throttle, user_mode, recording
 
     def run (self):
         self.getCommand()
         user_throttle, user_steering, user_mode, recording = self.processAltModes ()
-        return user_steering, user_throttle, user_mode, recording
+        if self.cfg.RECORD_DEFAULT_BEHAVIOR:
+            return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 1.0
+        else:
+            return user_steering, user_throttle, user_mode, recording
     
 
     def shutdown(self):

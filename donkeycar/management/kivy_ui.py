@@ -954,13 +954,17 @@ class TubScreen(Screen):
                 labels.append(aLabel)
         return labels
 
+    def change_index (self, index):
+        if (index != self.index):
+            self.ids.slider.value = index
+         
     def on_index(self, obj, index, syncAnnotateScreen=True):
         """ Kivy method that is called if self.index changes"""
         if index >= 0:
             self.current_record = self.ids.tub_loader.records[index]
             self.ids.slider.value = index
             if syncAnnotateScreen and annotate_screen().mask_records:
-                annotate_screen().on_index(None, index)
+                annotate_screen().change_index(index)
 
 
 
@@ -1204,11 +1208,15 @@ class AnnotateScreen(Screen):
                 return
         self.ids.annotate_img.update(record)
 
+    def change_index (self, index):
+        if (index != self.index):
+            self.ids.annotate_slider.value = index
+
     def on_index(self, obj, index):
         """ Kivy method that is called if self.index changes. Here we update
             self.current_record and the slider value. """
         if tub_screen().ids.tub_loader.records:
-            tub_screen().on_index (None, index, syncAnnotateScreen=False)
+            tub_screen().change_index (index)
             self.current_record = tub_screen().ids.tub_loader.records[index]
             self.ids.annotate_slider.value = index
             if self.mask_records:

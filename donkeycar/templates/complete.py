@@ -560,6 +560,10 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         inputs=['cam/image_array','user/angle', 'user/throttle', 'user/mode', 'angle', 'throttle']
         types=['image_array','float', 'float', 'str', 'float', 'float']
 
+    if cfg.RECORD_DEFAULT_BEHAVIOR:
+        inputs += ['ai_C/angle', 'car_position', 'ai/accel']
+        types += ['float', 'str', 'float']
+
     if cfg.HAVE_ODOM:
         inputs += ['enc/speed']
         types += ['float']
@@ -754,7 +758,10 @@ def add_user_controller(V, cfg, use_joystick, input_image='cam/image_array'):
 
         from donkeycar.parts.robocars_hat_ctrl import RobocarsHatInCtrl
         ctr = RobocarsHatInCtrl(cfg)
-        V.add(ctr, outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],threaded=False)
+        if cfg.RECORD_DEFAULT_BEHAVIOR:
+            V.add(ctr, outputs=['user/angle', 'user/throttle', 'user/mode', 'recording', 'ai_C/angle', 'car_position', 'ai/accel'],threaded=False)
+        else:
+            V.add(ctr, outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],threaded=False)
 
     return ctr
 
