@@ -63,8 +63,8 @@ ADAPTATIVE_STEERING = {
     'ROBOCARS_CTRL_ADAPTATIVE_STEERING_SCALER': 0.3,
 }
 
-# Race modes: SPRINT SLALOM
-# Throttles modes: FIX_THROTTLE DUAL_THROTTLE COPILOT
+# Race modes: SPRINT, SLALOM
+# Throttles modes: FIX_THROTTLE, DUAL_THROTTLE, COPILOT
 ROBOCARS_CONFIG_PROFILE = {**SPRINT, **COPILOT}
 
 # python manage.py drive --type trt_behaviortrt --model ~/donkeycar-models/trt_4.6/model-067.trt
