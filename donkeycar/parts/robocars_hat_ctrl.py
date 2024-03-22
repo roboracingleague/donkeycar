@@ -411,7 +411,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
     def run_threaded(self):
         user_throttle, user_steering, user_mode, recording = self.processAltModes ()
         if self.cfg.RECORD_DEFAULT_BEHAVIOR:
+<<<<<<< HEAD
             return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 0.0
+=======
+            return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 1.0
+>>>>>>> 15413fac (Record defayult behavior)
         else:
             return user_steering, user_throttle, user_mode, recording
 
@@ -419,7 +423,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         self.getCommand()
         user_throttle, user_steering, user_mode, recording = self.processAltModes ()
         if self.cfg.RECORD_DEFAULT_BEHAVIOR:
+<<<<<<< HEAD
             return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 0.0
+=======
+            return user_steering, user_throttle, user_mode, recording, user_steering, 'center', 1.0
+>>>>>>> 15413fac (Record defayult behavior)
         else:
             return user_steering, user_throttle, user_mode, recording
     
