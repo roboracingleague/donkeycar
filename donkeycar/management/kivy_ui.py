@@ -747,6 +747,9 @@ class AnnotateRightPanel(BoxLayout):
     def clean_mask(self) :
         annotate_screen().clean_mask()
 
+    def clean_all_mask(self) :
+        annotate_screen().clean_all_mask()
+
     def box(self,left=False):
         annotate_screen().box(left)
         pass
@@ -966,9 +969,6 @@ class TubScreen(Screen):
             if syncAnnotateScreen and annotate_screen().mask_records:
                 annotate_screen().change_index(index)
 
-
-
-
     def on_current_record(self, obj, record):
         """ Kivy method that is called if self.current_record changes."""
         self.ids.img.update(record)
@@ -1118,6 +1118,31 @@ class AnnotateScreen(Screen):
         if self.index is None:
             self.status("No tub loaded")
             return
+        mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
+        mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
+        if np.any(mask_left):
+            nb_left_area = has_multiple_areas (mask_left)
+            if nb_left_area:
+                widest_left_area = extract_widest_area (mask_left)
+                if widest_left_area is not None:
+                    self.store_mask (self.current_mask_record, index=self.current_mask_record.underlying['_index'], mask=widest_left_area, left=True)
+                    print(f"Left mask index {self.current_mask_record.underlying['_index']} fixed !")
+                else :
+                    print(f"Was not able to process Left mask index {self.current_mask_record.underlying['_index']}")
+        if np.any(mask_right):
+            nb_right_area = has_multiple_areas (mask_right)
+            if nb_right_area:
+                widest_right_area = extract_widest_area (mask_right)
+                if widest_right_area is not None:
+                    self.store_mask (self.current_mask_record, index=self.current_mask_record.underlying['_index'], mask=widest_right_area, left=False)
+                    print(f"Left mask index {self.current_mask_record.underlying['_index']} fixed !")
+                else:
+                    print(f"Was not able to process Right mask index {self.current_mask_record.underlying['_index']}")
+
+    def clean_all_mask(self):
+        if self.index is None:
+            self.status("No tub loaded")
+            return
         starting_index = 0
         nb_fix = 0
         fixed_left=[]
@@ -1131,7 +1156,7 @@ class AnnotateScreen(Screen):
                     widest_left_area = extract_widest_area (mask_left)
                     if widest_left_area is not None:
                         self.store_mask (rec, index=rec.underlying['_index'], mask=widest_left_area, left=True)
-                        fixed_left.append(index)
+                        fixed_left.append(rec.underlying['_index'])
                         nb_fix+=1
                     else :
                         print(f"Was not able to process Left mask index {index}")
@@ -1141,7 +1166,7 @@ class AnnotateScreen(Screen):
                     widest_right_area = extract_widest_area (mask_right)
                     if widest_right_area is not None:
                         self.store_mask (rec, index=rec.underlying['_index'], mask=widest_right_area, left=False)
-                        fixed_right.append(index)
+                        fixed_right.append(rec.underlying['_index'])
                         nb_fix+=1
                     else:
                         print(f"Was not able to process Right mask index {index}")
@@ -1416,7 +1441,7 @@ class AnnotateScreen(Screen):
             else:        
                 mask_record['right_mask'] = mask
                 if (self.poi_right_foreground_points and self.poi_right_background_points and self.poi_right_box):
-                    mask_record['left_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
+                    mask_record['right_poi']={'fg_pts':self.poi_right_foreground_points, 'bg_pts':self.poi_right_background_points, 'box':self.poi_right_box}
             self.mask_tub.write_record(mask_record, index=index)
             self.status(f'Mask tub record index {index} written')
         
