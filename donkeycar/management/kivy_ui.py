@@ -550,8 +550,8 @@ class FullAnnotateImage(Image):
 
     def update_with_mask(self, record, mask_left, mask_right):
         try:
-            color_left = np.array([255/255, 30/255, 30/255, 0.6])
-            color_right = np.array([30/255, 255/255, 30/255, 0.6])
+            color_left = np.array([255/255, 30/255, 30/255, 1.0])
+            color_right = np.array([30/255, 255/255, 30/255, 1.0])
             #h, w = mask_left.shape if mask_left!=None else mask_right.shape
             h, w = mask_left.shape 
             mask_left_image = mask_left.reshape(h, w, 1) * color_left.reshape(1, 1, -1)
@@ -559,9 +559,13 @@ class FullAnnotateImage(Image):
             pil_mask_left_image = PilImage.fromarray((mask_left_image * 255).astype(np.uint8))
             pil_mask_right_image = PilImage.fromarray((mask_right_image * 255).astype(np.uint8))
             img_arr = self.get_image(record)
+            #pil_image = PilImage.fromarray(img_arr)
+            #pil_image.paste (pil_mask_left_image,(0, 0), pil_mask_left_image)
+            #pil_image.paste (pil_mask_right_image,(0, 0), pil_mask_right_image)
+            mask_img = PilImage.blend(pil_mask_left_image, pil_mask_right_image, 0.5)
             pil_image = PilImage.fromarray(img_arr)
-            pil_image.paste (pil_mask_left_image,(0, 0), pil_mask_left_image)
-            pil_image.paste (pil_mask_right_image,(0, 0), pil_mask_right_image)
+            pil_image.paste (mask_img,(0, 0), mask_img)
+
             bytes_io = io.BytesIO()
             pil_image.save(bytes_io, format='png')
             bytes_io.seek(0)
@@ -1216,6 +1220,8 @@ class AnnotateScreen(Screen):
                 if np.any(mask_left): #if mask
                     left = np.where(mask_left == 1)
                     self.bbox_mask_left = np.min(left[1]), np.max(left[1]), np.min(left[0]), np.max(left[0])
+                else:
+                    self.bbox_mask_left=None
                 if not np.any(mask_right): #if no mask
                     if self.bbox_mask_right and self.auto_mask: #and previous one and auto_mask
                         print ("Previous right mask found")
@@ -1229,6 +1235,8 @@ class AnnotateScreen(Screen):
                 if np.any(mask_right): #if mask
                     right = np.where(mask_right == 1)
                     self.bbox_mask_right = np.min(right[1]), np.max(right[1]), np.min(right[0]), np.max(right[0])
+                else:
+                    self.bbox_mask_right=None
                 self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
                 return
         self.ids.annotate_img.update(record)

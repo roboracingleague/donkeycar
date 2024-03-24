@@ -181,7 +181,7 @@
             text: 'Reset Left Mask'
             on_press:
                 root.reset_mask(left=True)
-        Button:
+        ToggleButton:
             id: show_hide_rules
             text: 'Show/Hide rules'
             on_press:
@@ -232,7 +232,7 @@
             on_press:
                 root.reset_mask(left=False)
 
-        Button:
+        ToggleButton:
             id: auto_mask
             text: 'Auto mask'
             disabled: True
