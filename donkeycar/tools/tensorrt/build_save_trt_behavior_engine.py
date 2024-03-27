@@ -1,11 +1,11 @@
 """build_save_trt_behavior_engine
 
 Usage:
-  build_save_trt_behavior_engine.py (--onnx <onnx_model_path>) (--savedtrt <trt_engine_path>) [--orin]
+  build_save_trt_behavior_engine.py (--onnx <onnx_model_path>) (--savedtrt <trt_engine_path>) [--limit-workspace]
 
 Options:
-  -h --help     Show this screen.
-     --orin     Specify that this script runs on an orin platform
+  -h --help                Show this screen.
+     --limit-workspace     Specify if the workspace size must be limited
 """
 
 import tensorrt as trt
@@ -14,7 +14,7 @@ from docopt import docopt
 # TensorRT logger setup
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
-def build_engine(onnx_file_path, engine_file_path, is_orin):
+def build_engine(onnx_file_path, engine_file_path, limit_workspace):
     # Create a builder
     builder = trt.Builder(TRT_LOGGER)
 
@@ -39,7 +39,7 @@ def build_engine(onnx_file_path, engine_file_path, is_orin):
 
     # Build the engine
     builder.max_batch_size = 1
-    if not is_orin:
+    if limit_workspace:
         builder.max_workspace_size = 1 << 30  # 1GB
     engine = builder.build_engine(network, config)
 
@@ -51,9 +51,9 @@ def main():
     arguments = docopt(__doc__)
     onnx_model_path = arguments['<onnx_model_path>']
     trt_engine_path = arguments['<trt_engine_path>']
-    is_orin = arguments['--orin']
+    limit_workspace = arguments['--limit-workspace']
 
-    build_engine(onnx_model_path, trt_engine_path, is_orin)
+    build_engine(onnx_model_path, trt_engine_path, limit_workspace)
 
 if __name__ == "__main__":
     main()
