@@ -136,6 +136,8 @@ def extract_widest_area(mask):
     # Label connected components in the binary mask
     labeled_mask, num_features = label(mask)
     counts = np.bincount(labeled_mask.flatten())
+    if len(counts) < 2:
+        return None
     most_frequent_value = np.argmax(counts[1:])
     widest_mask = (labeled_mask == (most_frequent_value+1)).astype(int)
     return widest_mask
@@ -1224,7 +1226,6 @@ class AnnotateScreen(Screen):
                     self.bbox_mask_left=None
                 if not np.any(mask_right): #if no mask
                     if self.bbox_mask_right and self.auto_mask: #and previous one and auto_mask
-                        print ("Previous right mask found")
                         input_box=np.array([max(min(self.bbox_mask_right[0],self.bbox_mask_right[1])-self.auto_mask_offset,0), 
                                     max(min(self.bbox_mask_right[2],self.bbox_mask_right[3])-self.auto_mask_offset,0),
                                     min(max(self.bbox_mask_right[0],self.bbox_mask_right[1])+self.auto_mask_offset, self.mask_width),
