@@ -21,3 +21,11 @@
     src: "nopasswd.j2"
     dest: "/etc/sudoers.d/010_{{ system_ssh_user }}-nopasswd"
     mode: '0440'
+
+- name: add platform  {{ platform }} to environment variables
+  lineinfile:
+    dest: "/home/{{ system_ssh_user }}/.bashrc"
+    regexp: "^#export ROBOCARS_PLATFROM=.*"
+    line: "export ROBOCARS_PLATFROM={{ platform }}"
+    backup: true
+    state: present
