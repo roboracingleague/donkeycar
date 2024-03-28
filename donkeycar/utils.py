@@ -591,7 +591,10 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
             interpreter=interpreter,
             input_shape=input_shape,
             throttle_range=cfg.MODEL_CATEGORICAL_MAX_THROTTLE_RANGE,
-            num_behavior_inputs=len(cfg.BEHAVIOR_LIST))
+            num_behavior_inputs=len(cfg.BEHAVIOR_LIST),
+            drop_core=cfg.BEHAVIOR_DROP_CORE,
+            drop_upper_layers=cfg.BEHAVIOR_DROP_UPPER_LAYERS,
+            l1_channels=cfg.BEHAVIOR_L1_CHANNELS)
     elif used_model_type == "obstacle_detector":
         kl = KerasDetector(
             interpreter=interpreter, 

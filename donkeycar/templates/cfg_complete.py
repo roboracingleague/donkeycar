@@ -107,6 +107,10 @@ BEHAVIOR_LIST = ['left', 'middle', 'right']
 OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = True # To free drive using behavior model, Si True, active l'autopilote du steering avec avoidance
 OBSTACLE_DETECTOR_MANUAL_LANE = False # si True, active le mode copilot pour le steering depuis la radio 
 RECORD_DEFAULT_BEHAVIOR = True
+# BEHAVIOR MODEL CONFIG
+BEHAVIOR_DROP_CORE = 0.2
+BEHAVIOR_DROP_UPPER_LAYERS = 0.2
+BEHAVIOR_L1_CHANNELS = 24
 
 #CAMERA Settings Vivatech 2022 (nano)
 #CAMERA_TYPE = "CSIC"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
@@ -458,7 +462,7 @@ DEFAULT_AI_FRAMEWORK = 'tensorflow'
 # pytorch models: (resnet18)
 DEFAULT_MODEL_TYPE = 'linear'
 BATCH_SIZE = 128                #how many records to use when doing one pass of gradient decent. Use a smaller number if your gpu is running out of memory.
-TRAIN_TEST_SPLIT = 0.8          #what percent of records to use for training. the remaining used for validation.
+TRAIN_TEST_SPLIT = 0.9          #what percent of records to use for training. the remaining used for validation.
 MAX_EPOCHS = 100                #how many times to visit all records of your data
 SHOW_PLOT = True                #would you like to see a pop up display of final loss?
 VERBOSE_TRAIN = True            #would you like to see a progress bar with text during training?
