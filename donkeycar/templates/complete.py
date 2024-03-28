@@ -906,6 +906,7 @@ def add_camera(V, cfg, camera_type):
                     .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
                     .with_use_camera_tuning_blob(cfg.USE_CAMERA_TUNING_BLOB) \
                     .with_enable_undistort_rgb(cfg.OAK_ENABLE_UNDISTORTED_RGB) \
+                    .with_pixel_crop_height(cfg.OAK_PIXEL_CROP_HEIGHT) \
                     .build()
         outputs = ['cam/image_array']
         if cfg.OAK_ENABLE_DEPTH_MAP:

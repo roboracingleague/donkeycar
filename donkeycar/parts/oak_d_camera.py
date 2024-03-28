@@ -33,6 +33,7 @@ class OakDCameraBuilder:
         self.rgb_wb_manual = 2800
         self.use_camera_tuning_blob = False
         self.enable_undistort_rgb = False
+        self.pixel_crop_height = 35
 
     def with_width(self, width):
         self.width = width
@@ -109,6 +110,11 @@ class OakDCameraBuilder:
     def with_enable_undistort_rgb(self, enable_undistort_rgb):
         self.enable_undistort_rgb = enable_undistort_rgb
         return self
+    
+    def with_pixel_crop_height(self, pixel_crop_height):
+        self.pixel_crop_height = pixel_crop_height
+        return self
+    
 
     def build(self):
         return OakDCamera(
@@ -130,7 +136,8 @@ class OakDCameraBuilder:
             rgb_sensor_iso=self.rgb_sensor_iso,
             rgb_wb_manual=self.rgb_wb_manual,
             use_camera_tuning_blob=self.use_camera_tuning_blob,
-            enable_undistort_rgb=self.enable_undistort_rgb
+            enable_undistort_rgb=self.enable_undistort_rgb,
+            pixel_crop_height=self.pixel_crop_height
         )
 
 class OakDCamera:
@@ -153,7 +160,8 @@ class OakDCamera:
                  rgb_sensor_iso = 1200,
                  rgb_wb_manual= 2800,
                  use_camera_tuning_blob = False,
-                 enable_undistort_rgb = False):
+                 enable_undistort_rgb = False,
+                 pixel_crop_height = 35):
         
         self.width = width
         self.height = height
@@ -174,7 +182,7 @@ class OakDCamera:
         self.rgb_wb_manual = rgb_wb_manual
         self.use_camera_tuning_blob = use_camera_tuning_blob
         self.enable_undistort_rgb = enable_undistort_rgb
-
+        self.pixel_crop_height = pixel_crop_height
         # depth config
         self.extended_disparity = True # Closer-in minimum depth, disparity range is doubled (from 95 to 190)
         self.subpixel = False # Better accuracy for longer distance, fractional disparity 32-levels
@@ -342,33 +350,34 @@ class OakDCamera:
         monoRight.setNumFramesPool(2)
         monoRight.setFps(self.framerate)
         
-        # Create resize manip left node
-        stereo_manip_left = self.pipeline.create(dai.node.ImageManip)
-        
-        # Set resize manip left node properties
-        # stereo_manip_left.initialConfig.setResize(self.width, self.height)
-        stereo_manip_left.initialConfig.setResize(self.width, self.height)
-        stereo_manip_left.initialConfig.setFrameType(dai.ImgFrame.Type.GRAY8)
-        stereo_manip_left.initialConfig.setInterpolation(dai.Interpolation.DEFAULT_DISPARITY_DEPTH)
-        stereo_manip_left.setNumFramesPool(2)
+        if (self.height != 400):
+            # Create resize manip left node
+            stereo_manip_left = self.pipeline.create(dai.node.ImageManip)
+            
+            # Set resize manip left node properties
+            # stereo_manip_left.initialConfig.setResize(self.width, self.height)
+            stereo_manip_left.initialConfig.setResize(self.width, self.height)
+            stereo_manip_left.initialConfig.setFrameType(dai.ImgFrame.Type.GRAY8)
+            stereo_manip_left.initialConfig.setInterpolation(dai.Interpolation.DEFAULT_DISPARITY_DEPTH)
+            stereo_manip_left.setNumFramesPool(2)
 
-        # Create resize manip right node
-        stereo_manip_right = self.pipeline.create(dai.node.ImageManip)
+            # Create resize manip right node
+            stereo_manip_right = self.pipeline.create(dai.node.ImageManip)
 
-        # Set resize manip left node properties
-        # stereo_manip_right.initialConfig.setResize(self.width, self.height)
-        stereo_manip_right.initialConfig.setResize(self.width, self.height)
-        stereo_manip_right.initialConfig.setFrameType(dai.ImgFrame.Type.GRAY8)
-        stereo_manip_right.initialConfig.setInterpolation(dai.Interpolation.DEFAULT_DISPARITY_DEPTH)
-        stereo_manip_right.setNumFramesPool(2)
+            # Set resize manip left node properties
+            # stereo_manip_right.initialConfig.setResize(self.width, self.height)
+            stereo_manip_right.initialConfig.setResize(self.width, self.height)
+            stereo_manip_right.initialConfig.setFrameType(dai.ImgFrame.Type.GRAY8)
+            stereo_manip_right.initialConfig.setInterpolation(dai.Interpolation.DEFAULT_DISPARITY_DEPTH)
+            stereo_manip_right.setNumFramesPool(2)
 
-        # Crop range
-        #    - - > x 
-        #    |
-        #    y
-        if self.depth_crop_rect:
-            stereo_manip_left.initialConfig.setCropRect(*self.depth_crop_rect)
-            stereo_manip_right.initialConfig.setCropRect(*self.depth_crop_rect)
+            # Crop range
+            #    - - > x 
+            #    |
+            #    y
+            if self.depth_crop_rect:
+                stereo_manip_left.initialConfig.setCropRect(*self.depth_crop_rect)
+                stereo_manip_right.initialConfig.setCropRect(*self.depth_crop_rect)
 
         # Create stereo_depth node
         stereo = self.pipeline.create(dai.node.StereoDepth)
@@ -392,15 +401,18 @@ class OakDCamera:
         xout_depth = self.pipeline.create(dai.node.XLinkOut)
         xout_depth.setStreamName("xout_depth")
         
-
-        # Linking mono node to manip image resize node
-        monoLeft.out.link(stereo_manip_left.inputImage)
-        monoRight.out.link(stereo_manip_right.inputImage)
-        
-        # Linking manip node to stereo_depth node
-        stereo_manip_left.out.link(stereo.left)
-        stereo_manip_right.out.link(stereo.right)
-        
+        if (self.height != 400):
+            # Linking mono node to manip image resize node
+            monoLeft.out.link(stereo_manip_left.inputImage)
+            monoRight.out.link(stereo_manip_right.inputImage)
+            
+            # Linking manip node to stereo_depth node
+            stereo_manip_left.out.link(stereo.left)
+            stereo_manip_right.out.link(stereo.right)
+        else:
+            monoLeft.out.link(stereo.left)
+            monoRight.out.link(stereo.right)
+            
         # Linking stereo_depth node to output
         stereo.depth.link(xout_depth.input)
         
@@ -468,9 +480,9 @@ class OakDCamera:
 
             if self.enable_undistort_rgb == True:
                 frame_undistorted_rgb_full = cv2.remap(image_data_xout.copy(), self.map_x, self.map_y, cv2.INTER_LINEAR)
-                self.frame_undistorted_rgb = frame_undistorted_rgb_full[35:self.height,0:self.width]
+                self.frame_undistorted_rgb = frame_undistorted_rgb_full[self.pixel_crop_height:self.height,0:self.width]
             
-            image_data_xout = image_data_xout[35:self.height,0:self.width]
+            image_data_xout = image_data_xout[self.pixel_crop_height:self.height,0:self.width]
             self.frame_xout = image_data_xout
 
             if logger.isEnabledFor(logging.DEBUG):
@@ -484,7 +496,7 @@ class OakDCamera:
         if self.queue_xout_depth is not None:
             data_xout_depth = self.queue_xout_depth.get()
             frame_xout_depth_full = data_xout_depth.getFrame()
-            self.frame_xout_depth = frame_xout_depth_full[35:self.height,0:self.width]
+            self.frame_xout_depth = frame_xout_depth_full[self.pixel_crop_height:self.height,0:self.width]
 
         if self.queue_xout_spatial_data is not None:
             xout_spatial_data = self.queue_xout_spatial_data.get().getSpatialLocations()
