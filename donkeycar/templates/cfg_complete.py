@@ -47,7 +47,7 @@ RGB_RESOLUTION = "800p"
 RGB_APPLY_CROPPING = False
 RGB_SENSOR_CROP_X = 0.0
 RGB_SENSOR_CROP_Y = 0.175
-RGB_VIDEO_SIZE =  (320,200) # (320,165)
+RGB_VIDEO_SIZE =  (320,200)  #(640,400) # (320,165)
 
 RGB_APPLY_MANUAL_CONF = False
 RGB_EXPOSURE_TIME = 2000
@@ -56,22 +56,22 @@ RGB_WB_MANUAL = 2800
 
 # OAK-D-LITE: from 1920/1080 (1,8)>>240/135 
 # OAK-D-WIDE: from 1280/800  (1,8)>>160/100 (3,16)>>240/150 5/32>>200/125 
-OAK_D_ISP_SCALE = (1,4) 
+OAK_D_ISP_SCALE = (1,4) # (1,2) 
 
-OAK_IMAGE_W = 320 
+OAK_IMAGE_W = 320 # 640
 # OAK-D-LITE: color cam = 135 ISP 1/8 ou 108 ISP 1/10 ou 126 ISP 7/60
 # OAK-D-WIDE: 150 ou 125 ou 100
-OAK_IMAGE_H = 200 # 165 
+OAK_IMAGE_H = 200 # 400  # 165 
 
 OAK_IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
 
 
 # OAK-D-LITE: color cam = 240 ISP 1/8 ou 192 ISP 1/10 ou 224 ISP 7/60
 # OAK-D-WIDE: 240 ou 200 ou 160
-IMAGE_W = 320 
+IMAGE_W = 320 # 640
 # OAK-D-LITE: color cam = 135 ISP 1/8 ou 108 ISP 1/10 ou 126 ISP 7/60
 # OAK-D-WIDE: 150 ou 125 ou 100
-IMAGE_H = 165 
+IMAGE_H = 165 # 330
 
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
 
@@ -86,6 +86,7 @@ OAK_ENABLE_DEPTH_MAP = True # enables depth map output
 OAK_DEPTH_CROP_RECT = None # (0.0,0.175,1.0,1.0) # (top_left_x, top_left_y, bottom_right_x, bottom_right_y) with normalized values ie in [0,1]
 OAK_ENABLE_UNDISTORTED_RGB = True # Activate undistorted rgb generation and recording
 OAK_OBSTACLE_DETECTION_ENABLED = False # enable roi distances output
+OAK_PIXEL_CROP_HEIGHT = 35 # 70 # pour le 640x400
 
 # OBSTACLE_AVOIDANCE SETTINGS
 OBSTACLE_AVOIDANCE_ENABLED = False
