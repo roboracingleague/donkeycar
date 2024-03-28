@@ -65,7 +65,16 @@
     state: "present"
   tags:
     - pycuda
-    
+
+- name: add platform  {{ platform }} to environment variables
+  lineinfile:
+    path: "/home/{{ donkeycar_user }}/.bashrc"
+    line: "export ROBOCARS_PLATFROM={{ platform }}"
+    state: present
+  tags:
+    - varenv
+
+
 - name: install python requirements
   become: false
   pip:
