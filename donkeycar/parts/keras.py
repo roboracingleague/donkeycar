@@ -642,13 +642,22 @@ class KerasBehavioral(KerasCategorical):
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
                  throttle_range: float = 0.5,
-                 num_behavior_inputs: int = 2):
+                 num_behavior_inputs: int = 2,
+                 drop_core: float = 0.2,
+                 drop_upper_layers: float = 0.1,
+                 l1_channels: int = 24):
         self.num_behavior_inputs = num_behavior_inputs
+        self.drop_core = drop_core
+        self.drop_upper_layers = drop_upper_layers
+        self.l1_channels = l1_channels
         super().__init__(interpreter, input_shape, throttle_range)
 
     def create_model(self):
         return default_bhv(num_bvh_inputs=self.num_behavior_inputs,
-                           input_shape=self.input_shape)
+                           input_shape=self.input_shape,
+                           drop_core=self.drop_core,
+                           drop_upper_layers=self.drop_upper_layers,
+                           l1_channels=self.l1_channels)
 
     def x_transform(
             self,
@@ -1330,16 +1339,16 @@ def default_imu(num_outputs, num_imu_inputs, input_shape):
     return model
 
 
-def default_bhv(num_bvh_inputs, input_shape):
-    drop = 0.2
+def default_bhv(num_bvh_inputs, input_shape, drop_core, drop_upper_layers, l1_channels):
+    # drop_core = 0.2
     img_in = Input(shape=input_shape, name='img_in')
     # tensorflow is ordering the model inputs alphabetically in tensorrt,
     # so behavior must come after image, hence we put an x here in front.
     bvh_in = Input(shape=(num_bvh_inputs,), name="xbehavior_in")
 
-    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=12)
+    x = core_cnn_layers(img_in, drop_core, l4_stride=1, l1_channels=l1_channels)
     x = Dense(100, activation='relu')(x)
-    x = Dropout(.1)(x)
+    x = Dropout(drop_upper_layers)(x)
     
     y = bvh_in
     y = Dense(num_bvh_inputs * 2, activation='relu')(y)
@@ -1348,9 +1357,9 @@ def default_bhv(num_bvh_inputs, input_shape):
     
     z = concatenate([x, y])
     z = Dense(100, activation='relu')(z)
-    z = Dropout(.1)(z)
+    z = Dropout(drop_upper_layers)(z)
     z = Dense(50, activation='relu')(z)
-    z = Dropout(.1)(z)
+    z = Dropout(drop_upper_layers)(z)
     
     # Categorical output of the angle into 15 bins
     angle_out = Dense(15, activation='softmax', name='angle_out')(z)
