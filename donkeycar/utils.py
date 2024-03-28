@@ -530,7 +530,7 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     '''
     from donkeycar.parts.keras import KerasCategorical, KerasLinear, \
         KerasInferred, KerasIMU, KerasMemory, KerasBehavioral, KerasLocalizer, \
-        KerasLSTM, Keras3D_CNN, KerasDetector, KerasDetectorDualInput
+        KerasLSTM, Keras3D_CNN, KerasDetector, KerasDetectorDualInput, KerasPointLocalizer, KerasLocalizer2
     from donkeycar.parts.interpreter import KerasInterpreter, TfLite, TensorRT, \
         FastAIInterpreter, OnnxInterpreter
 
@@ -612,6 +612,17 @@ def get_model_by_type(model_type: str, cfg: 'Config') -> Union['KerasPilot', 'Fa
     elif used_model_type == '3d':
         kl = Keras3D_CNN(interpreter=interpreter, input_shape=input_shape,
                          seq_length=cfg.SEQUENCE_LENGTH)
+    elif used_model_type == "point_localizer":
+        kl = KerasPointLocalizer(
+            interpreter=interpreter,
+            input_shape=input_shape,
+            input_point_shape= (2,),
+            num_locations=3)
+    elif used_model_type == "localizer2":
+        kl = KerasLocalizer2(
+            interpreter=interpreter,
+            input_shape=input_shape,
+            num_locations=3)
     else:
         known = [k + u for k in ('', 'tflite_', 'tensorrt_', 'trt_')
                  for u in used_model_type.mem]

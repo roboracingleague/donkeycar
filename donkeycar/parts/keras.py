@@ -121,7 +121,6 @@ class KerasPilot(ABC):
             # print("1 param")
             return self.inference(norm_arr)
             
-
     def inference(self, img_arr: np.ndarray, other_arr: Optional[np.ndarray]) \
             -> Tuple[Union[float, np.ndarray], ...]:
         """ Inferencing using the interpreter
@@ -242,6 +241,38 @@ class KerasPilot(ABC):
         must be matched by dictionary keys."""
         assert isinstance(record, TubRecord), "TubRecord required"
         img_arr = record.image(processor=img_processor)
+
+        # print(img_arr.shape)
+        """
+        Draws a red rectangle on the given image.
+
+        Parameters:
+        - image: numpy array of shape (height, width, 3) representing an RGB image.
+        - Cx, Cy: integers, center coordinates of the rectangle.
+        - W, H: integers, width and height of the rectangle.
+        """
+        normalized_bbox_CxCyWH = record.underlying['obstacle_bbox']
+        Cx = int(normalized_bbox_CxCyWH[0] * 320)
+        Cy = int(normalized_bbox_CxCyWH[1] * 165)
+        W = int(normalized_bbox_CxCyWH[2] * 320)
+        H = int(normalized_bbox_CxCyWH[3] * 165)
+        # Calculate the top-left corner of the rectangle
+        x1 = int(Cx - W / 2)
+        y1 = int(Cy - H / 2)
+
+        # Calculate the bottom-right corner of the rectangle
+        x2 = x1 + W
+        y2 = y1 + H
+
+        # Clamp values to ensure they don't go outside the image boundaries
+        x1 = max(0, min(x1, img_arr.shape[1] - 1))
+        y1 = max(0, min(y1, img_arr.shape[0] - 1))
+        x2 = max(0, min(x2, img_arr.shape[1] - 1))
+        y2 = max(0, min(y2, img_arr.shape[0] - 1))
+
+        # Update pixels within the rectangle boundaries to red
+        out_img = img_arr.copy()
+        out_img[y1:y2, x1:x2] = [1.0, 0.0, 0.0]
         return {'img_in': img_arr}
 
     def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
@@ -722,6 +753,148 @@ class KerasLocalizer(KerasPilot):
                    'zloc': tf.TensorShape([self.num_locations])})
         return shapes
 
+class KerasLocalizer2(KerasPilot):
+    """
+    A Keras part that take an image as input,
+    outputs steering and throttle, and localisation category
+    """
+    def __init__(self,
+                 interpreter: Interpreter = KerasInterpreter(),
+                 input_shape: Tuple[int, ...] = (120, 160, 3),
+                 num_locations: int = 3):
+        self.num_locations = num_locations
+        super().__init__(interpreter, input_shape)
+
+    def create_model(self):
+        return default_loc2(input_shape=self.input_shape, 
+                            num_locations=self.num_locations)
+
+    def compile(self):
+        self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'],
+                                 loss='categorical_crossentropy')
+        
+    def interpreter_to_output(self, interpreter_out) \
+            -> Tuple[Union[float, np.ndarray], ...]:
+        side_loc = interpreter_out
+        loc = np.argmax(side_loc)
+        return loc
+
+    def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
+            -> Dict[str, Union[float, List[float]]]:
+        assert isinstance(record, TubRecord), "TubRecord expected"
+        # loc_arr = ['left','right','NA']
+        # loc_one_hot = np.zeros(self.num_locations)
+        # if 'labeled_indexes' in record.underlying:
+        #     loc = loc_arr.index(record.underlying['labeled_indexes'])
+        #     loc_one_hot[loc] = 1
+            # print(f"labeled_indexes: {record.underlying['labeled_indexes']} {loc_one_hot}")
+
+        dist = record.underlying['obstacle_dist']
+        loc_arr = ['NA','left','right']
+
+        # Value to change instead of generating new catalogs
+        max_obstacle_detection_distance = 2000
+
+        if dist <= max_obstacle_detection_distance and dist > 300:
+            loc = loc_arr.index(record.underlying['labeled_indexes'])
+        else:
+            # default to 'NA'
+            loc = 0
+        loc_one_hot = np.zeros(self.num_locations)
+        loc_one_hot[loc] = 1
+
+        return {'z_point_loc': loc_one_hot}
+
+    def output_shapes(self):
+        # need to cut off None from [None, 120, 160, 3] tensor shape
+        img_shape = self.get_input_shapes()[0][1:]
+        # the keys need to match the models input/output layers
+        shapes = ({'img_in': tf.TensorShape(img_shape)},
+                  {'z_point_loc': tf.TensorShape([self.num_locations])})
+        return shapes
+
+class KerasPointLocalizer(KerasPilot):
+    """
+    A Keras part that take an image and a point as input,
+    output localisation category
+    """
+    def __init__(self,
+                 interpreter: Interpreter = KerasInterpreter(),
+                 input_shape: Tuple[int, ...] = (120, 160, 3),
+                 input_point_shape: Tuple[int, ...] = (2,),
+                 num_locations: int = 3):
+        self.num_locations = num_locations
+        self.input_point_shape = input_point_shape
+        super().__init__(interpreter, input_shape)
+
+    def create_model(self):
+        return default_point_loc(input_shape = self.input_shape,
+                                 input_point_shape = self.input_point_shape,
+                                 num_locations = self.num_locations)
+            
+    def compile(self):
+        self.interpreter.compile(optimizer=self.optimizer, metrics=['acc'],
+                                 loss='categorical_crossentropy')
+        
+    def interpreter_to_output(self, interpreter_out) \
+            -> Tuple[Union[float, np.ndarray], ...]:
+        point_loc_arr = interpreter_out
+
+        loc = np.argmax(point_loc_arr)
+        return loc
+
+    def x_transform(
+            self,
+            record: Union[TubRecord, List[TubRecord]],
+            img_processor: Callable[[np.ndarray], np.ndarray]) \
+            -> Dict[str, Union[float, np.ndarray]]:
+        assert isinstance(record, TubRecord), 'TubRecord expected'
+        
+        # ADD WAY to indicate NA outputs
+        # this transforms the record into x for training the model to x,y
+        # find bottom center point of the bounding box given in CxCyWH format
+        # normalized_BCx = Cx
+        # normalized_BCy = Cy + H/2
+        
+        normalized_point = []
+        # NORMALIZER!!!
+        # UTILISER les images undistorted
+
+        if 'obstacle_bbox' in record.underlying:
+            normalized_point_x = record.underlying['obstacle_bbox'][0]
+            normalized_point_y = record.underlying['obstacle_bbox'][1] + (record.underlying['obstacle_bbox'][3] / 2)
+            normalized_point = [normalized_point_x, normalized_point_y]
+            # print(f"{record.underlying['_index']} normalized_point(x,y): {normalized_point} {record.underlying['obstacle_point']}")
+        # if 'obstacle_point' in record.underlying:
+        #     raw_point_arr = record.underlying['obstacle_point']
+        #     point_x = raw_point_arr[0]
+        #     point_y = raw_point_arr[1] + 5
+        #     point_arr = [point_x, point_y]
+        img_arr = record.image(processor=img_processor)
+        
+        return {'img_in': img_arr, 'a_point_in': normalized_point}
+
+    def y_transform(self, record: Union[TubRecord, List[TubRecord]]) \
+            -> Dict[str, Union[float, List[float]]]:
+        assert isinstance(record, TubRecord), "TubRecord expected"
+        
+        loc_arr = ['left','right','NA']
+        loc_one_hot = np.zeros(self.num_locations)
+        if 'labeled_indexes' in record.underlying:
+            loc = loc_arr.index(record.underlying['labeled_indexes'])
+            loc_one_hot[loc] = 1
+            # print(f"labeled_indexes: {record.underlying['labeled_indexes']} {loc_one_hot}")
+        return {'z_point_loc': loc_one_hot}
+
+    def output_shapes(self):
+        point_shape = self.get_input_shapes()[1][1:]
+        # need to cut off None from [None, 120, 160, 3] tensor shape
+        img_shape = self.get_input_shapes()[0][1:]
+        # the keys need to match the models input/output layers
+        shapes = ({'img_in': tf.TensorShape(img_shape),
+                   'a_point_in': tf.TensorShape(point_shape)},
+                  {'z_point_loc': tf.TensorShape([self.num_locations])})
+        return shapes
 
 class KerasDetector(KerasPilot):
     """
@@ -1332,14 +1505,15 @@ def default_imu(num_outputs, num_imu_inputs, input_shape):
 
 def default_bhv(num_bvh_inputs, input_shape):
     drop = 0.2
+    drop_2 = 0.2 # ou 0.1
     img_in = Input(shape=input_shape, name='img_in')
     # tensorflow is ordering the model inputs alphabetically in tensorrt,
     # so behavior must come after image, hence we put an x here in front.
     bvh_in = Input(shape=(num_bvh_inputs,), name="xbehavior_in")
 
-    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=12)
+    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24)
     x = Dense(100, activation='relu')(x)
-    x = Dropout(.1)(x)
+    x = Dropout(drop_2)(x)
     
     y = bvh_in
     y = Dense(num_bvh_inputs * 2, activation='relu')(y)
@@ -1348,9 +1522,9 @@ def default_bhv(num_bvh_inputs, input_shape):
     
     z = concatenate([x, y])
     z = Dense(100, activation='relu')(z)
-    z = Dropout(.1)(z)
+    z = Dropout(drop_2)(z)
     z = Dense(50, activation='relu')(z)
-    z = Dropout(.1)(z)
+    z = Dropout(drop_2)(z)
     
     # Categorical output of the angle into 15 bins
     angle_out = Dense(15, activation='softmax', name='angle_out')(z)
@@ -1385,6 +1559,63 @@ def default_loc(num_locations, input_shape):
 
     model = Model(inputs=[img_in], outputs=[angle_out, throttle_out, loc_out],
                   name='localizer')
+    return model
+
+def default_loc2(input_shape, num_locations):
+    drop = 0.1
+    img_in = Input(shape=input_shape, name='img_in')
+    # tensorflow is ordering the model inputs alphabetically in tensorrt,
+    # so behavior must come after image, hence we put an x here in front.
+    
+    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24)
+    x = Dense(100, activation='relu')(x)
+    x = Dropout(drop)(x)
+    
+    z = Dense(50, activation='relu')(x)
+    z = Dropout(drop)(z)
+
+    loc_out = Dense(num_locations, activation='softmax', name='z_point_loc')(z)
+    
+    # Categorical output of the angle into 15 bins
+    # angle_out = Dense(15, activation='softmax', name='angle_out')(z)
+    # Categorical output of throttle into 20 bins
+    # throttle_out = Dense(20, activation='softmax', name='throttle_out')(z)
+        
+    model = Model(inputs=[img_in], outputs=[loc_out],
+                  name='localizer2')
+    return model
+
+def default_point_loc(input_point_shape, input_shape, num_locations):
+    drop = 0.2
+    img_in = Input(shape=input_shape, name='img_in')
+    # tensorflow is ordering the model inputs alphabetically in tensorrt,
+    # so behavior must come after image, hence we put an x here in front.
+    a_point_in = Input(shape=input_point_shape, name="a_point_in")
+
+    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24)
+    x = Dense(100, activation='relu')(x)
+    x = Dropout(.1)(x)
+    
+    y = a_point_in
+    y = Dense(8, activation='relu')(y)
+    y = Dense(4, activation='relu')(y)
+    y = Dense(2, activation='relu')(y)
+    
+    z = concatenate([x, y])
+    z = Dense(100, activation='relu')(z)
+    z = Dropout(.1)(z)
+    z = Dense(50, activation='relu')(z)
+    z = Dropout(.1)(z)
+
+    loc_out = Dense(num_locations, activation='softmax', name='z_point_loc')(z)
+    
+    # Categorical output of the angle into 15 bins
+    # angle_out = Dense(15, activation='softmax', name='angle_out')(z)
+    # Categorical output of throttle into 20 bins
+    # throttle_out = Dense(20, activation='softmax', name='throttle_out')(z)
+        
+    model = Model(inputs=[img_in, a_point_in], outputs=[loc_out],
+                  name='point_localizer')
     return model
 
 def default_detector(num_locations, input_shape):
