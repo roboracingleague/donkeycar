@@ -106,7 +106,6 @@ BEHAVIOR_LIST = ['left', 'middle', 'right']
 # Next 2 params cannot be enabled together.
 OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = True # To free drive using behavior model, Si True, active l'autopilote du steering avec avoidance
 OBSTACLE_DETECTOR_MANUAL_LANE = False # si True, active le mode copilot pour le steering depuis la radio 
-RECORD_DEFAULT_BEHAVIOR = True
 # BEHAVIOR MODEL CONFIG
 BEHAVIOR_DROP_CORE = 0.2
 BEHAVIOR_DROP_UPPER_LAYERS = 0.2
