@@ -74,6 +74,13 @@
   tags:
     - varenv
 
+- name: add donkeycar_dir path to environment variables
+  lineinfile:
+    path: "/home/{{ donkeycar_user }}/.bashrc"
+    line: "export DONKEYCAR_DIR=~/donkeycar"
+    state: present
+  tags:
+    - varenv
 
 - name: install python requirements
   become: false
