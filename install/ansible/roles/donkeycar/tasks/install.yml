@@ -69,7 +69,7 @@
 - name: add platform  {{ platform }} to environment variables
   lineinfile:
     path: "/home/{{ donkeycar_user }}/.bashrc"
-    line: "export ROBOCARS_PLATFROM={{ platform }}"
+    line: "export ROBOCARS_PLATFORM={{ platform }}"
     state: present
   tags:
     - varenv
