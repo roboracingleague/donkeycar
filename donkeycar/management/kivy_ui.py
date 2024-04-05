@@ -39,6 +39,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import SpinnerOption, Spinner
 from kivy.graphics import Color, Rectangle, Point, GraphicException,Line, Ellipse
+from kivy.core.text import Label as CoreLabel
 
 from donkeycar import load_config
 from donkeycar.parts.tub_v2 import Tub
@@ -166,7 +167,64 @@ def extract_widest_area(mask):
 #         return padded_widest_area.astype(int)  # Convert to binary mask (0 and 1)
 #     else:
 #         return None
-    
+
+def _get_depth_map(extract_folder, image_file):
+        """Loads and prepares an image for processing."""
+        image_id = image_file.split('_')[0]
+        # depth_path = os.path.join(extract_folder, "data/depths", image_id + "_cam_depth_array_.jpg.npz")
+        depth_path = os.path.join(extract_folder, "depths", image_id + "_cam_depth_array_.jpg.npz")
+        # depth_path = os.path.join(HOME, "data", image_id + "_cam_depth_array_.jpg.npz")
+        
+        
+        f = np.load(depth_path)
+        return f['img']
+
+def _extract_matrix_center_distance(depth_image, reference_point):
+        height, width = depth_image.shape
+        x, y = reference_point
+
+        # Handle edge cases
+        x_min = max(0, x - 1)
+        x_max = min(width, x + 2)
+        y_min = max(0, y - 1)
+        y_max = min(height, y + 2)
+
+        # Extract 5x5 matrix centered on reference point
+        depth_center_matrix = depth_image[y_min:y_max, x_min:x_max]
+
+        # Calculate the 80th percentile value
+        center_distance = np.percentile(depth_center_matrix, 20)
+        #center_distance = depth_image[y,x]
+        return center_distance
+
+def _get_bbox_lower_center_depth(binary_mask, depth_map):
+        """Gets the center depth of the bounding box."""
+        depths = []
+        binary_mask_shape = binary_mask.shape
+        binary_mask_shape_x = binary_mask_shape[1]
+        binary_mask_shape_y = binary_mask_shape[0]
+        mask = np.where(binary_mask == 1)
+        bbox_cx_normalized = ((np.max(mask[1]) + np.min(mask[1])) / 2) / binary_mask_shape_x
+        bbox_cy_normalized = ((np.max(mask[0]) + np.min(mask[0])) / 2) / binary_mask_shape_y
+        bbox_w_normalized = (np.max(mask[1]) - np.min(mask[1]))  / binary_mask_shape_x
+        bbox_h_normalized = (np.max(mask[0]) - np.min(mask[0])) / binary_mask_shape_y
+        binary_mask_bbox = [[bbox_cx_normalized, bbox_cy_normalized, bbox_w_normalized, bbox_h_normalized]]
+
+        for bbox in binary_mask_bbox:
+            # cx = int(bbox.numpy()[0] * depth_map.shape[1])
+            # cy = int(bbox.numpy()[1] * depth_map.shape[0])
+            # bbox_height = int(bbox.numpy()[3] * depth_map.shape[0])
+            if len(bbox)>0:
+                cx = int(bbox[0] * depth_map.shape[1])
+                cy = int(bbox[1] * depth_map.shape[0])
+                bbox_height = int(bbox[3] * depth_map.shape[0])
+                cy_low = cy + ((bbox_height - 10)//2)
+                center_point = (cx, cy_low)
+                center_distance = _extract_matrix_center_distance(depth_map, center_point)
+                depths.append(center_distance)
+        return np.array(depths)  
+
+
 def tub_screen():
     return App.get_running_app().tub_screen if App.get_running_app() else None
 
@@ -548,20 +606,28 @@ class FullAnnotateImage(Image):
         except Exception as e:
             Logger.error(f'Record: FullAnnotateImage : Bad record: {e}')
 
-    def update_with_mask(self, record, mask_left, mask_right):
+    def update_with_mask(self, record, mask_left, mask_right, d3_mask):
         try:
-            color_left = np.array([255/255, 30/255, 30/255, 0.6])
-            color_right = np.array([30/255, 255/255, 30/255, 0.6])
-            #h, w = mask_left.shape if mask_left!=None else mask_right.shape
-            h, w = mask_left.shape 
-            mask_left_image = mask_left.reshape(h, w, 1) * color_left.reshape(1, 1, -1)
-            mask_right_image = mask_right.reshape(h, w, 1) * color_right.reshape(1, 1, -1)
-            pil_mask_left_image = PilImage.fromarray((mask_left_image * 255).astype(np.uint8))
-            pil_mask_right_image = PilImage.fromarray((mask_right_image * 255).astype(np.uint8))
             img_arr = self.get_image(record)
             pil_image = PilImage.fromarray(img_arr)
-            pil_image.paste (pil_mask_left_image,(0, 0), pil_mask_left_image)
-            pil_image.paste (pil_mask_right_image,(0, 0), pil_mask_right_image)
+            if np.any(mask_left):
+                color_left = np.array([255/255, 30/255, 30/255, 0.6])
+                h, w = mask_left.shape 
+                mask_left_image = mask_left.reshape(h, w, 1) * color_left.reshape(1, 1, -1)
+                pil_mask_left_image = PilImage.fromarray((mask_left_image * 255).astype(np.uint8))
+                pil_image.paste (pil_mask_left_image,(0, 0), pil_mask_left_image)
+            if np.any(mask_right):
+                color_right = np.array([30/255, 255/255, 30/255, 0.6])
+                h, w = mask_right.shape 
+                mask_right_image = mask_right.reshape(h, w, 1) * color_right.reshape(1, 1, -1)
+                pil_mask_right_image = PilImage.fromarray((mask_right_image * 255).astype(np.uint8))
+                pil_image.paste (pil_mask_right_image,(0, 0), pil_mask_right_image)
+            if np.any(d3_mask):
+                color_3d = np.array([30/255, 30/255, 255/255, 0.6])
+                h, w = d3_mask.shape 
+                mask_3d_image = d3_mask.reshape(h, w, 1) * color_3d.reshape(1, 1, -1)
+                pil_mask_3d_image = PilImage.fromarray((mask_3d_image * 255).astype(np.uint8))
+                pil_image.paste (pil_mask_3d_image,(0, 0), pil_mask_3d_image)
             bytes_io = io.BytesIO()
             pil_image.save(bytes_io, format='png')
             bytes_io.seek(0)
@@ -764,6 +830,17 @@ class AnnotateRightPanel(BoxLayout):
 
     def set_auto_mask(self):
         annotate_screen().set_auto_mask()
+
+    def on_keyboard(self, key, scancode):
+        """ Method to chack with keystroke has ben sent. """
+        pass
+
+class D3AnnotatePanel(BoxLayout):
+    """ Class for control panel navigation. """
+    screen = ObjectProperty()
+
+    def d3_mask(self):
+        annotate_screen().d3box()
 
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
@@ -1011,10 +1088,13 @@ class AnnotateScreen(Screen):
         self.poi_right_background_points=[]                
         self.poi_left_box=[]
         self.poi_right_box=[]
+        self.poi_3d_box=[]
+        self.orig_3d_box=[]
         tub_screen().ids.config_manager.load_action()
         tub_screen().ids.tub_loader.update_tub()
         self.init_mask_tub()
         self.update_mask_tub()
+        self.mask_3d_box = self.get_empty_mask()
         self.config = tub_screen().ids.config_manager.config
         if tub_screen().ids.tub_loader.records:
             self.index = tub_screen().index
@@ -1084,6 +1164,7 @@ class AnnotateScreen(Screen):
         self.ids.annotate_left_panel.ids.left_box.disabled = False
         self.ids.annotate_right_panel.ids.right_box.disabled = False
         self.ids.annotate_right_panel.ids.auto_mask.disabled = False
+        self.ids.d3_panel.ids.d3_mask_box.disabled = False
         self.ids.annotate_left_panel.ids.left_foreground_point.disabled = False
         self.ids.annotate_left_panel.ids.left_background_point.disabled = False
         self.ids.annotate_right_panel.ids.right_foreground_point.disabled = False
@@ -1167,6 +1248,8 @@ class AnnotateScreen(Screen):
         self.status(f'Auto Mask set to {self.auto_mask}')
 
     def update_image_with_mask (self, record, index=None):
+        mask_left = None
+        mask_right = None
         if self.mask_records:
             if (index != None): 
                 input_box = np.array([])
@@ -1200,10 +1283,8 @@ class AnnotateScreen(Screen):
                 if np.any(mask_right): #if mask
                     right = np.where(mask_right == 1)
                     self.bbox_mask_right = np.min(right[1]), np.max(right[1]), np.min(right[0]), np.max(right[0])
-                self.ids.annotate_img.update_with_mask(record, mask_left, mask_right)
-                return
-        self.ids.annotate_img.update(record)
-
+        self.ids.annotate_img.update_with_mask(record, mask_left, mask_right, self.mask_3d_box)
+        
     def on_index(self, obj, index):
         """ Kivy method that is called if self.index changes. Here we update
             self.current_record and the slider value. """
@@ -1216,6 +1297,8 @@ class AnnotateScreen(Screen):
 #        if self.ids.mask_records:
 #            current_mask_record
         self.reset_poi()
+        self.mask_3d_box = self.get_empty_mask()
+        self.clear_depth_markers()
         self.update_image_with_mask(self.current_record, index=index)
 
     def on_current_record(self, obj, record):
@@ -1279,6 +1362,12 @@ class AnnotateScreen(Screen):
         if 'right_point_background' in self.poi:
             del self.poi['right_point_background']
 
+    def clear_3d_markers(self):
+        self.canvas.remove_group(u"3d_box")
+
+    def clear_depth_markers(self):
+        self.canvas.remove_group(u"depth")
+
     def clear_box_markers(self):
         self.canvas.remove_group(u"right_box")
         self.canvas.remove_group(u"left_box")
@@ -1315,6 +1404,10 @@ class AnnotateScreen(Screen):
             self.clear_left_markers()
             self.clear_box_markers()
         self.drawing = f"{'left' if left==True else 'right'}_box"
+
+    def d3box(self):
+        self.status(f"Draw 3D box")
+        self.drawing = f"3d_box"
 
     def point(self, left=False, fg=True):
         self.status(f"Draw {'right' if left==False else 'left'} {'background' if fg==False else 'foreground'} point")
@@ -1370,6 +1463,8 @@ class AnnotateScreen(Screen):
         self.poi_right_background_points=[]                
         self.poi_left_box=[]
         self.poi_right_box=[]
+        self.poi_3d_box=[]
+        self.orig_3d_box=[]
         for key in self.poi:
             if 'point_foreground' in key:
                 for point in self.poi[key]:
@@ -1392,8 +1487,11 @@ class AnnotateScreen(Screen):
                 x1,y1 = self.get_original_coordinates (self.poi[key].pos[0]+self.poi[key].size[0],self.poi[key].pos[1]+self.poi[key].size[1] )
                 if 'left' in self.drawing:
                     self.poi_left_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
-                else:
+                if 'right' in self.drawing:
                     self.poi_right_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
+                if '3d' in self.drawing:
+                    self.poi_3d_box = {'x0':x0, 'y0':y0,'x1':x1, 'y1':y1}
+                    self.orig_3d_box = {'x0':self.poi[key].pos[0], 'y0':self.poi[key].pos[1],'x1':self.poi[key].pos[0]+self.poi[key].size[0], 'y1':self.poi[key].pos[1]+self.poi[key].size[1]}
                
     def store_mask(self, record, index, mask, left=True):
             mask_record={}
@@ -1484,6 +1582,33 @@ class AnnotateScreen(Screen):
         #     print (self.canvas.get_group(u"left_box"))
                 #self.mask_tub.write_record(self.current_record)
 
+    def segment_3d_object(self):
+        self.update_poi_record()
+        input_box = np.array([])
+        if len(self.poi_3d_box)>0:
+            input_box=np.array([min(self.poi_3d_box['x0'],self.poi_3d_box['x1']), 
+                                min(self.mask_height-self.poi_3d_box['y0'],self.mask_height-self.poi_3d_box['y1']),
+                                max(self.poi_3d_box['x0'],self.poi_3d_box['x1']),
+                                max(self.mask_height-self.poi_3d_box['y0'],self.mask_height-self.poi_3d_box['y1'])])
+        print (f"NP Array input_box : {input_box}")
+        if self.segment and input_box.size >0:
+            self.mask_3d_box, scores, logits = self.segment_image (input_box=input_box)
+
+            idx = self.current_record.underlying['_index']
+            depth_map = _get_depth_map (tub_screen().ids.tub_loader.file_path, self.current_record.underlying['cam/depth_array'])
+            res = _get_bbox_lower_center_depth(self.mask_3d_box, depth_map)
+            self.update_image_with_mask(self.current_record, index=idx)
+            self.clear_depth_markers()
+            with self.canvas:
+                Color(0,1,0,mode='rgba')
+                mylabel = CoreLabel(text=f"Dst={res}", font_size=40, bold=True)
+                mylabel.refresh()
+                texture = mylabel.texture
+                texture_size = list(texture.size)
+                Rectangle(pos=(self.orig_3d_box['x0'], self.orig_3d_box['y1']+40), texture=texture, size=texture_size,group = "depth")
+        self.clear_3d_markers()
+        pass
+
     def on_touch_down(self, touch):
         if not self.ids.annotate_img.collide_point(*touch.pos):
             return super(Screen, self).on_touch_down(touch)
@@ -1499,11 +1624,13 @@ class AnnotateScreen(Screen):
                         Color(0.5,0,0,opacity,mode='rgba')
                     else:
                         Color(1,0,0,opacity,mode='rgba')
-                else:
+                if 'right' in self.drawing:
                     if 'background' in  self.drawing:
                         Color(0,0.5,0,opacity,mode='rgba')
                     else:
                         Color(0,1,0,opacity,mode='rgba')
+                if '3d' in self.drawing :
+                        Color(0,0,1,opacity,mode='rgba')
                 if "point" in self.drawing:
                     if self.drawing not in self.poi:
                         self.poi[self.drawing]=[]
@@ -1518,7 +1645,10 @@ class AnnotateScreen(Screen):
         if touch.grab_current is self:
             # I receive my grabbed touch, I must ungrab it!
             touch.ungrab(self)
-            self.segment_image_from_ui()
+            if not '3d' in self.drawing:
+                self.segment_image_from_ui()
+            else:
+                self.segment_3d_object()
             # if 'box' in self.drawing:
             #     self.clear_box_markers()
             #     self.drawing = ''

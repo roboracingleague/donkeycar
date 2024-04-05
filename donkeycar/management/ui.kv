@@ -146,10 +146,10 @@
             on_values: root.clear()
 
 <AnnotateLeftPanel>
-    orientation: 'vertical'
-    spacing: 2
+    orientation: 'horizontal'
+    spacing: 1
     GridLayout:
-        cols: 1
+        rows: 4
         Label:
             id: record_num
             text: root.record_display
@@ -188,10 +188,10 @@
                 root.show_hide_rules()
 
 <AnnotateRightPanel>
-    orientation: 'vertical'
-    spacing: 2
+    orientation: 'horizontal'
+    spacing: 1
     GridLayout:
-        cols: 1
+        rows: 4
         Button:
             id: clean_mask
             text: 'Clean all mask'
@@ -226,13 +226,24 @@
             text: 'Reset Right Mask'
             on_press:
                 root.reset_mask(left=False)
-
         Button:
             id: auto_mask
             text: 'Auto mask'
             disabled: True
             on_press:
                 root.set_auto_mask()
+
+<D3AnnotatePanel>
+    orientation: 'horizontal'
+    spacing: 1
+    GridLayout:
+        rows: 1
+        Button:
+            id: d3_mask_box
+            text: '3D Mask Box'
+            disabled: True
+            on_press:
+                root.d3_mask()
 
 <ControlPanel>
     orientation: 'vertical'
@@ -364,12 +375,12 @@
         on_focus: app.tub_screen.keys_enabled = not app.tub_screen.keys_enabled
 
 <-FullAnnotateImage>:
-    size_hint_x: 4
-    size_hint_y: 1
+    #size_hint_x: 1
+    #size_hint_y: 1
     canvas:
         Color:
             rgb: (1, 1, 1)
-        Rectangle:
+        Rectangle
             texture: self.texture
             size: self.width, self.height
             pos: self.x, self.y
@@ -500,33 +511,43 @@
 
 <AnnotateScreen>:
     config: app.tub_screen.ids.config_manager.config
-    canvas:
-        Color:
-            rgb: 0, 0, 0
-        Rectangle:
-            size: self.size
+#    canvas:
+#        Color:
+#            rgb: 0, 0, 0
+#        Rectangle:
+#            size: self.size
     BoxLayout:
         orientation: 'vertical'
         TabBar:
             id: tab_bar
             manager: root.manager
         PaddedBoxLayout:
-            size_hint_y: 1.0
+            size_hint_y: 10
+            FullAnnotateImage:
+                fit_mode: "none"
+                id: annotate_img
+        PaddedBoxLayout:
+            size_hint_y: 4.0
             AnnotateLeftPanel
                 id: annotate_left_panel
                 screen: root
                 record: root.current_record
-            FullAnnotateImage:
-                id: annotate_img
             AnnotateRightPanel
                 id: annotate_right_panel
                 screen: root
                 record: root.current_record
-            ControlPanel
-                id: control_panel
-                screen: root
-                nextEmptyMask: True
-        TubEditor
+            BoxLayout:
+                orientation: 'vertical'
+                ControlPanel
+                    size_hint_y: 4.0
+                    id: control_panel
+                    screen: root
+                    nextEmptyMask: True
+                D3AnnotatePanel
+                    size_hint_y: 1.0
+                    id: d3_panel
+                    screen: root
+        TubEditor:
         Slider:
             id: annotate_slider
             min: 0
