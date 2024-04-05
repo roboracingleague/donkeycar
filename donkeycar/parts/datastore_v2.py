@@ -295,14 +295,13 @@ class Manifest(object):
             #get the catalog
             catalog_index = index // self.max_len
             catalog_path = os.path.join(self.base_path, self.catalog_paths[catalog_index])
-            print(f"Update catalog {catalog_index} - {catalog_path}")
 
             catalog_to_update = Catalog(catalog_path,
                                 read_only=self.read_only,
                                 start_index=0)
-            catalog_to_update.write_record(record, index)
+            catalog_to_update.write_record(record, index % self.max_len)
         else:
-            self.current_catalog.write_record(record, index)
+            self.current_catalog.write_record(record)
             self.current_index += 1
             # Update metadata to keep track of the last index
             self._update_catalog_metadata(update=True)

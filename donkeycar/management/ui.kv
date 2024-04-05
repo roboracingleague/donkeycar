@@ -181,7 +181,7 @@
             text: 'Reset Left Mask'
             on_press:
                 root.reset_mask(left=True)
-        Button:
+        ToggleButton:
             id: show_hide_rules
             text: 'Show/Hide rules'
             on_press:
@@ -193,10 +193,10 @@
     GridLayout:
         rows: 4
         Button:
-            id: clean_mask
+            id: clean_all_mask
             text: 'Clean all mask'
             on_press:
-                root.clean_mask()
+                root.clean_all_mask()
         Button:
             id: right_foreground_point
             text: 'Right Fg Point'
@@ -226,7 +226,7 @@
             text: 'Reset Right Mask'
             on_press:
                 root.reset_mask(left=False)
-        Button:
+        ToggleButton:
             id: auto_mask
             text: 'Auto mask'
             disabled: True
