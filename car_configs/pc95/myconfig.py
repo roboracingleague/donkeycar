@@ -1,4 +1,4 @@
-OBSTACLE_DETECTOR_MODEL_PATH = "/home/donkey/donkeycar-models/trt_5.1/model-A022.trt"
+OBSTACLE_DETECTOR_MODEL_PATH = "/home/donkey/donkeycar-models/trt/detector-A022.trt"
 
 ROBOCARSHAT_SERIAL_PORT = '/dev/ttyTHS0'
 

@@ -1,6 +1,6 @@
 DRIVE_LOOP_HZ = 35
 
-OBSTACLE_DETECTOR_MODEL_PATH = "/home/donkey/donkeycar-models/trt_4.6/model-A022.trt"
+OBSTACLE_DETECTOR_MODEL_PATH = "/home/donkey/donkeycar-models/trt/detector-A022.trt"
 
 # Following values must be aligned with values in Hat !
 # ROBOCARSHAT_PWM_OUT_THROTTLE_MIN    =   1000
