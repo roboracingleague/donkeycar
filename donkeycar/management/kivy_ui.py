@@ -1289,6 +1289,7 @@ class AnnotateScreen(Screen):
 
                 #np.set_printoptions(threshold=sys.maxsize)
                 if not np.any(mask_left): #if no mask
+                    self.ids.annotate_left_panel.ids.reset_left_mask.disabled = True
                     if self.bbox_mask_left and self.auto_mask: #and previous one and auto_mask
                         input_box=np.array([max(min(self.bbox_mask_left[0],self.bbox_mask_left[1])-self.auto_mask_offset,0), 
                                     max(min(self.bbox_mask_left[2],self.bbox_mask_left[3])-self.auto_mask_offset,0),
@@ -1298,11 +1299,13 @@ class AnnotateScreen(Screen):
                         self.store_mask (self.current_mask_record, index=index, mask=mask_left, left=True)
                         mask_left = self.current_mask_record.image(key='left_mask', as_nparray=True, format='NPY', reload=True, image_base_path='left')
                 if np.any(mask_left): #if mask
+                    self.ids.annotate_left_panel.ids.reset_left_mask.disabled = False
                     left = np.where(mask_left == 1)
                     self.bbox_mask_left = np.min(left[1]), np.max(left[1]), np.min(left[0]), np.max(left[0])
                 else:
                     self.bbox_mask_left=None
                 if not np.any(mask_right): #if no mask
+                    self.ids.annotate_right_panel.ids.reset_right_mask.disabled = True
                     if self.bbox_mask_right and self.auto_mask: #and previous one and auto_mask
                         print ("Previous right mask found")
                         input_box=np.array([max(min(self.bbox_mask_right[0],self.bbox_mask_right[1])-self.auto_mask_offset,0), 
@@ -1313,6 +1316,7 @@ class AnnotateScreen(Screen):
                         self.store_mask (self.current_mask_record,  index=index, mask=mask_right, left=False)
                         mask_right = self.current_mask_record.image(key='right_mask', as_nparray=True, format='NPY', reload=True, image_base_path='right')
                 if np.any(mask_right): #if mask
+                    self.ids.annotate_right_panel.ids.reset_right_mask.disabled = False
                     right = np.where(mask_right == 1)
                     self.bbox_mask_right = np.min(right[1]), np.max(right[1]), np.min(right[0]), np.max(right[0])
                 else:
@@ -1457,7 +1461,7 @@ class AnnotateScreen(Screen):
         self.clear_markers()
         self.raz_poi_record()
 
-    def show_hide_rules(self):
+    def show_hide_ruler(self):
         #Toggle
         if self.show_rules:
             self.show_rules = False
