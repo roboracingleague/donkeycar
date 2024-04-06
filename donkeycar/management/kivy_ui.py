@@ -796,8 +796,8 @@ class AnnotateLeftPanel(BoxLayout):
     def reset_mask(self, left=False):
         annotate_screen().reset_mask(left)
         
-    def show_hide_rules(self):
-        annotate_screen().show_hide_rules()
+    def show_hide_ruler(self):
+        annotate_screen().show_hide_ruler()
 
     def on_keyboard(self, key, scancode):
         """ Method to chack with keystroke has ben sent. """
