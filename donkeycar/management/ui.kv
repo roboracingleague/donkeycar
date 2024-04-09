@@ -10,7 +10,7 @@
 #:set layout_pad_xy [layout_pad_x, layout_pad_x // 2]
 #:set supported_models ['linear', 'categorical', 'inferred', 'memory', 'behavior', 'localizer', 'rnn', '3d']
 #:set drive_models [pre + t for pre in['', 'tflite_', 'tensorrt_', 'onnx_'] for t in supported_models ]
-#:set labels ['NA','left', 'right', 'middle']
+#:set labels ['_reset_','NA','left', 'right', 'middle']
 
 <PaddedBoxLayout>:
     size_hint_y: None
@@ -326,8 +326,8 @@
         id: label_spinner
         pos_hint: {'center': (.5, .5)}
         size_hint_x: 0.5
-        text: 'Label'
         values: labels
+        text: labels[0]
     Button:
         text: 'Apply Label'
         on_press:
@@ -548,6 +548,7 @@
                     id: d3_panel
                     screen: root
         TubEditor:
+            recordLabelsInCatalogMetadata: True
         Slider:
             id: annotate_slider
             min: 0

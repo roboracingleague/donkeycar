@@ -43,6 +43,7 @@ from kivy.core.text import Label as CoreLabel
 
 from donkeycar import load_config
 from donkeycar.parts.tub_v2 import Tub
+from donkeycar.parts.datastore_v2 import Manifest, ManifestIterator
 from donkeycar.pipeline.augmentations import ImageAugmentation
 from donkeycar.pipeline.database import PilotDatabase
 from donkeycar.pipeline.types import TubRecord
@@ -411,6 +412,24 @@ class TubLoader(BoxLayout, FileChooserBase):
             rc_handler.data['last_tub'] = self.file_path
             annotate_screen().load_action()
 
+    def upgrade_tub(self, file_path):
+        manifest = Manifest(base_path=file_path, read_only=True)
+        inputs=manifest.inputs
+        types=manifest.types
+        if 'obstacle_location' not in inputs:
+            print ("Upgrading Tub to add 'obstacle_location'")
+            inputs.append('obstacle_location')
+            types.append('str')
+            manifest = Manifest(base_path=file_path, inputs=inputs, types=types, read_only=False)
+            tub = Tub(self.file_path)
+            cfg = tub_screen().ids.config_manager.config
+            records = [TubRecord(cfg, tub.base_path, record)
+                for record in tub]
+            for record in records:
+                record.underlying['obstacle_location'] = ""
+                tub.write_record(record.underlying, index=record.underlying['_index'])
+        
+
     def update_tub(self, event=None, syncAnnotate=True):
         if not self.file_path:
             return False
@@ -431,6 +450,7 @@ class TubLoader(BoxLayout, FileChooserBase):
         try:
             if self.tub:
                 self.tub.close()
+            self.upgrade_tub(self.file_path)
             self.tub = Tub(self.file_path)
         except Exception as e:
             tub_screen().status(f'Failed loading tub: {str(e)}')
@@ -857,6 +877,8 @@ class PaddedBoxLayout(BoxLayout):
 
 
 class TubEditor(PaddedBoxLayout):
+    recordLabelsInCatalogMetadata = BooleanProperty(False)
+
     """ Tub editor widget. Contains left/right index interval and the
         manipulator buttons for deleting / restoring and reloading """
     lr = ListProperty([0, 0])
@@ -894,7 +916,19 @@ class TubEditor(PaddedBoxLayout):
             last_id = tub.manifest.current_index
             selected = list(range(self.lr[0], last_id))
             selected += list(range(self.lr[1]))
-        tub.label_records(selected, self.ids.label_spinner.text)
+        if not self.recordLabelsInCatalogMetadata:
+            tub.label_records(selected, self.ids.label_spinner.text)
+        else:
+            tub = tub_screen().ids.tub_loader.tub
+            for index in selected:
+                if index in tub.manifest.deleted_indexes:
+                    continue
+                current_record = tub_screen().ids.tub_loader.records[index]
+                if '_reset_' not in self.ids.label_spinner.text:
+                    current_record.underlying['obstacle_location'] = self.ids.label_spinner.text
+                else:
+                    current_record.underlying['obstacle_location'] = ""
+                tub.write_record(current_record.underlying, index=index)
 
 
 class TubFilter(PaddedBoxLayout):
@@ -970,7 +1004,6 @@ class DataPlot(PaddedBoxLayout):
         all_cols = tub_screen().ids.data_panel.labels.keys() or self.df.columns
         cols = [c for c in all_cols if decompose(c)[0] in field_map
                 and field_map[decompose(c)[0]] not in ['image_array', 'str', 'callback']]
-
         df = self.df[cols]
         if df is None:
             return
@@ -1345,7 +1378,8 @@ class AnnotateScreen(Screen):
         if not record:
             return
         i = record.underlying['_index']
-        self.ids.annotate_left_panel.record_display = f"Record {i:06}"
+        obstacle_label = record.underlying['obstacle_location'] if 'obstacle_location' in record.underlying else ""
+        self.ids.annotate_left_panel.record_display = f"Record {i:06}\nLabel {obstacle_label}"
     
     def skip_next_unmask(self, *largs):
         if self.index is None:

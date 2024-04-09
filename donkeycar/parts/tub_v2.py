@@ -32,7 +32,7 @@ class Tub(object):
         self.manifest = Manifest(base_path, inputs=inputs, types=types,
                                  metadata=metadata, max_len=max_catalog_len,
                                  read_only=read_only)
-        self.input_types = dict(zip(self.inputs, self.types))
+        self.input_types = dict(zip(self.manifest.inputs, self.manifest.types))
         # Create images folder if necessary
         if not os.path.exists(self.images_base_path):
             os.makedirs(self.images_base_path, exist_ok=True)
@@ -80,14 +80,18 @@ class Tub(object):
                 elif input_type == 'dict':
                     contents[key] = dict(value)
                 elif input_type == 'image_array':
-                    # Handle image array
-                    # original version
-                    name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key)
-                    image_path = os.path.join(self.images_base_path, name)
-                    image = Image.fromarray(np.uint8(value))
-                    image.save(image_path)
-                    image.close()
-                    del image
+                    if type(value) != type(""):
+                        # Handle image array
+                        # original version
+                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key)
+                        image_path = os.path.join(self.images_base_path, name)
+                        image = Image.fromarray(np.uint8(value))
+                        image.save(image_path)
+                        image.close()
+                        del image
+                        contents[key] = name
+                    else:
+                        contents[key] = value
 
                     # cv2 version
                     #cv2.imwrite(image_path,np.uint8(value))
@@ -114,22 +118,27 @@ class Tub(object):
                     # cv2.imwrite(image_path, value)
 
                     # common part
-                    contents[key] = name
 
                 elif input_type == 'gray16_array':
-                    # Handle image array
-                    name = Tub._image_file_name(index if index!= None else self.manifest.current_index, key).replace("image","depth")
-                    image_path = os.path.join(self.depths_base_path, name)
-                    np.savez_compressed(image_path, img=np.uint16(value))
-                    contents[key] = name
+                    if type(value) != type(""):
+                        # Handle image array
+                        name = Tub._image_file_name(index if index!= None else self.manifest.current_index, key).replace("image","depth")
+                        image_path = os.path.join(self.depths_base_path, name)
+                        np.savez_compressed(image_path, img=np.uint16(value))
+                        contents[key] = name
+                    else:
+                        contents[key] = value
                 elif input_type == 'undistorted_image':
-                    name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key).replace("image","undistort")
-                    image_path = os.path.join(self.undistorted_images_base_path, name)
-                    image = Image.fromarray(np.uint8(value))
-                    image.save(image_path)
-                    image.close()
-                    del image
-                    contents[key] = name
+                    if type(value) != type(""):
+                        name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key).replace("image","undistort")
+                        image_path = os.path.join(self.undistorted_images_base_path, name)
+                        image = Image.fromarray(np.uint8(value))
+                        image.save(image_path)
+                        image.close()
+                        del image
+                        contents[key] = name
+                    else:
+                        contents[key] = value
                 elif input_type == 'left_mask':
                     if type(value) != type(""):
                         name = Tub._image_file_name(index if index!=None else self.manifest.current_index, key='cam_image_array', extension='')
@@ -152,7 +161,6 @@ class Tub(object):
                         contents[key] = f"{name}.npy"
                     else:
                         contents[key] = value
-
 
         # Private properties
         contents['_timestamp_ms'] = int(round(time.time() * 1000))

@@ -257,6 +257,10 @@ class Manifest(object):
             if self.seekeable.has_content():
                 self._read_contents()
             has_catalogs = len(self.catalog_paths) > 0
+            if (len(types)>0 and len(inputs)>0 and self.read_only==False):
+                self.inputs = inputs
+                self.types = types
+                self._write_contents()
 
         else:
             created_at = time.time()
