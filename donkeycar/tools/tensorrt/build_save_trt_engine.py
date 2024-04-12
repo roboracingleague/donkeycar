@@ -2,7 +2,7 @@
 """
 Generate tensorrt model from onnx
 Usage:
-  build_save_trt_engine.py (--onnx <onnxfile>) (--savedtrt <trtfile>) [--limit-workspace]
+  build_save_trt_engine.py (--onnx <onnx_model_path>) (--savedtrt <trt_engine_path>) [--limit-workspace]
 
   # build_save_trt_engine.py --onnx new_model.onnx --savedtrt new_model.trt
 Options:
