@@ -766,17 +766,21 @@ class KerasDetector(KerasPilot):
         # angle: float = record.underlying['user/angle']
         # throttle: float = record.underlying['user/throttle']
         # loc = record.underlying['localizer/location']
-        dist = record.underlying['obstacle_dist']
-        loc_arr = ['NA','left','middle','right']
+        # obstacle_location
+        # dist = record.underlying['obstacle_dist']
+        # loc_arr = ['NA','left','middle','right']
+        loc_arr = ['NA','left','right']
 
         # Value to change instead of generating new catalogs
-        max_obstacle_detection_distance = 1500
-
-        if dist <= max_obstacle_detection_distance and dist > 0:
-            loc = loc_arr.index(record.underlying['labeled_indexes'])
-        else:
-            # default to 'NA'
+        # max_obstacle_detection_distance = 1500
+        if record.underlying['obstacle_location'] == "":
             loc = 0
+        else:    
+        # if dist <= max_obstacle_detection_distance and dist > 0:
+            loc = loc_arr.index(record.underlying['obstacle_location'])
+        # else:
+            # default to 'NA'
+            # loc = 0
         loc_one_hot = np.zeros(self.num_locations)
         loc_one_hot[loc] = 1
         return {'zloc': loc_one_hot}
@@ -1398,14 +1402,15 @@ def default_loc(num_locations, input_shape):
 
 def default_detector(num_locations, input_shape):
     drop = 0.2
+    drop_upper_layers = 0.1
     img_in = Input(shape=input_shape, name='img_in')
 
-    x = core_cnn_layers(img_in, drop)
+    x = core_cnn_layers(img_in, drop, l4_stride=1, l1_channels=24)
     x = Dense(100, activation='relu')(x)
-    x = Dropout(drop)(x)
+    x = Dropout(drop_upper_layers)(x)
 
     z = Dense(50, activation='relu')(x)
-    z = Dropout(drop)(z)
+    z = Dropout(drop_upper_layers)(z)
 
     # linear output of the angle
     # angle_out = Dense(1, activation='linear', name='angle')(z)
