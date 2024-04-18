@@ -533,7 +533,7 @@ class TensorRTDetector(KerasPilot):
         
         print('Allocating Buffers')
         self.inputs, self.outputs, self.bindings, self.stream \
-            = TensorRTDetectorDual.allocate_buffers(self.engine)
+            = TensorRTDetector.allocate_buffers(self.engine)
         print("creating context")
         self.context = self.engine.create_execution_context()
         print('Ready')
@@ -545,7 +545,7 @@ class TensorRTDetector(KerasPilot):
         np.copyto(image_input.host_memory, image)
         
         # with self.engine.create_execution_context() as context:
-        inference_output = TensorRTBehavior.infer(context=self.context,
+        inference_output = TensorRTDetector.infer(context=self.context,
                                                 bindings=self.bindings,
                                                 inputs=self.inputs,
                                                 outputs=self.outputs,
@@ -558,7 +558,7 @@ class TensorRTDetector(KerasPilot):
 
         [track_loc] = interpreter_out
         loc = np.argmax(track_loc)
-        ExtRecorder.record_data(TensorRTDetector.rtdetector_loc, self.cfg.BEHAVIOR_LIST[loc-1])
+        ExtRecorder.record_data(TensorRTDetector.rtdetector_loc, self.cfg.OBSTACLE_DETECTOR_BEHAVIOR_LIST[loc-1])
         return loc
 
     @classmethod

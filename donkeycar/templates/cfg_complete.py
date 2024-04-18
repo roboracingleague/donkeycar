@@ -95,14 +95,14 @@ CLOSE_AVOIDANCE_DIST_MM = 1000
 
 # OBSTACLE_DETECTOR
 OBSTACLE_DETECTOR_ENABLED = True # Si True active detection d'obstacle ou l'avoidance ou le suivi de ligne 
-OBSTACLE_DETECTOR_NUM_LOCATIONS = 4
+OBSTACLE_DETECTOR_NUM_LOCATIONS = 3
 # OBSTACLE_DETECTOR_MODEL_PATH = "~/mycar/models/pilot_23-02-15_29.tflite"
 OBSTACLE_DETECTOR_MODEL_PATH = "~/car_ref/models/20240112161500-20240114222912-LR-A001-avoidance-rgb-cone-car.trt"
 
 # OBSTACLE_DETECTOR_MODEL_TYPE = "tflite_obstacle_detector"
 OBSTACLE_DETECTOR_MODEL_TYPE = "trt_obstacle_detectortrt"
 
-OBSTACLE_DETECTOR_BEHAVIOR_LIST = ['NA', 'left', 'middle', 'right']
+OBSTACLE_DETECTOR_BEHAVIOR_LIST = ['NA', 'left', 'right'] # ['NA', 'left', 'middle', 'right']
 BEHAVIOR_LIST = ['left', 'middle', 'right']
 # Next 2 params cannot be enabled together.
 OBSTACLE_DETECTOR_AVOIDANCE_ENABLED = True # To free drive using behavior model, Si True, active l'autopilote du steering avec avoidance
