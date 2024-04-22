@@ -44,6 +44,7 @@ from kivy.core.text import Label as CoreLabel
 from donkeycar import load_config
 from donkeycar.parts.tub_v2 import Tub
 from donkeycar.parts.datastore_v2 import Manifest, ManifestIterator
+from donkeycar.parts.avoidance_behavior import AvoidanceBehaviorPart
 from donkeycar.pipeline.augmentations import ImageAugmentation
 from donkeycar.pipeline.database import PilotDatabase
 from donkeycar.pipeline.types import TubRecord
@@ -581,7 +582,6 @@ class DataPanel(BoxLayout):
         for v in self.labels.values():
             self.remove_widget(v)
         self.labels.clear()
-
 
 class FullImage(Image):
     """ Widget to display an image that fills the space. """
@@ -1782,11 +1782,53 @@ class PilotLoader(BoxLayout, FileChooserBase):
         self.file_path = rc_handler.data.get('pilot_' + self.num, '')
         self.model_type = rc_handler.data.get('model_type_' + self.num, '')
 
+class DetectorLoader(BoxLayout, FileChooserBase):
+    """ Class to mange loading of the config file from the car directory"""
+    num = StringProperty()
+    model_type = StringProperty()
+    detector = ObjectProperty(None)
+    detector_output = StringProperty('--not predcicted yet--')
+    filters = ['*.savedmodel', '*.onnx']
+    abh = ObjectProperty(None)
+
+    def load_action(self):
+        if self.file_path and self.detector:
+            try:
+                self.detector.load(os.path.join(self.file_path))
+                rc_handler.data['detector_' + self.num] = self.file_path
+                rc_handler.data['model_detector_type_' + self.num] = self.model_type
+                self.ids.detector_spinner.text = self.model_type
+                Logger.info(f'Detector: Successfully loaded {self.file_path}')
+            except FileNotFoundError:
+                Logger.error(f'Detector: Model {self.file_path} not found')
+            except Exception as e:
+                Logger.error(f'Detector loading {self.file_path}: {e}')
+
+    def on_model_type(self, obj, model_type):
+        """ Kivy method that is called if self.model_type changes. """
+        if self.model_type and self.model_type != 'Detector Model type':
+            cfg = tub_screen().ids.config_manager.config
+            if cfg:
+                self.abh = AvoidanceBehaviorPart(cfg)
+                self.detector = get_model_by_type(self.model_type, cfg)
+                self.ids.detector_button.disabled = False
+                if 'tensorrt' in self.model_type:
+                    self.filters = ['*.trt']
+                elif 'onnx' in self.model_type:
+                    self.filters = ['*.onnx']
+                else:
+                    self.filters = ['*.h5', '*.savedmodel']
+
+    def on_num(self, e, num):
+        """ Kivy method that is called if self.num changes. """
+        self.file_path = rc_handler.data.get('detector_' + self.num, '')
+        self.model_type = rc_handler.data.get('model_detector_type_' + self.num, '')
 
 class OverlayImage(FullImage):
     """ Widget to display the image and the user/pilot data for the tub. """
     index = NumericProperty(None, force_dispatch=True)
     pilot = ObjectProperty()
+    detector = ObjectProperty()
     pilot_record = ObjectProperty()
     throttle_field = StringProperty('user/throttle')
 
@@ -1827,14 +1869,20 @@ class OverlayImage(FullImage):
         try:
             # Not each model is supported in each interpreter
             if len(self.pilot.get_input_shapes()) > 1:
-                output = self.pilot.run(aug_img_arr, np.array([0,1,0]))
+                if self.detector:
+                    detector_obstacle_lane = self.detector.run(aug_img_arr)
+                    behavior_one_hot_state_array = pilot_screen().ids.detector_loader.abh.run (detector_obstacle_lane)
+                    pilot_screen().ids.detector_loader.detector_output = f"obstacle: {config.OBSTACLE_DETECTOR_BEHAVIOR_LIST[detector_obstacle_lane]}\nbehavior: {behavior_one_hot_state_array}"
+                    output = self.pilot.run(aug_img_arr, behavior_one_hot_state_array)
+                else:
+                    output = self.pilot.run(aug_img_arr, np.array([0,1,0]))
             else:    
                 output = self.pilot.run(aug_img_arr)
         except Exception as e:
             Logger.error(e)
 
         rgb = (0, 0, 255)
-        MakeMovie.draw_line_into_image(output[0], output[1], True, img_arr, rgb)
+        MakeMovie.draw_line_into_image(output[0], output[1], True, img_arr, rgb, ignore_throttle=True)
         out_record = copy(record)
         out_record.underlying['pilot/angle'] = output[0]
         # rename and denormalise the throttle output
@@ -1880,6 +1928,8 @@ class PilotScreen(Screen):
         self.ids.pilot_loader_1.load_action()
         self.ids.pilot_loader_2.on_model_type(None, None)
         self.ids.pilot_loader_2.load_action()
+        self.ids.detector_loader.on_model_type(None, None)
+        self.ids.detector_loader.load_action()
         mapping = copy(rc_handler.data['user_pilot_map'])
         del(mapping['user/angle'])
         self.ids.data_in.ids.data_spinner.values = mapping.keys()
