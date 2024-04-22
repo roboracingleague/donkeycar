@@ -737,6 +737,7 @@ class KerasDetector(KerasPilot):
     A Keras part that take an image as input,
     outputs steering and throttle, and localisation category
     """
+    
     def __init__(self,
                  interpreter: Interpreter = KerasInterpreter(),
                  input_shape: Tuple[int, ...] = (120, 160, 3),
