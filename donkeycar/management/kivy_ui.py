@@ -1873,16 +1873,17 @@ class OverlayImage(FullImage):
                     detector_obstacle_lane = self.detector.run(aug_img_arr)
                     behavior_one_hot_state_array = pilot_screen().ids.detector_loader.abh.run (detector_obstacle_lane)
                     pilot_screen().ids.detector_loader.detector_output = f"obstacle: {config.OBSTACLE_DETECTOR_BEHAVIOR_LIST[detector_obstacle_lane]}\nbehavior: {behavior_one_hot_state_array}"
-                    output = self.pilot.run(aug_img_arr, behavior_one_hot_state_array)
-                else:
-                    output = self.pilot.run(aug_img_arr, np.array([0,1,0]))
+                    behavior_on_pbstacle_output = self.pilot.run(aug_img_arr, behavior_one_hot_state_array)
+                    rgb = (128, 0, 255)
+                    MakeMovie.draw_line_into_image(behavior_on_pbstacle_output[0], behavior_on_pbstacle_output[1], True, img_arr, rgb, fix_throttle=0.8)
+                output = self.pilot.run(aug_img_arr, np.array([0,1,0]))
             else:    
                 output = self.pilot.run(aug_img_arr)
         except Exception as e:
             Logger.error(e)
 
         rgb = (0, 0, 255)
-        MakeMovie.draw_line_into_image(output[0], output[1], True, img_arr, rgb, ignore_throttle=True)
+        MakeMovie.draw_line_into_image(output[0], output[1], True, img_arr, rgb, fix_throttle=0.6 if self.detector else None)
         out_record = copy(record)
         out_record.underlying['pilot/angle'] = output[0]
         # rename and denormalise the throttle output
