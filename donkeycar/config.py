@@ -39,7 +39,7 @@ class Config():
                 current = getattr(self, key,None)
                 new = getattr(obj, key)
                 if current and current != new:
-                    print(f"Config : attribute {key} changed from {current} to {new}")
+                    logger.info(f"Config : attribute {key} changed from {current} to {new}")
                     setattr(self, key, getattr(obj, key))
 
     def __str__(self):
@@ -52,18 +52,18 @@ class Config():
     def show(self):
         for attr in dir(self):
             if attr.isupper():
-                print(attr, ":", getattr(self, attr))
+                logger.info(attr, ":", getattr(self, attr))
 
     def process_profile(self):
         if getattr (self, 'ROBOCARS_CONFIG_PROFILE', None):
-            print ("Config profile found")
+            logger.info("Config profile found")
             for k,v in self.ROBOCARS_CONFIG_PROFILE.items() :
                 current = getattr(self, k,None)
                 if current and current != v:
-                    print(f"Profile : Config : attribute {k} changed from {current} to {v}")
+                    logger.info(f"Profile : Config : attribute {k} changed from {current} to {v}")
                 setattr(self, k, v)
         else:
-            print (f"Config : no ROBOCARS_CONFIG_PROFILE profile found")
+            logger.info(f"Config : no ROBOCARS_CONFIG_PROFILE profile found")
         return True
 
 
@@ -85,8 +85,6 @@ class PersonnalCfgMonitor(PatternMatchingEventHandler):
 
     
 def load_config(config_path=None, myconfig="myconfig.py"):
-    
-
     if config_path is None:
         import __main__ as main
         main_path = os.path.dirname(os.path.realpath(main.__file__))
