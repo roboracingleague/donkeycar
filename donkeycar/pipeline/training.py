@@ -85,10 +85,12 @@ class BatchSequence(object):
 
     def create_tf_data(self) -> tf.data.Dataset:
         """ Assembles the tf data pipeline """
+        options = tf.data.Options()
+        options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
         dataset = tf.data.Dataset.from_generator(
             generator=lambda: self.pipeline,
             output_types=self.model.output_types(),
-            output_shapes=self.model.output_shapes())
+            output_shapes=self.model.output_shapes()).with_options(options)
 
         return dataset.repeat().batch(self.batch_size)
 

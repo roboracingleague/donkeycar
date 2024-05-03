@@ -171,6 +171,16 @@ class KerasPilot(ABC):
         trains the model
         """
         assert isinstance(self.interpreter, KerasInterpreter)
+        
+        # # Create a MirroredStrategy.
+        # strategy = tf.distribute.MirroredStrategy()
+        # print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+        # # Open a strategy scope.
+        # with strategy.scope():
+        
+        # Everything that creates variables should be under the strategy scope.
+        # In general this is only model construction & `compile()`.
         model = self.interpreter.model
         self.compile()
 

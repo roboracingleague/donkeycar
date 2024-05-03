@@ -141,9 +141,16 @@ class KerasInterpreter(Interpreter):
     def __init__(self):
         super().__init__()
         self.model: tf.keras.Model = None
+        # Create a MirroredStrategy.
+        self.strategy = tf.distribute.MirroredStrategy()
+        print('Number of devices: {}'.format(self.strategy.num_replicas_in_sync))
 
     def set_model(self, pilot: 'KerasPilot') -> None:
-        self.model = pilot.create_model()
+        # Open a strategy scope.
+        with self.strategy.scope():
+        # Everything that creates variables should be under the strategy scope.
+        # In general this is only model construction & `compile()`.
+            self.model = pilot.create_model()
 
     def set_optimizer(self, optimizer: tf.keras.optimizers.Optimizer) -> None:
         self.model.optimizer = optimizer
@@ -154,7 +161,11 @@ class KerasInterpreter(Interpreter):
 
     def compile(self, **kwargs):
         assert self.model, 'Model not set'
-        self.model.compile(**kwargs)
+        # Open a strategy scope.
+        with self.strategy.scope():
+            # Everything that creates variables should be under the strategy scope.
+            # In general this is only model construction & `compile()`.
+            self.model.compile(**kwargs)
 
     def invoke(self, inputs):
         outputs = self.model(inputs, training=False)
