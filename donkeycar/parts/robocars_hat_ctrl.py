@@ -943,7 +943,7 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
                 self.throttle_out  = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_SPEED
                 self.brake_cycle -=1
         
-        if self.cfg.ROBOCARS_PROFILES:
+        if self.cfg.ROBOCARS_PROFILES and mode != 'user':
             drive_train_throttle_scalar = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][0]
             drive_train_steering_scalar = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][1]
             self.angle_out = max(min(self.angle_from_pilot * (1.0+drive_train_steering_scalar),1.0),-1.0)
