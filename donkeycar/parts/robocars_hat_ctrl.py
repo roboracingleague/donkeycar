@@ -93,7 +93,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
     AUX_FEATURE_OUTPUT_STEERING_EXP=7
     AUX_FEATURE_THROTTLE_SCALAR_EXP=8
     AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP = 9
-
+    AUX_FEATURE_DRIVETRAIN_PROFILE = 10
 
     def _map_aux_feature (self, feature):
         if feature == 'record/pilot':
@@ -114,6 +114,8 @@ class RobocarsHatInCtrl(metaclass=Singleton):
             return self.AUX_FEATURE_THROTTLE_SCALAR_EXP
         elif feature == 'adaptative_steering_scalar_exp':
             return self.AUX_FEATURE_ADAPTATIVE_STEERING_SCALAR_EXP
+        elif feature == 'drivetrain_profile':
+            return self.AUX_FEATURE_DRIVETRAIN_PROFILE
         elif feature != 'none':
             mylogger.info(f"CtrlIn : Unkown requested feature : {feature}")
 
@@ -136,6 +138,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         self.lastAux2 = -1.0
         self.lastMode = 'user'
         self.applyBrake = 0
+        self.drivetrainProfile = 0
 
         if (self.cfg.ROBOCARSHAT_USE_AUTOCALIBRATION==True) :
             self.inThrottleIdle = -1
@@ -221,6 +224,9 @@ class RobocarsHatInCtrl(metaclass=Singleton):
 
     def getSelectedLane(self):
         return self.selectedLane
+    
+    def getProfile(self):
+        return self.drivetrainProfile
     
     def getCommand(self):
         self.processRxCh()
@@ -335,6 +341,19 @@ class RobocarsHatInCtrl(metaclass=Singleton):
             if (abs(newScalar - self.adaptativeSteeringExtraScalar)>0.01) :
                  mylogger.info("CtrlIn adaptative steering scalar set to {}".format(newScalar))
             self.adaptativeSteeringExtraScalar = newScalar
+
+        command, has_changed = self.getAuxValuePerFeat(self.AUX_FEATURE_DRIVETRAIN_PROFILE)
+        if command != None :
+            if has_changed :
+                if command > 0.5:
+                    self.drivetrainProfile = 2
+                    mylogger.info("CtrlIn Drivetrain Profile set to {}".format(self.drivetrainProfile))
+                elif command < -0.5:
+                    self.drivetrainProfile = 0
+                    mylogger.info("CtrlIn Drivetrain Profile set to {}".format(self.drivetrainProfile))
+                else:
+                    self.drivetrainProfile = 1
+                    mylogger.info("CtrlIn Drivetrain Profile set to {}".format(self.drivetrainProfile))
 
         # Process other features 
         if self.cfg.ROBOCARSHAT_STEERING_FIX != None:
@@ -920,6 +939,12 @@ class RobocarsHatDriveCtrl(metaclass=Singleton):
             else:
                 self.throttle_out  = self.cfg.ROBOCARS_THROTTLE_ON_SL_BRAKE_SPEED
                 self.brake_cycle -=1
+        
+        if self.cfg.ROBOCARS_PROFILES:
+            drive_train_throttle_scalar = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][0]
+            drive_train_steering_scalar = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][1]
+            self.angle_out = max(min(self.angle_from_pilot * (1.0+drive_train_steering_scalar),1.0),-1.0)
+            self.throttle_out = max(min(self.throttle_from_pilot * (1.0 + drive_train_throttle_scalar), 1.0), 0.0)
 
         ExtRecorder.record_data(RobocarsHatDriveCtrl.drivectrl_throttle_out,self.throttle_out)
         ExtRecorder.record_data(RobocarsHatDriveCtrl.drivectrl_angle_out,self.angle_out)
