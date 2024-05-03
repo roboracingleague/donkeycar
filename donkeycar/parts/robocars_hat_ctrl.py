@@ -570,6 +570,9 @@ class RobocarsHatLedCtrl():
             self.connectPort()
         else:
             self.cmdinterface = RobocarsHat(self.cfg)
+        self.hatInCtrl = None
+        if (self.cfg.USE_ROBOCARSHAT_AS_CONTROLLER):
+            self.hatInCtrl = RobocarsHatInCtrl(self.cfg)
 
         if cfg.ROBOCARSHAT_LED_MODEL == 'Alpine':
             self.LED_INDEX_FRONT_TURN_RIGHT = 3
@@ -721,7 +724,7 @@ class RobocarsHatLedCtrl():
             else:
                 # in pilot modem do we have a special animation to trigger
                 anim_from_profile = None
-                if self.cfg.ROBOCARS_PROFILES:
+                if self.cfg.ROBOCARS_PROFILES and self.hatInCtrl:
                     anim_from_profile = self.cfg.ROBOCARS_PROFILES[self.hatInCtrl.getProfile()][2]
                 if anim_from_profile:
                     self.setAnim(anim_from_profile)
