@@ -517,6 +517,9 @@ class RobocarsHatInBattery:
     def getCommand(self):
         self.processBattery()
 
+    def checkBattery():
+        pass
+    
     def update(self):
 
         while self.on:
@@ -532,6 +535,7 @@ class RobocarsHatInBattery:
 
     def run (self):
         self.getCommand()
+        self.checkBattery()
         return self.inBattery
     
 
