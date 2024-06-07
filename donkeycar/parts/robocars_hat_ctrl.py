@@ -136,6 +136,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         self.inAux2 = 0.0
         self.lastAux1 = -1.0
         self.lastAux2 = -1.0
+        self.lastSteering = 0.0
         self.lastMode = 'user'
         self.applyBrake = 0
         self.drivetrainProfile = 0
@@ -249,6 +250,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         else:
             return None,None
 
+    def getSteeringChange(self):
+        # return actual value read from channel, and indication on whether value has changed or not since last check.
+        # has_changed information is for switch like feature
+        return self.inSteering, abs(self.lastSteering - self.inSteering)>0.1
+
     def processAltModes(self):
         mode='user'
         recording=False
@@ -359,13 +365,24 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         if self.cfg.ROBOCARSHAT_STEERING_FIX != None:
              user_steering = self.cfg.ROBOCARSHAT_STEERING_FIX
 
-        if self.cfg.ROBOCARS_DRIVE_BY_LANE and mode != 'user':
-            if (user_steering<-0.5):
-                self.selectedLane=2
-            elif (user_steering>0.5):
-                self.selectedLane=0
+        if self.cfg.ROBOCARS_DRIVE_BY_LANE  and mode != 'user':
+            if self.cfg.ROBOCARS_DRIVE_BY_LANE_SWITCH_LANE_MODE:
+                #lane is switched lane by lane using steering control
+                command, has_changed = self.getSteeringChange()
+                if has_changed:
+                    if (command<-0.5):
+                        self.selectedLane=min (2, self.selectedLane+1)
+                    elif (command>0.5):
+                        self.selectedLane=max (0, self.selectedLane-1)
+                mylogger.info("CtrlIn Drivetrain Drive on Lane set to {}".format(self.selectedLane))
             else:
-                self.selectedLane=1
+                #Lane depends directly on current steering position.
+                if (user_steering<-0.5):
+                    self.selectedLane=2
+                elif (user_steering>0.5):
+                    self.selectedLane=0
+                else:
+                    self.selectedLane=1
 
         if self.cfg.ROBOCARSHAT_EXPLORE_THROTTLE_SCALER_USING_THROTTLE_CONTROL and mode != 'user':
 
@@ -410,6 +427,7 @@ class RobocarsHatInCtrl(metaclass=Singleton):
         self.lastMode = mode
         self.lastAux1 = self.inAux1
         self.lastAux2 = self.inAux2
+        self.lastSteering = self.inSteering
         
         if self.applyBrake>0:
             user_throttle = self.cfg.ROBOCARSHAT_BRAKE_ON_IDLE_THROTTLE
