@@ -370,11 +370,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                 #lane is switched lane by lane using steering control
                 command, has_changed = self.getSteeringChange()
                 if has_changed:
-                    if (command<-0.4):
+                    if (command<-0.5):
                         self.selectedLane=min (2, self.selectedLane+1)
-                    elif (command>0.6):
+                    elif (command>0.5):
                         self.selectedLane=max (0, self.selectedLane-1)
-                mylogger.info("CtrlIn Drivetrain Drive on Lane set to {}".format(self.selectedLane))
+                    mylogger.info("CtrlIn Drivetrain Drive on Lane set to {}".format(self.selectedLane))
             else:
                 #Lane depends directly on current steering position.
                 if (user_steering<-0.5):
