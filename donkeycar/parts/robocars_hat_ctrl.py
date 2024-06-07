@@ -253,7 +253,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
     def getSteeringChange(self):
         # return actual value read from channel, and indication on whether value has changed or not since last check.
         # has_changed information is for switch like feature
-        return self.inSteering, abs(self.lastSteering - self.inSteering)>0.1
+        return self.inSteering, abs(self.lastSteering - self.inSteering)>0.9
+
+    def setSelectedLane (self, lane):
+        self.selectedLane=max(min(2, lane),0)
+        mylogger.info("CtrlIn Drivetrain set selected Lane to {}".format(self.selectedLane))
 
     def processAltModes(self):
         mode='user'
@@ -371,10 +375,11 @@ class RobocarsHatInCtrl(metaclass=Singleton):
                 command, has_changed = self.getSteeringChange()
                 if has_changed:
                     if (command<-0.5):
-                        self.selectedLane=min (2, self.selectedLane+1)
+                        self.setSelectedLane(self.selectedLane+1)
                     elif (command>0.5):
-                        self.selectedLane=max (0, self.selectedLane-1)
-                    mylogger.info("CtrlIn Drivetrain Drive on Lane set to {}".format(self.selectedLane))
+                        self.setSelectedLane(self.selectedLane-1)
+                    else:
+                        pass
             else:
                 #Lane depends directly on current steering position.
                 if (user_steering<-0.5):
