@@ -140,6 +140,10 @@ class TubDataset(object):
         if not self.records:
             logger.info(f'Loading tubs from paths {self.tub_paths}')
             cpt=0
+            CAR_POSITION_TARGET_LEFT = "left"
+            CAR_POSITION_TARGET_CENTER = "center"
+            CAR_POSITION_TARGET_RIGHT = "right"
+
             for tub in self.tubs:
                 if (cpt==0):
                     pass
@@ -147,7 +151,13 @@ class TubDataset(object):
                 for underlying in tub:
                     record = TubRecord(self.config, tub.base_path, underlying)
                     if not self.train_filter or self.train_filter(record):
-                        self.records.append(record)
+                        # create 3 new records with the same image using all the possible car_position values
+                        car_positions = [CAR_POSITION_TARGET_LEFT, CAR_POSITION_TARGET_CENTER, CAR_POSITION_TARGET_RIGHT]
+                        for position in car_positions:
+                            new_record = copy.deepcopy(record)
+                            new_record.underlying["car_position"] = position
+                            self.records.append(new_record)
+                        
             if self.seq_size > 0:
                 seq = Collator(self.seq_size, self.records)
                 self.records = list(seq)

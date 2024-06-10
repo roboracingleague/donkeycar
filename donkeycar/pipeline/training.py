@@ -128,9 +128,14 @@ def train(cfg: Config, tub_paths: str, model: str = None,
     dataset = TubDataset(config=cfg, tub_paths=all_tub_paths,
                          seq_size=kl.seq_size())
     # print(dataset)
-    training_records, validation_records \
-        = train_test_split(dataset.get_records(), shuffle=True,
-                           test_size=(1. - cfg.TRAIN_TEST_SPLIT))
+    if model_type == "behavior":
+        training_records, validation_records \
+            = train_test_split(dataset.get_records2(), shuffle=True,
+                               test_size=(1. - cfg.TRAIN_TEST_SPLIT))
+    else:
+        training_records, validation_records \
+            = train_test_split(dataset.get_records(), shuffle=True,
+                               test_size=(1. - cfg.TRAIN_TEST_SPLIT))
     print(f'Records # Training {len(training_records)}')
     print(f'Records # Validation {len(validation_records)}')
 
