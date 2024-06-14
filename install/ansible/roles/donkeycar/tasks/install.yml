@@ -58,6 +58,14 @@
   tags:
     - pycuda
 
+- name: add pycuda includes on cpath on jetson nano
+  lineinfile:
+    path: "/home/{{ donkeycar_user }}/.bashrc"
+    line: "export CPATH=/usr/local/cuda/include:$CPATH"
+    state: "present"
+  tags:
+    - pycuda
+
 - name: add pycuda on lib path on jetson nano
   lineinfile:
     path: "/home/{{ donkeycar_user }}/.bashrc"
