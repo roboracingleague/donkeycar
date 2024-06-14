@@ -115,6 +115,9 @@ class OakDCameraBuilder:
         self.pixel_crop_height = pixel_crop_height
         return self
     
+    def with_device_id(self, device_id):
+        self.device_id = device_id
+        return self
 
     def build(self):
         return OakDCamera(
@@ -137,7 +140,8 @@ class OakDCameraBuilder:
             rgb_wb_manual=self.rgb_wb_manual,
             use_camera_tuning_blob=self.use_camera_tuning_blob,
             enable_undistort_rgb=self.enable_undistort_rgb,
-            pixel_crop_height=self.pixel_crop_height
+            pixel_crop_height=self.pixel_crop_height,
+            mxid=self.device_id
         )
 
 class OakDCamera:
@@ -161,7 +165,8 @@ class OakDCamera:
                  rgb_wb_manual= 2800,
                  use_camera_tuning_blob = False,
                  enable_undistort_rgb = False,
-                 pixel_crop_height = 35):
+                 pixel_crop_height = 35,
+                 mxid = None):
         
         self.width = width
         self.height = height
@@ -202,6 +207,11 @@ class OakDCamera:
 
         self.alpha = 0
 
+        if mxid:
+            self.device_info = dai.DeviceInfo(mxid) # MXID
+        else:
+            self.device_info = dai.DeviceInfo()
+
         # Create pipeline
         self.pipeline = dai.Pipeline()
         # self.pipeline.setCameraTuningBlobPath('/tuning_color_ov9782_wide_fov.bin')
@@ -222,8 +232,8 @@ class OakDCamera:
             self.create_obstacle_dist_pipeline()
         try:
             # Connect to device and start pipeline
-            logger.info('Starting OAK-D camera')
-            self.device = dai.Device(self.pipeline)
+            logger.info(f'Starting OAK-D camera id {mxid}')
+            self.device = dai.Device(self.pipeline, self.device_info)
 
             calibData = self.device.readCalibration2()
             rgbCamSocket = dai.CameraBoardSocket.CAM_A

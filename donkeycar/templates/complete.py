@@ -904,6 +904,7 @@ def add_rear_camera(V, cfg):
                     .with_use_camera_tuning_blob(cfg.USE_CAMERA_TUNING_BLOB) \
                     .with_enable_undistort_rgb(cfg.OAK_ENABLE_UNDISTORTED_RGB) \
                     .with_pixel_crop_height(cfg.OAK_PIXEL_CROP_HEIGHT) \
+                    .with_device_id(cfg.OAK_REAR_ID) \
                     .build()
         outputs = ['cam_rear/image_array']
         if cfg.OAK_REAR_ENABLE_DEPTH_MAP:
@@ -982,6 +983,7 @@ def add_camera(V, cfg, camera_type):
                     .with_use_camera_tuning_blob(cfg.USE_CAMERA_TUNING_BLOB) \
                     .with_enable_undistort_rgb(cfg.OAK_ENABLE_UNDISTORTED_RGB) \
                     .with_pixel_crop_height(cfg.OAK_PIXEL_CROP_HEIGHT) \
+                    .with_device_id(cfg.OAK_ID) \
                     .build()
         outputs = ['cam/image_array']
         if cfg.OAK_ENABLE_DEPTH_MAP:
