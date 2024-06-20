@@ -616,7 +616,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
             inputs += ['cam/undistorted_rgb']
             types += ['undistorted_image']
 
-    if cfg.CAMERA_TYPE == "OAK_REAR":
+    if cfg.CAMERA_REAR_TYPE == "OAK_REAR":
         if cfg.OBSTACLE_DETECTOR_REAR_VIEW_ENABLED:
             inputs += ['cam_rear/image_array']
             types += ['image_array']
