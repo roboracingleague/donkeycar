@@ -8,7 +8,7 @@ orins
 [orins]
 pc93 ansible_host=pc93.local
 pc95 ansible_host=pc95.local
-pc96 ansible_host=pc95.local
+pc96 ansible_host=pc96.local
 
 [nanos]
 pc91 ansible_host=pc91.local
