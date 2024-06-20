@@ -48,6 +48,7 @@ donkeycar_orin_system_packages:
   - nvidia-tensorrt-dev
   - python3-libnvinfer-dev
   - cuda-profiler-api-11-4
+  - nvidia-jetpack
   
 donkeycar_orin_pip_packages:
   - testresources==2.0.1
