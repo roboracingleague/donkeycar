@@ -104,6 +104,11 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
     #
     add_camera(V, cfg, camera_type)
 
+    #
+    # setup rear camera
+    #
+    add_rear_camera(V, cfg)
+
 
     # add lidar
     if cfg.USE_LIDAR:
@@ -367,6 +372,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         # 
         if cfg.OBSTACLE_DETECTOR_ENABLED:
             detector_outputs = ['detector/obstacle_lane']
+            fused_detector_outputs = detector_outputs
             if not cfg.OBSTACLE_DETECTOR_MANUAL_LANE:
                 kd = dk.utils.get_model_by_type(cfg.OBSTACLE_DETECTOR_MODEL_TYPE, cfg)
                 load_model(kd, cfg.OBSTACLE_DETECTOR_MODEL_PATH)
@@ -376,11 +382,23 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
                     inputs = ['cam/image_array']
                 V.add(kd, inputs=inputs, outputs=detector_outputs, run_condition='run_pilot')
 
+                # Add rear view camera
+                if cfg.OBSTACLE_DETECTOR_REAR_VIEW_ENABLED:
+                    rear_detector_outputs = ['detector_rear/obstacle_lane']
+                    kd_rear = dk.utils.get_model_by_type(cfg.OBSTACLE_DETECTOR_REAR_MODEL_TYPE, cfg)
+                    load_model(kd, cfg.OBSTACLE_DETECTOR_REAR_MODEL_PATH)
+                    if cfg.OAK_REAR_ENABLE_DEPTH_MAP:
+                        inputs = ['cam_rear/image_array', 'cam_rear/depth_array']
+                    else:
+                        inputs = ['cam_rear/image_array']
+                    V.add(kd_rear, inputs=inputs, outputs=rear_detector_outputs, run_condition='run_pilot')
+                    fused_detector_outputs = detector_outputs + rear_detector_outputs
+
             # Avoidance logic between obstacle_detector and KerasBehavioral
             from donkeycar.parts.avoidance_behavior import AvoidanceBehaviorPart
             abh = AvoidanceBehaviorPart(cfg)
             #V.add(abh, inputs=['detector/obstacle_lane'], outputs=['behavior/one_hot_state_array'], run_condition='run_pilot')
-            V.add(abh, inputs=detector_outputs, outputs=['behavior/one_hot_state_array'], run_condition='run_pilot')
+            V.add(abh, inputs=fused_detector_outputs, outputs=['behavior/one_hot_state_array'], run_condition='run_pilot')
             
             inputs = ["cam/image_array", "behavior/one_hot_state_array"]
 
@@ -590,13 +608,26 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         types +=['float', 'float', 'float',
            'float', 'float', 'float']
 
-    if cfg.CAMERA_TYPE == "OAK" and cfg.OAK_ENABLE_DEPTH_MAP:
-        inputs += ['cam/depth_array']
-        types += ['gray16_array']
+    if cfg.CAMERA_TYPE == "OAK":
+        if cfg.OAK_ENABLE_DEPTH_MAP:
+            inputs += ['cam/depth_array']
+            types += ['gray16_array']
 
-    if cfg.CAMERA_TYPE == "OAK" and cfg.OAK_ENABLE_UNDISTORTED_RGB:
-        inputs += ['cam/undistorted_rgb']
-        types += ['undistorted_image']
+        if cfg.OAK_ENABLE_UNDISTORTED_RGB:
+            inputs += ['cam/undistorted_rgb']
+            types += ['undistorted_image']
+
+    if cfg.CAMERA_REAR_TYPE == "OAK_REAR":
+        if cfg.OBSTACLE_DETECTOR_REAR_VIEW_ENABLED:
+            inputs += ['cam_rear/image_array']
+            types += ['image_array']
+
+        if cfg.OAK_REAR_ENABLE_DEPTH_MAP:
+            inputs += ['cam_rear/depth_array']
+            types += ['gray16_array']
+
+
+
         # print(f"in complete cfg.OAK_ENABLE_UNDISTORTED_RGB: {cfg.OAK_ENABLE_UNDISTORTED_RGB}")
     # if cfg.CAMERA_TYPE == "OAK" and cfg.OAK_OBSTACLE_DETECTION_ENABLED:
     #     inputs += ['cam/obstacle_distances']
@@ -846,6 +877,45 @@ def get_camera(cfg):
             raise(Exception("Unkown camera type: %s" % cfg.CAMERA_TYPE))
     return cam
 
+def add_rear_camera(V, cfg):
+
+    logger.info("cfg.CAMERA_REAR_TYPE %s"%cfg.CAMERA_REAR_TYPE)
+    
+    if cfg.CAMERA_REAR_TYPE == "OAK_REAR":
+        from donkeycar.parts.oak_d_camera import OakDCameraBuilder
+        # cam = OakDCamera(width=cfg.IMAGE_W, height=cfg.IMAGE_H, depth=cfg.IMAGE_DEPTH, isp_scale=cfg.OAK_D_ISP_SCALE, framerate=cfg.CAMERA_FRAMERATE, enable_depth=cfg.OAK_ENABLE_DEPTH_MAP, enable_obstacle_dist=cfg.OAK_OBSTACLE_DETECTION_ENABLED, rgb_resolution=cfg.RGB_RESOLUTION)
+        cam_rear = OakDCameraBuilder() \
+                    .with_width(cfg.OAK_IMAGE_W) \
+                    .with_height(cfg.OAK_IMAGE_H) \
+                    .with_depth(cfg.OAK_IMAGE_DEPTH) \
+                    .with_isp_scale(cfg.OAK_D_ISP_SCALE) \
+                    .with_framerate(cfg.CAMERA_FRAMERATE) \
+                    .with_depth_crop_rect(cfg.OAK_DEPTH_CROP_RECT) \
+                    .with_enable_depth(cfg.OAK_REAR_ENABLE_DEPTH_MAP) \
+                    .with_enable_obstacle_dist(cfg.OAK_OBSTACLE_DETECTION_ENABLED) \
+                    .with_rgb_resolution(cfg.RGB_RESOLUTION) \
+                    .with_rgb_apply_cropping(cfg.RGB_APPLY_CROPPING) \
+                    .with_rgb_sensor_crop_x(cfg.RGB_SENSOR_CROP_X) \
+                    .with_rgb_sensor_crop_y(cfg.RGB_SENSOR_CROP_Y) \
+                    .with_rgb_video_size(cfg.RGB_VIDEO_SIZE) \
+                    .with_rgb_apply_manual_conf(cfg.RGB_APPLY_MANUAL_CONF) \
+                    .with_rgb_exposure_time(cfg.RGB_EXPOSURE_TIME) \
+                    .with_rgb_sensor_iso(cfg.RGB_SENSOR_ISO) \
+                    .with_rgb_wb_manual(cfg.RGB_WB_MANUAL) \
+                    .with_use_camera_tuning_blob(cfg.USE_CAMERA_TUNING_BLOB) \
+                    .with_enable_undistort_rgb(cfg.OAK_ENABLE_UNDISTORTED_RGB) \
+                    .with_pixel_crop_height(cfg.OAK_PIXEL_CROP_HEIGHT) \
+                    .with_device_id(cfg.OAK_REAR_ID) \
+                    .build()
+        outputs = ['cam_rear/image_array']
+        if cfg.OAK_REAR_ENABLE_DEPTH_MAP:
+            outputs += ['cam_rear/depth_array']
+        if cfg.OAK_REAR_ENABLE_UNDISTORTED_RGB:
+            outputs += ['cam_rear/undistorted_rgb']
+        if cfg.OAK_OBSTACLE_DETECTION_ENABLED:
+            outputs += ['cam_rear/obstacle_distances']
+        V.add(cam_rear, inputs=[], outputs=outputs, threaded=True)
+
 
 def add_camera(V, cfg, camera_type):
     """
@@ -914,6 +984,7 @@ def add_camera(V, cfg, camera_type):
                     .with_use_camera_tuning_blob(cfg.USE_CAMERA_TUNING_BLOB) \
                     .with_enable_undistort_rgb(cfg.OAK_ENABLE_UNDISTORTED_RGB) \
                     .with_pixel_crop_height(cfg.OAK_PIXEL_CROP_HEIGHT) \
+                    .with_device_id(cfg.OAK_ID) \
                     .build()
         outputs = ['cam/image_array']
         if cfg.OAK_ENABLE_DEPTH_MAP:
