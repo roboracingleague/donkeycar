@@ -41,7 +41,7 @@ MAX_LOOPS = None        # the vehicle loop can abort after this many iterations,
 CAMERA_TYPE = "OAK"   # (OAK|PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK|IMAGE_LIST)
 
 # OAK REAR CAMERA SETTINGS
-CAMERA_REAR_TYPE = "OAK_REAR"
+CAMERA_REAR_TYPE = None # (None|OAK_REAR)
 
 # OAK-D-LITE: "1080p" for rgb
 # OAK-D-WIDE: "800p" for rgb

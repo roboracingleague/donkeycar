@@ -372,6 +372,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
         # 
         if cfg.OBSTACLE_DETECTOR_ENABLED:
             detector_outputs = ['detector/obstacle_lane']
+            fused_detector_outputs = detector_outputs
             if not cfg.OBSTACLE_DETECTOR_MANUAL_LANE:
                 kd = dk.utils.get_model_by_type(cfg.OBSTACLE_DETECTOR_MODEL_TYPE, cfg)
                 load_model(kd, cfg.OBSTACLE_DETECTOR_MODEL_PATH)
@@ -391,8 +392,8 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None,
                     else:
                         inputs = ['cam_rear/image_array']
                     V.add(kd_rear, inputs=inputs, outputs=rear_detector_outputs, run_condition='run_pilot')
+                    fused_detector_outputs = detector_outputs + rear_detector_outputs
 
-            fused_detector_outputs = detector_outputs + rear_detector_outputs
             # Avoidance logic between obstacle_detector and KerasBehavioral
             from donkeycar.parts.avoidance_behavior import AvoidanceBehaviorPart
             abh = AvoidanceBehaviorPart(cfg)
