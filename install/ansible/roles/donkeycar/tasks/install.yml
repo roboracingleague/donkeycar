@@ -58,18 +58,29 @@
   tags:
     - pycuda
 
-- name: add pycuda includes on cpath on jetson nano
+- name: add pycuda includes on cpath on jetson nano to .bashrc
   lineinfile:
+    insertbefore: 'BOF' #at the begining of the .bashrc, to be sure it is evaluated event for non interactive shell
     path: "/home/{{ donkeycar_user }}/.bashrc"
     line: "export CPATH=/usr/local/cuda/include:$CPATH"
     state: "present"
   tags:
     - pycuda
 
-- name: add pycuda on lib path on jetson nano
+- name: add pycuda on lib path on jetson nano to .bashrc
   lineinfile:
+    insertbefore: 'BOF' #at the begining of the .bashrc, to be sure it is evaluated event for non interactive shell
     path: "/home/{{ donkeycar_user }}/.bashrc"
     line: "export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
+    state: "present"
+  tags:
+    - pycuda
+
+- name: add pycuda lib path on jetson nano to .bashrc for compile time 
+  lineinfile:
+    insertbefore: 'BOF' #at the begining of the .bashrc, to be sure it is evaluated event for non interactive shell
+    path: "/home/{{ donkeycar_user }}/.bashrc"
+    line: "export LIBRARY_PATH=/usr/local/cuda/lib64" #needed for pip install because wheel is rebuilt and need to find some libraries
     state: "present"
   tags:
     - pycuda
@@ -89,7 +100,7 @@
     state: present
   tags:
     - varenv
-
+     
 - name: install python requirements
   become: false
   pip:

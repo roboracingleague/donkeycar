@@ -39,7 +39,7 @@
     - regexp: "^#?ChallengeResponseAuthentication"
       line: "ChallengeResponseAuthentication no"
     - regexp: "^#?UsePAM"
-      line: "UsePAM no"
+      line: "UsePAM yes"
     - regexp: "^#?PermitEmptyPasswords"
       line: "PermitEmptyPasswords no"
   notify:
