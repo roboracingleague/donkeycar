@@ -49,6 +49,8 @@ donkeycar_orin_system_packages:
   - python3-libnvinfer-dev
   - cuda-profiler-api-11-4
   - nvidia-jetpack
+  - libpam-systemd
+  - dbus
   
 donkeycar_orin_pip_packages:
   - testresources==2.0.1
