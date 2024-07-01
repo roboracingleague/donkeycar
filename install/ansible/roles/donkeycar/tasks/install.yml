@@ -129,9 +129,3 @@
     virtualenv: "/home/{{ donkeycar_user }}/env"
   tags:
     - editable
-
-- name: download Luxonis Exp Limit patch
-  ansible.builtin.get_url:
-    url: https://artifacts.luxonis.com/artifactory/luxonis-depthai-data-local/misc/tuning_exp_limit_8300us.bin
-    dest: /home/donkey/uning_exp_limit_8300us.bin
-    mode: '440'
